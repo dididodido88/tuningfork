@@ -1,0 +1,36 @@
+---
+argument_specs:
+  main:
+    short_description: Common configuration for all Linux hosts
+    options:
+      linux_common_ntp_enabled: {type: bool, default: true}
+      linux_common_ntp_servers:
+        type: list
+        elements: str
+        default: []
+        description: NTP servers for chrony. Must not be empty when linux_common_ntp_enabled is true.
+      linux_common_ntp_server_options: {type: str, default: iburst}
+      linux_common_ntp_makestep: {type: str, default: "1.0 3"}
+      linux_common_ntp_minsources: {type: int, default: 1}
+      linux_common_ntp_rtcsync: {type: bool, default: true}
+      linux_common_ntp_package: {type: str, default: chrony}
+      linux_common_ntp_service: {type: str, default: chronyd}
+      linux_common_ntp_config_path: {type: path, default: /etc/chrony.conf}
+      linux_common_banner_enabled: {type: bool, default: true}
+      linux_common_banner_text: {type: str}
+      linux_common_banner_motd_text: {type: str}
+      linux_common_ipv6_manage: {type: bool, default: true}
+      linux_common_ipv6_enabled: {type: bool, default: false}
+      linux_common_ipv6_sysctl_file: {type: path, default: /etc/sysctl.d/70-tuningfork-ipv6.conf}
+      linux_common_journald_enabled: {type: bool, default: true}
+      linux_common_journald_storage:
+        type: str
+        default: persistent
+        choices: [volatile, persistent, auto, none]
+      linux_common_journald_compress: {type: bool, default: true}
+      linux_common_journald_max_retention: {type: str, default: 90day}
+      linux_common_journald_max_file_sec: {type: str, default: 1month}
+      linux_common_journald_system_max_use: {type: str, default: 2G}
+      linux_common_journald_system_keep_free: {type: str, default: 1G}
+      linux_common_journald_runtime_max_use: {type: str, default: 128M}
+      linux_common_journald_dropin: {type: path, default: /etc/systemd/journald.conf.d/zz-tuningfork.conf}

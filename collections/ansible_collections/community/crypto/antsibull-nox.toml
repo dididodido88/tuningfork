@@ -1,0 +1,398 @@
+# GNU General Public License v3.0+ (see LICENSES/GPL-3.0-or-later.txt or https://www.gnu.org/licenses/gpl-3.0.txt)
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2025 Felix Fontein <felix@fontein.de>
+
+[collection_sources]
+"community.general" = "git+https://github.com/ansible-collections/community.general.git,main"
+"community.internal_test_tools" = "git+https://github.com/ansible-collections/community.internal_test_tools.git,main"
+
+[collection_sources_per_ansible.'2.17']
+# community.general's main branch needs ansible-core >= 2.18
+"community.general" = "git+https://github.com/ansible-collections/community.general.git,stable-12"
+
+[collection_sources_per_ansible.'2.16']
+"community.general" = "git+https://github.com/ansible-collections/community.general.git,stable-11"
+
+[collection_sources_per_ansible.'2.15']
+"community.general" = "git+https://github.com/ansible-collections/community.general.git,stable-10"
+
+[collection_sources_per_ansible.'2.14']
+"community.general" = "git+https://github.com/ansible-collections/community.general.git,stable-9"
+
+[collection_sources_per_ansible.'2.13']
+"community.general" = "git+https://github.com/ansible-collections/community.general.git,stable-9"
+
+[collection_sources_per_ansible.'2.12']
+"community.general" = "git+https://github.com/ansible-collections/community.general.git,stable-7"
+
+[collection_sources_per_ansible.'2.11']
+"community.general" = "git+https://github.com/ansible-collections/community.general.git,stable-7"
+
+[collection_sources_per_ansible.'2.10']
+"community.general" = "git+https://github.com/ansible-collections/community.general.git,stable-4"
+
+[collection_sources_per_ansible.'2.9']
+"community.general" = "git+https://github.com/ansible-collections/community.general.git,stable-4"
+
+[vcs]
+vcs = "git"
+development_branch = "main"
+stable_branches = [ "stable-*" ]
+
+[sessions]
+
+[sessions.lint]
+run_isort = true
+isort_config = "tests/nox-config-isort.cfg"
+run_black = false
+run_flake8 = true
+flake8_config = "tests/nox-config-flake8.ini"
+run_pylint = false
+run_yamllint = true
+yamllint_config = ".yamllint"
+yamllint_config_plugins = ".yamllint-docs"
+yamllint_config_plugins_examples = ".yamllint-examples"
+yamllint_config_extra_docs = ".yamllint-extra-docs"
+run_mypy = false
+
+[sessions.docs_check]
+validate_collection_refs="all"
+
+[sessions.license_check]
+run_reuse = true
+
+[sessions.extra_checks]
+run_no_unwanted_files = true
+no_unwanted_files_module_extensions = [".py"]
+no_unwanted_files_yaml_extensions = [".yml"]
+run_action_groups = true
+
+[[sessions.extra_checks.action_groups_config]]
+name = "acme"
+pattern = "^acme_.*$"
+exclusions = [
+    "acme_ari_info",  # does not support ACME account
+    "acme_certificate_renewal_info",  # does not support ACME account
+    "acme_challenge_cert_helper",  # does not support (and need) any common parameters
+]
+doc_fragment = "community.crypto.attributes.actiongroup_acme"
+
+[sessions.build_import_check]
+run_galaxy_importer = true
+
+[sessions.ansible_test_sanity]
+include_devel = false
+max_version = "2.19"
+
+[sessions.ansible_test_units]
+include_devel = false
+max_version = "2.19"
+
+[sessions.ansible_test_integration]
+session_name_template = "ansible-test-integration-{ansible_core}{dash_docker_short}{dash_remote}{dash_python_version}{dash_target_dashized}"
+display_name_template = "Ⓐ{ansible_core}{plus_docker_nice}{plus_remote_nice}{plus_py_python_version}{plus_target_nice}"
+description_template = "Run integration tests with ansible-core {ansible_core}{comma_docker_nice}{comma_remote_nice}{comma_py_python_version}{comma_target_nice}"
+retry_on_error = "in-ci"
+
+[sessions.ansible_test_integration.nice_target_names]
+"azp/generic/1/" = "group 1"
+"azp/generic/2/" = "group 2"
+"azp/posix/1/" = "group 1"
+"azp/posix/2/" = "group 2"
+"azp/posix/vm/" = "extra VMs"
+
+[sessions.ansible_test_integration.nice_docker_names]
+"quay.io/ansible-community/test-image:debian-bullseye" = "Debian 11"
+"quay.io/ansible-community/test-image:debian-bookworm" = "Debian 12"
+"quay.io/ansible-community/test-image:debian-13-trixie" = "Debian 13"
+"quay.io/ansible-community/test-image:archlinux" = "Arch Linux"
+
+##################################################################################################
+
+# Ansible 2.9:
+
+[[sessions.ansible_test_integration.groups]]
+session_name = "ansible-test-integration-2.9"
+description = "Meta session for running all ansible-test-integration-2.9-* sessions."
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.9"
+target = [ "azp/posix/1/", "azp/posix/2/" ]
+docker = [ "ubuntu1804" ]
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.9"
+target = [ "azp/generic/1/", "azp/generic/2/" ]
+docker = [ "default" ]
+python_version = [ "2.7" ]
+
+# Ansible-base 2.10:
+
+[[sessions.ansible_test_integration.groups]]
+session_name = "ansible-test-integration-2.10"
+description = "Meta session for running all ansible-test-integration-2.10-* sessions."
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.10"
+target = [ "azp/posix/1/", "azp/posix/2/" ]
+docker = [ "centos6" ]
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.10"
+target = [ "azp/generic/1/", "azp/generic/2/" ]
+docker = [ "default" ]
+python_version = [ "3.6" ]
+
+# Ansible-core 2.11:
+
+[[sessions.ansible_test_integration.groups]]
+session_name = "ansible-test-integration-2.11"
+description = "Meta session for running all ansible-test-integration-2.11-* sessions."
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.11"
+target = [ "azp/posix/1/", "azp/posix/2/" ]
+docker = [ "alpine3" ]
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.11"
+target = [ "azp/generic/1/", "azp/generic/2/" ]
+docker = [ "default" ]
+python_version = [ "3.8" ]
+
+# Ansible-core 2.12:
+
+[[sessions.ansible_test_integration.groups]]
+session_name = "ansible-test-integration-2.12"
+description = "Meta session for running all ansible-test-integration-2.12-* sessions."
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.12"
+target = [ "azp/posix/1/", "azp/posix/2/" ]
+docker = [ "centos6", "fedora33" ]
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.12"
+target = [ "azp/generic/1/", "azp/generic/2/" ]
+docker = [ "default" ]
+python_version = [ "2.6", "3.9" ]
+
+# Ansible-core 2.13:
+
+[[sessions.ansible_test_integration.groups]]
+session_name = "ansible-test-integration-2.13"
+description = "Meta session for running all ansible-test-integration-2.13-* sessions."
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.13"
+target = [ "azp/posix/1/", "azp/posix/2/" ]
+docker = [ "opensuse15py2", "fedora35", "fedora34", "ubuntu1804", "alpine3" ]
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.13"
+target = [ "azp/generic/1/", "azp/generic/2/" ]
+docker = [ "default" ]
+python_version = [ "3.8" ]
+
+# Ansible-core 2.14:
+
+[[sessions.ansible_test_integration.groups]]
+session_name = "ansible-test-integration-2.14"
+description = "Meta session for running all ansible-test-integration-2.14-* sessions."
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.14"
+target = [ "azp/posix/1/", "azp/posix/2/" ]
+docker = [ "ubuntu2004" ]
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.14"
+target = [ "azp/generic/1/", "azp/generic/2/" ]
+docker = [ "default" ]
+python_version = [ "3.9" ]
+
+# Ansible-core 2.15:
+
+[[sessions.ansible_test_integration.groups]]
+session_name = "ansible-test-integration-2.15"
+description = "Meta session for running all ansible-test-integration-2.15-* sessions."
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.15"
+target = [ "azp/posix/1/", "azp/posix/2/" ]
+docker = [ "fedora37" ]
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.15"
+target = [ "azp/generic/1/", "azp/generic/2/" ]
+docker = [ "default" ]
+python_version = [ "3.5", "3.10" ]
+
+# Ansible-core 2.16:
+
+[[sessions.ansible_test_integration.groups]]
+session_name = "ansible-test-integration-2.16"
+description = "Meta session for running all ansible-test-integration-2.16-* sessions."
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.16"
+target = [ "azp/posix/1/", "azp/posix/2/" ]
+docker = [ "fedora38", "opensuse15", "alpine3" ]
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.16"
+target = [ "azp/generic/1/", "azp/generic/2/" ]
+docker = [ "default" ]
+python_version = [ "2.7", "3.6", "3.11" ]
+
+# Ansible-core 2.17:
+
+[[sessions.ansible_test_integration.groups]]
+session_name = "ansible-test-integration-2.17"
+description = "Meta session for running all ansible-test-integration-2.17-* sessions."
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.17"
+target = [ "azp/posix/1/", "azp/posix/2/" ]
+docker = [ "fedora39", "ubuntu2204", "alpine319" ]
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.17"
+target = [ "azp/generic/1/", "azp/generic/2/" ]
+docker = [ "default" ]
+python_version = [ "3.7", "3.12" ]
+
+# Ansible-core 2.18:
+
+[[sessions.ansible_test_integration.groups]]
+session_name = "ansible-test-integration-2.18"
+description = "Meta session for running all ansible-test-integration-2.18-* sessions."
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.18"
+target = [ "azp/posix/1/", "azp/posix/2/" ]
+docker = [ "fedora40", "ubuntu2404", "alpine320" ]
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.18"
+target = [ "azp/generic/1/", "azp/generic/2/" ]
+docker = [ "default" ]
+python_version = [ "3.8", "3.13" ]
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.18"
+target = [ "azp/posix/1/", "azp/posix/2/" ]
+remote = [
+    "macos/14.3",
+    # "freebsd/14.1"
+]
+
+# Ansible-core 2.19:
+
+[[sessions.ansible_test_integration.groups]]
+session_name = "ansible-test-integration-2.19"
+description = "Meta session for running all ansible-test-integration-2.19-* sessions."
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.19"
+target = [ "azp/posix/1/", "azp/posix/2/" ]
+docker = [
+    "fedora41",
+    "ubuntu2404",
+    "alpine321",
+]
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.19"
+target = [ "azp/generic/1/", "azp/generic/2/" ]
+docker = [ "default" ]
+python_version = [ "3.8", "3.11", "3.13" ]
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.19"
+target = [ "azp/posix/1/", "azp/posix/2/" ]
+python_version = "3.9"
+docker = "quay.io/ansible-community/test-image:debian-bullseye"
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.19"
+target = [ "azp/posix/1/", "azp/posix/2/" ]
+python_version = "3.11"
+docker = "quay.io/ansible-community/test-image:debian-bookworm"
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.19"
+target = [ "azp/posix/vm/" ]
+remote = [
+    "alpine/3.21",
+    "fedora/41",
+    "ubuntu/22.04",
+    "ubuntu/24.04",
+]
+
+[[sessions.ansible_test_integration.groups.sessions]]
+ansible_core = "2.19"
+target = [ "azp/posix/1/", "azp/posix/2/" ]
+remote = [
+    "rhel/10.1",
+    "rhel/9.7",
+    # "freebsd/14.2",
+    "freebsd/13.5",
+]
+
+##################################################################################################
+
+# [sessions.ansible_lint]
+
+[[sessions.ee_check.execution_environments]]
+name = "devel-ubi-10"
+description = "ansible-core devel @ RHEL UBI 10"
+test_playbooks = ["tests/ee/all.yml"]
+config.images.base_image.name = "docker.io/redhat/ubi10:latest"
+config.dependencies.ansible_core.package_pip = "https://github.com/ansible/ansible/archive/devel.tar.gz"
+config.dependencies.ansible_runner.package_pip = "ansible-runner"
+config.dependencies.python_interpreter.package_system = "python3.14 python3.14-pip python3.14-cryptography"
+config.dependencies.python_interpreter.python_path = "/usr/bin/python3.14"
+runtime_environment = {"ANSIBLE_PRIVATE_ROLE_VARS" = "true"}
+# For some reason ansible-builder will not install EPEL dependencies on RHEL
+runtime_extra_vars = { "has_no_pyopenssl" = "true" }
+
+[[sessions.ee_check.execution_environments]]
+name = "2.15-rocky-9"
+description = "ansible-core 2.15 @ Rocky Linux 9"
+test_playbooks = ["tests/ee/all.yml"]
+config.images.base_image.name = "quay.io/rockylinux/rockylinux:9"
+config.dependencies.ansible_core.package_pip = "https://github.com/ansible/ansible/archive/stable-2.15.tar.gz"
+config.dependencies.ansible_runner.package_pip = "ansible-runner"
+config.additional_build_steps.prepend_base = [
+    "RUN dnf install -y epel-release",
+]
+runtime_environment = {"ANSIBLE_PRIVATE_ROLE_VARS" = "true"}
+# For some reason ansible-builder will not install EPEL dependencies on Rocky Linux
+runtime_extra_vars = { "has_no_pyopenssl" = "true" }
+
+[[sessions.ee_check.execution_environments]]
+name = "2.14-centos-stream-9"
+description = "ansible-core 2.14 @ CentOS Stream 9"
+test_playbooks = ["tests/ee/all.yml"]
+config.images.base_image.name = "quay.io/centos/centos:stream9"
+config.dependencies.ansible_core.package_pip = "https://github.com/ansible/ansible/archive/stable-2.14.tar.gz"
+config.dependencies.ansible_runner.package_pip = "ansible-runner"
+config.additional_build_steps.prepend_base = [
+    "RUN dnf install -y epel-release epel-next-release",
+]
+runtime_environment = {"ANSIBLE_PRIVATE_ROLE_VARS" = "true"}
+# For some reason, PyOpenSSL is **broken** on CentOS Stream 9 / EPEL
+runtime_extra_vars = { "has_no_pyopenssl" = "true" }
+
+[[sessions.ee_check.execution_environments]]
+name = "2.13-ubi-8"
+description = "ansible-core 2.13 @ RHEL UBI 8"
+test_playbooks = ["tests/ee/all.yml"]
+config.images.base_image.name = "docker.io/redhat/ubi8:latest"
+config.dependencies.ansible_core.package_pip = "https://github.com/ansible/ansible/archive/stable-2.13.tar.gz"
+config.dependencies.ansible_runner.package_pip = "ansible-runner"
+config.dependencies.python_interpreter.package_system = "python39 python39-pip python39-wheel python39-cryptography"
+runtime_environment = {"ANSIBLE_PRIVATE_ROLE_VARS" = "true"}
+# We don't have PyOpenSSL for Python 3.9
+runtime_extra_vars = { "has_no_pyopenssl" = "true" }

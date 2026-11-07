@@ -1,0 +1,43 @@
+---
+# Org-wide defaults for every Linux host. Override per environment in
+# inventories/<ENV>/group_vars/linux.yml.
+
+# --- NTP (chrony) ---
+linux_common_ntp_enabled: true
+# Required: set per environment. A list of hostnames or IP addresses.
+linux_common_ntp_servers: []
+linux_common_ntp_server_options: iburst
+linux_common_ntp_makestep: "1.0 3"
+linux_common_ntp_minsources: 1
+linux_common_ntp_rtcsync: true
+linux_common_ntp_package: chrony
+linux_common_ntp_service: chronyd
+linux_common_ntp_config_path: /etc/chrony.conf
+
+# --- Login banners (/etc/motd, /etc/issue, /etc/issue.net) ---
+linux_common_banner_enabled: true
+# Keep OS details (\m \r \s \v) out of the banner; CIS 1.7.x checks for them.
+linux_common_banner_text: |-
+  Authorized users only. All activity may be monitored and reported.
+linux_common_banner_motd_text: "{{ linux_common_banner_text }}"
+
+# --- IPv6 ---
+linux_common_ipv6_manage: true
+# true = IPv6 enabled, false = IPv6 disabled via sysctl.
+linux_common_ipv6_enabled: false
+linux_common_ipv6_sysctl_file: /etc/sysctl.d/70-tuningfork-ipv6.conf
+
+# --- systemd-journald ---
+linux_common_journald_enabled: true
+# persistent = keep logs in /var/log/journal across reboots.
+linux_common_journald_storage: persistent
+linux_common_journald_compress: true
+# Retention period: entries older than this are deleted (MaxRetentionSec).
+linux_common_journald_max_retention: 90day
+# How long one journal file covers before it is rotated (MaxFileSec).
+linux_common_journald_max_file_sec: 1month
+linux_common_journald_system_max_use: 2G
+linux_common_journald_system_keep_free: 1G
+linux_common_journald_runtime_max_use: 128M
+# Named "zz-" so it is read after the CIS drop-ins and its values win.
+linux_common_journald_dropin: /etc/systemd/journald.conf.d/zz-tuningfork.conf

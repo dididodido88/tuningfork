@@ -1,0 +1,19 @@
+---
+# CRGS02: all Windows hosts (Server and Desktop). Connection over WinRM HTTPS.
+
+ansible_connection: winrm
+ansible_port: 5986
+ansible_winrm_scheme: https
+# ntlm works without Kerberos setup on the control node. For domain accounts
+# with Kerberos configured, use: kerberos
+ansible_winrm_transport: ntlm
+# Set to "validate" once the hosts' WinRM certificates are trusted by the control node.
+ansible_winrm_server_cert_validation: ignore
+ansible_user: "{{ vault_windows_ansible_user }}"
+ansible_password: "{{ vault_windows_ansible_password }}"
+
+# Common Windows configuration (roles/windows_common/defaults/main.yml).
+windows_common_ntp_enabled: true
+windows_common_ntp_servers: "{{ env_ntp_servers }}"
+windows_common_banner_enabled: true
+windows_common_banner_text: "{{ env_banner_text }}"

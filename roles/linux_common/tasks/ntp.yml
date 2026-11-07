@@ -1,0 +1,26 @@
+---
+- name: NTP | Check that NTP servers are defined
+  ansible.builtin.assert:
+    that: linux_common_ntp_servers | length > 0
+    fail_msg: linux_common_ntp_servers is empty. Set it in inventories/<ENV>/group_vars/linux.yml.
+    quiet: true
+
+- name: NTP | Install chrony
+  ansible.builtin.package:
+    name: "{{ linux_common_ntp_package }}"
+    state: present
+
+- name: NTP | Write chrony configuration
+  ansible.builtin.template:
+    src: chrony.conf.j2
+    dest: "{{ linux_common_ntp_config_path }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart chronyd
+
+- name: NTP | Enable and start chronyd
+  ansible.builtin.service:
+    name: "{{ linux_common_ntp_service }}"
+    state: started
+    enabled: true

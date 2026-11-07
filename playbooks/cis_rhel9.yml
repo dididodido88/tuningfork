@@ -1,0 +1,12 @@
+---
+# CIS RHEL 9 benchmark (ansible-lockdown RHEL9-CIS, vendored).
+# Rules handed over to linux_common: playbooks/group_vars/rocky9.yml
+# Environment settings: inventories/<ENV>/group_vars/rocky9.yml
+
+- name: Apply CIS RHEL 9 benchmark
+  hosts: rocky9
+  become: true
+  gather_facts: true
+  roles:
+    - role: RHEL9-CIS
+      tags: [cis]

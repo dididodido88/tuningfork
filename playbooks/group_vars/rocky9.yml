@@ -1,0 +1,35 @@
+---
+# How RHEL9-CIS and linux_common share settings. Applies to every environment.
+#
+# Variables in this playbook-level group_vars file override inventory group_vars,
+# so environments cannot change these. Change the linux_common_* values in
+# inventories/<ENV>/group_vars/linux.yml instead.
+#
+# When a linux_common area is enabled it owns that area and the matching CIS
+# remediation rule is turned off, so the two roles never write the same file.
+# When an area is disabled in linux_common, CIS manages it again.
+
+# NTP: linux_common writes /etc/chrony.conf (CIS 2.3.2).
+# CIS 2.3.1 (chrony installed) and 2.3.3 (chrony not running as root) stay on.
+rhel9cis_rule_2_3_2: "{{ not (linux_common_ntp_enabled | default(true) | bool) }}"
+rhel9cis_time_synchronization_servers: "{{ linux_common_ntp_servers | default([]) }}"
+
+# Banners: linux_common writes /etc/motd, /etc/issue, /etc/issue.net (CIS 1.7.1-1.7.3).
+# CIS 1.7.4-1.7.6 (file permissions) stay on. The GDM banner (if a GUI is present)
+# also uses this text.
+rhel9cis_rule_1_7_1: "{{ not (linux_common_banner_enabled | default(true) | bool) }}"
+rhel9cis_rule_1_7_2: "{{ not (linux_common_banner_enabled | default(true) | bool) }}"
+rhel9cis_rule_1_7_3: "{{ not (linux_common_banner_enabled | default(true) | bool) }}"
+rhel9cis_warning_banner: "{{ linux_common_banner_text | default('Authorized users only. All activity may be monitored and reported.') }}"
+
+# IPv6: linux_common sets disable_ipv6 (CIS 3.1.1). The CIS IPv6 network
+# rules (3.3.x) still follow whether IPv6 is in use.
+rhel9cis_rule_3_1_1: "{{ not (linux_common_ipv6_manage | default(true) | bool) }}"
+rhel9cis_ipv6_required: "{{ linux_common_ipv6_enabled | default(false) | bool }}"
+
+# journald: linux_common writes the rotation and retention drop-in (CIS 6.2.1.3).
+# CIS 6.2.2.3 (Compress) and 6.2.2.4 (Storage=persistent) stay on; linux_common's
+# zz-tuningfork.conf drop-in is read last, so its values win.
+rhel9cis_rule_6_2_1_3: "{{ not (linux_common_journald_enabled | default(true) | bool) }}"
+# Use journald as the logging service (2.2.0 defaults to rsyslog).
+rhel9cis_syslog: journald

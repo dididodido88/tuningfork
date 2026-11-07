@@ -1,0 +1,16 @@
+---
+# Org-wide defaults for every Windows host (Server and Desktop).
+# Override per environment in inventories/<ENV>/group_vars/windows.yml.
+
+# --- Time (W32Time) ---
+# Domain members normally sync from the domain hierarchy (NT5DS). Set this to
+# false where Group Policy or the domain hierarchy already manages time.
+windows_common_ntp_enabled: true
+windows_common_ntp_servers: []
+# 0x8 = client mode; 0x1 = use SpecialPollInterval.
+windows_common_ntp_flags: "0x8"
+
+# --- Logon banner (legal notice shown before sign-in) ---
+windows_common_banner_enabled: true
+windows_common_banner_caption: Authorized use only
+windows_common_banner_text: Authorized users only. All activity may be monitored and reported.

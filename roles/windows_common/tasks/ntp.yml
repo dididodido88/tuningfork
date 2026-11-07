@@ -1,0 +1,27 @@
+---
+- name: NTP | Check that NTP servers are defined
+  ansible.builtin.assert:
+    that: windows_common_ntp_servers | length > 0
+    fail_msg: windows_common_ntp_servers is empty. Set it in inventories/<ENV>/group_vars/windows.yml.
+    quiet: true
+
+- name: NTP | Set W32Time to use manual NTP peers
+  ansible.windows.win_regedit:
+    path: HKLM:\SYSTEM\CurrentControlSet\Services\W32Time\Parameters
+    name: "{{ item.name }}"
+    data: "{{ item.data }}"
+    type: string
+  loop:
+    - name: Type
+      data: NTP
+    - name: NtpServer
+      data: "{{ windows_common_ntp_servers | map('regex_replace', '$', ',' ~ windows_common_ntp_flags) | join(' ') }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Restart W32Time
+
+- name: NTP | Enable and start W32Time
+  ansible.windows.win_service:
+    name: W32Time
+    start_mode: auto
+    state: started

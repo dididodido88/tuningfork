@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+# Managed by the linux_common role. CIS rule 2.3.2 is handed over to this role.
+
+{% for server in linux_common_ntp_servers %}
+server {{ server }} {{ linux_common_ntp_server_options }}
+{% endfor %}
+
+driftfile /var/lib/chrony/drift
+makestep {{ linux_common_ntp_makestep }}
+{% if linux_common_ntp_rtcsync | bool %}
+rtcsync
+{% endif %}
+minsources {{ linux_common_ntp_minsources }}
+keyfile /etc/chrony.keys
+ntsdumpdir /var/lib/chrony
+leapsectz right/UTC
+logdir /var/log/chrony

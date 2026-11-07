@@ -1,0 +1,22 @@
+---
+# CRGS02: CIS settings for Rocky Linux 9 (roles/RHEL9-CIS/defaults/main.yml lists every option).
+# NTP, banner, IPv6 and journald come from linux.yml; see playbooks/group_vars/rocky9.yml.
+
+# Skip high-risk changes until each environment has been tested with them.
+rhel9cis_disruption_high: false
+
+rhel9cis_level_1: true
+rhel9cis_level_2: true
+
+# Internal mirrors usually don't sign repo metadata; keep repo_gpgcheck off.
+rhel9cis_rhel_default_repo: true
+
+rhel9cis_selinux_disable: false
+rhel9cis_firewall: firewalld
+
+# Never reboot hosts from the play.
+skip_reboot: true
+
+# The goss audit downloads from GitHub; keep it off in air-gapped environments.
+setup_audit: false
+run_audit: false

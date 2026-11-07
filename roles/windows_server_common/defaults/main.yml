@@ -1,0 +1,3 @@
+---
+# Org-wide defaults for Windows Server hosts.
+# Override per environment in inventories/<ENV>/group_vars/windows_server.yml.

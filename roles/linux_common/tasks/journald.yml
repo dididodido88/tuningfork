@@ -1,0 +1,27 @@
+---
+- name: Journald | Create drop-in directory
+  ansible.builtin.file:
+    path: "{{ linux_common_journald_dropin | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Journald | Create /var/log/journal for persistent storage
+  ansible.builtin.file:
+    path: /var/log/journal
+    state: directory
+    owner: root
+    group: systemd-journal
+    mode: "2755"
+  when: linux_common_journald_storage == 'persistent'
+  notify: Flush journal to disk
+
+- name: Journald | Write retention and storage settings
+  ansible.builtin.template:
+    src: journald.conf.j2
+    dest: "{{ linux_common_journald_dropin }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart journald

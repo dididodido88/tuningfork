@@ -1,0 +1,25 @@
+---
+# Full run, in layer order:
+#   1. CIS hardening      2. common OS config      3. server roles
+#
+#   ansible-playbook -i inventories/CRGS00 playbooks/site.yml
+#
+# Limit with --limit <group|host> or --tags <tag>.
+
+- name: CIS hardening
+  ansible.builtin.import_playbook: cis_rhel9.yml
+
+- name: Common Linux configuration
+  ansible.builtin.import_playbook: linux_common.yml
+
+- name: Common Windows configuration
+  ansible.builtin.import_playbook: windows_common.yml
+
+- name: NFS servers
+  ansible.builtin.import_playbook: nfs_server.yml
+
+- name: Database servers
+  ansible.builtin.import_playbook: database_server.yml
+
+- name: Nexus Repository servers
+  ansible.builtin.import_playbook: nexus_server.yml

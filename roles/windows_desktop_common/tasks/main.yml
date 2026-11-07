@@ -1,0 +1,8 @@
+---
+# Tasks for every Windows 11 Desktop host (inventory group: windows_desktop).
+# Runs after windows_common. Add task files here and import them, e.g.:
+#
+# - name: Configure <thing>
+#   ansible.builtin.import_tasks: <thing>.yml
+#   tags: [windows_desktop_common, <thing>]
+[]

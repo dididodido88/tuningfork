@@ -1,0 +1,8 @@
+---
+# Tasks for every Windows Server host (inventory group: windows_server).
+# Runs after windows_common. Add task files here and import them, e.g.:
+#
+# - name: Configure <thing>
+#   ansible.builtin.import_tasks: <thing>.yml
+#   tags: [windows_server_common, <thing>]
+[]

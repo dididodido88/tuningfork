@@ -1,0 +1,8 @@
+---
+# CRGS01: NFS servers (roles/nfs_server/defaults/main.yml).
+
+nfs_server_exports:
+  - path: /srv/nfs/share
+    clients:
+      - host: 198.51.100.0/24
+        options: rw,sync,root_squash

@@ -1,0 +1,20 @@
+---
+- name: Configure NTP
+  ansible.builtin.import_tasks: ntp.yml
+  when: linux_common_ntp_enabled | bool
+  tags: [linux_common, ntp]
+
+- name: Configure login banners
+  ansible.builtin.import_tasks: banner.yml
+  when: linux_common_banner_enabled | bool
+  tags: [linux_common, banner]
+
+- name: Configure IPv6
+  ansible.builtin.import_tasks: ipv6.yml
+  when: linux_common_ipv6_manage | bool
+  tags: [linux_common, ipv6]
+
+- name: Configure journald
+  ansible.builtin.import_tasks: journald.yml
+  when: linux_common_journald_enabled | bool
+  tags: [linux_common, journald]

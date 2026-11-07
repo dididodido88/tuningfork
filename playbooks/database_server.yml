@@ -1,0 +1,8 @@
+---
+- name: Configure database servers
+  hosts: db_servers
+  become: true
+  gather_facts: true
+  roles:
+    - role: database_server
+      tags: [database_server]

@@ -1,0 +1,3 @@
+---
+# Org-wide defaults for Windows 11 Desktop hosts.
+# Override per environment in inventories/<ENV>/group_vars/windows_desktop.yml.

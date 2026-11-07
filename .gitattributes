@@ -1,0 +1,5 @@
+# The control node is Linux: keep LF line endings even when edited on Windows.
+* text=auto eol=lf
+*.tar.gz binary
+*.zip binary
+*.png binary

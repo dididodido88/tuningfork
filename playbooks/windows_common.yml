@@ -1,0 +1,21 @@
+---
+- name: Common configuration for all Windows hosts
+  hosts: windows
+  gather_facts: true
+  roles:
+    - role: windows_common
+      tags: [windows_common]
+
+- name: Common configuration for all Windows Server hosts
+  hosts: windows_server
+  gather_facts: true
+  roles:
+    - role: windows_server_common
+      tags: [windows_server_common]
+
+- name: Common configuration for all Windows 11 Desktop hosts
+  hosts: windows_desktop
+  gather_facts: true
+  roles:
+    - role: windows_desktop_common
+      tags: [windows_desktop_common]

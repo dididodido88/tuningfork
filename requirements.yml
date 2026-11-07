@@ -1,0 +1,28 @@
+---
+# Record of the content vendored into this repository.
+# Nothing here is installed at run time: the control node is air-gapped and uses
+# ./collections and ./roles directly. Use this file only to refresh the vendored
+# copies from an internet-connected machine (see README.md, "Updating vendored content").
+#
+# Versions are the newest releases that support ansible-core 2.14 (the Rocky 9
+# AppStream version used on the control node).
+
+collections:
+  - name: ansible.posix
+    version: 1.6.1
+  - name: community.general
+    version: 9.5.13
+  - name: community.crypto
+    version: 2.26.9
+  - name: ansible.windows
+    version: 2.4.0
+  - name: community.windows
+    version: 2.2.0
+
+roles:
+  # Vendored at roles/RHEL9-CIS (see roles/RHEL9-CIS/VENDORED.md).
+  # 2.2.0 is the last release supporting ansible-core < 2.16; it implements CIS RHEL 9 benchmark v2.0.0.
+  - name: RHEL9-CIS
+    src: https://github.com/ansible-lockdown/RHEL9-CIS
+    scm: git
+    version: 2.2.0

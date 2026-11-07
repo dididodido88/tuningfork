@@ -1,0 +1,25 @@
+---
+- name: PostgreSQL | Install server from module stream
+  ansible.builtin.dnf:
+    name: "@postgresql:{{ database_server_postgresql_stream }}/server"
+    state: present
+
+- name: PostgreSQL | Initialise the database cluster
+  ansible.builtin.command: postgresql-setup --initdb
+  args:
+    creates: "{{ database_server_postgresql_data_dir }}/PG_VERSION"
+
+- name: PostgreSQL | Enable and start postgresql
+  ansible.builtin.service:
+    name: postgresql
+    state: started
+    enabled: true
+
+- name: PostgreSQL | Open firewall port
+  ansible.posix.firewalld:
+    port: "{{ database_server_postgresql_port }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+  when: database_server_manage_firewall | bool
+  tags: [firewall]

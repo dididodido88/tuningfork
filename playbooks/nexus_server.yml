@@ -1,0 +1,8 @@
+---
+- name: Configure Sonatype Nexus Repository servers
+  hosts: nexus_servers
+  become: true
+  gather_facts: true
+  roles:
+    - role: nexus_server
+      tags: [nexus_server]

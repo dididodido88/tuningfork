@@ -1,0 +1,12 @@
+---
+# Override per environment in inventories/<ENV>/group_vars/db_servers.yml.
+
+# Only postgresql is implemented. Add tasks/<engine>.yml to support another engine.
+database_server_engine: postgresql
+
+# PostgreSQL from the AppStream module stream on the internal mirror.
+database_server_postgresql_stream: "16"
+database_server_postgresql_data_dir: /var/lib/pgsql/data
+database_server_postgresql_port: 5432
+
+database_server_manage_firewall: true

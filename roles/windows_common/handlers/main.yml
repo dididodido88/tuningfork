@@ -1,0 +1,11 @@
+---
+- name: Restart W32Time
+  ansible.windows.win_service:
+    name: W32Time
+    state: restarted
+  notify: Resync time
+
+- name: Resync time
+  ansible.windows.win_command: w32tm /resync /force
+  changed_when: true
+  failed_when: false

@@ -1,0 +1,14 @@
+---
+- name: Restart chronyd
+  ansible.builtin.service:
+    name: "{{ linux_common_ntp_service }}"
+    state: restarted
+
+- name: Restart journald
+  ansible.builtin.systemd:
+    name: systemd-journald
+    state: restarted
+
+- name: Flush journal to disk
+  ansible.builtin.command: journalctl --flush
+  changed_when: true

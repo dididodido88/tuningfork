@@ -1,0 +1,10 @@
+---
+- name: Configure time
+  ansible.builtin.import_tasks: ntp.yml
+  when: windows_common_ntp_enabled | bool
+  tags: [windows_common, ntp]
+
+- name: Configure logon banner
+  ansible.builtin.import_tasks: banner.yml
+  when: windows_common_banner_enabled | bool
+  tags: [windows_common, banner]

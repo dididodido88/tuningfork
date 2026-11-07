@@ -1,0 +1,18 @@
+---
+# Settings shared by every host in CRGS02.
+
+env_name: CRGS02
+env_domain: example.internal
+
+# Internal time sources, used by linux.yml and windows.yml.
+env_ntp_servers:
+  - ntp1.example.internal
+  - ntp2.example.internal
+
+# Banner text shown on Linux and Windows logins.
+env_banner_text: >-
+  Authorized users only. All activity may be monitored and reported.
+
+# Internal mirror (e.g. Nexus) that serves packages and binaries in this
+# air-gapped environment.
+env_mirror_base_url: https://nexus.example.internal/repository

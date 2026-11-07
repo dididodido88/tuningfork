@@ -1,0 +1,11 @@
+---
+- name: Database | Check engine is supported
+  ansible.builtin.assert:
+    that: database_server_engine in ['postgresql']
+    fail_msg: "database_server_engine '{{ database_server_engine }}' is not implemented."
+    quiet: true
+  tags: [database_server]
+
+- name: Database | Configure {{ database_server_engine }}
+  ansible.builtin.include_tasks: "{{ database_server_engine }}.yml"
+  tags: [database_server]

@@ -1,0 +1,7 @@
+---
+# NFS servers need the NFS and rpcbind services. Stop CIS from removing or
+# masking them on these hosts, whatever an environment sets for rocky9.
+rhel9cis_nfs_server: true
+rhel9cis_nfs_mask: false
+rhel9cis_rpc_server: true
+rhel9cis_rpc_mask: false

@@ -1,0 +1,9 @@
+---
+# Secrets for CRGS01. Encrypt this file before committing real values:
+#   ansible-vault encrypt --vault-id CRGS01@prompt inventories/CRGS01/group_vars/all/vault.yml
+#
+# Refer to these through non-vault variables (e.g. windows.yml), never directly
+# from roles.
+
+vault_windows_ansible_user: CHANGEME
+vault_windows_ansible_password: CHANGEME

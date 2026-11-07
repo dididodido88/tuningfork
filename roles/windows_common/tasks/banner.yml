@@ -1,0 +1,14 @@
+---
+- name: Banner | Set legal notice caption and text
+  ansible.windows.win_regedit:
+    path: HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System
+    name: "{{ item.name }}"
+    data: "{{ item.data }}"
+    type: string
+  loop:
+    - name: legalnoticecaption
+      data: "{{ windows_common_banner_caption }}"
+    - name: legalnoticetext
+      data: "{{ windows_common_banner_text }}"
+  loop_control:
+    label: "{{ item.name }}"

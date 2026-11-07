@@ -1,0 +1,7 @@
+---
+# Vendored content is linted upstream, not here.
+exclude_paths:
+  - collections/
+  - roles/RHEL9-CIS/
+  - .ansible/
+profile: moderate

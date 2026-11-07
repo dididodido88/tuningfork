@@ -1,0 +1,19 @@
+---
+- name: Banner | Write /etc/motd
+  ansible.builtin.copy:
+    content: "{{ linux_common_banner_motd_text }}\n"
+    dest: /etc/motd
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Banner | Write /etc/issue and /etc/issue.net
+  ansible.builtin.copy:
+    content: "{{ linux_common_banner_text }}\n"
+    dest: "{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - /etc/issue
+    - /etc/issue.net

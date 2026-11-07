@@ -1,0 +1,20 @@
+---
+# CRGS02: all Linux hosts.
+
+ansible_user: ansible
+ansible_become: true
+
+# Common Linux configuration (roles/linux_common/defaults/main.yml lists every option).
+# Define these here, not only in role defaults: the CIS play reads them too.
+linux_common_ntp_enabled: true
+linux_common_ntp_servers: "{{ env_ntp_servers }}"
+
+linux_common_banner_enabled: true
+linux_common_banner_text: "{{ env_banner_text }}"
+
+linux_common_ipv6_manage: true
+linux_common_ipv6_enabled: false
+
+linux_common_journald_enabled: true
+linux_common_journald_storage: persistent
+linux_common_journald_max_retention: 90day

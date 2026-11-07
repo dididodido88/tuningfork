@@ -1,0 +1,14 @@
+# Fact cache and other local Ansible state (see ansible.cfg)
+.ansible/
+*.retry
+
+# Vault password files - never commit
+.vault_pass*
+*.vault_pass
+
+# Editors / OS
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+.DS_Store

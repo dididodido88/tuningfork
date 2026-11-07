@@ -1,0 +1,31 @@
+---
+# Sonatype Nexus Repository. Override per environment in
+# inventories/<ENV>/group_vars/nexus_servers.yml.
+
+# Required. Must match the top-level directory inside the tarball,
+# e.g. "3.70.1-02" for a tarball that unpacks to nexus-3.70.1-02/.
+nexus_server_version: ""
+# Required. Air-gapped: the tarball must be on an internal mirror.
+nexus_server_download_url: ""
+# Recommended, e.g. "sha256:<hash>". Leave empty to skip verification.
+nexus_server_download_checksum: ""
+nexus_server_validate_certs: true
+
+# Recent Nexus releases bundle their own JDK; leave this empty for those.
+# Set it (e.g. java-17-openjdk-headless) for releases that need a system Java.
+nexus_server_java_package: ""
+
+nexus_server_user: nexus
+nexus_server_group: nexus
+nexus_server_install_root: /opt/sonatype
+nexus_server_install_dir: "{{ nexus_server_install_root }}/nexus-{{ nexus_server_version }}"
+nexus_server_link: "{{ nexus_server_install_root }}/nexus"
+# The tarball unpacks sonatype-work/ next to nexus-<version>/.
+nexus_server_data_dir: "{{ nexus_server_install_root }}/sonatype-work"
+
+nexus_server_port: 8081
+nexus_server_jvm_min_heap: 2703m
+nexus_server_jvm_max_heap: 2703m
+nexus_server_jvm_max_direct_memory: 2703m
+
+nexus_server_manage_firewall: true
