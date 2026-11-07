@@ -1,0 +1,275 @@
+---
+# Runs before RHEL9-CIS. Changes only what is needed to keep access, and stops
+# the host if a lockout risk remains.
+
+# --- Connection account / PermitRootLogin (CIS 5.1.20) ---
+- name: Preflight | The Ansible account is not root
+  ansible.builtin.assert:
+    that: cis_safeguards_account != 'root'
+    fail_msg: >-
+      Ansible connects as root, but CIS 5.1.20 sets PermitRootLogin no. Connect as a
+      non-root account with sudo (ansible_user in group_vars/linux.yml).
+    quiet: true
+
+- name: Preflight | Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Preflight | Check whether the Ansible account is local
+  ansible.builtin.command: getent -s files passwd {{ cis_safeguards_account }}
+  register: cis_safeguards_account_local
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+# --- SSH access list (CIS 5.1.7) ---
+- name: Preflight | The Ansible account's SSH group is in the allowed groups
+  ansible.builtin.assert:
+    that:
+      - cis_safeguards_ssh_allow_groups | length > 0
+      - cis_safeguards_ssh_group in cis_safeguards_ssh_allow_groups
+    fail_msg: >-
+      cis_safeguards_ssh_allow_groups must be non-empty and contain
+      cis_safeguards_ssh_group ({{ cis_safeguards_ssh_group }}).
+    quiet: true
+
+- name: Preflight | Create the SSH access group
+  ansible.builtin.group:
+    name: "{{ cis_safeguards_ssh_group }}"
+    state: present
+
+- name: Preflight | Add the Ansible account to the SSH access group
+  ansible.builtin.user:
+    name: "{{ cis_safeguards_account }}"
+    groups: "{{ cis_safeguards_ssh_group }}"
+    append: true
+  when: cis_safeguards_account_local.rc == 0
+
+- name: Preflight | Read the Ansible account's groups
+  ansible.builtin.command: id -Gn {{ cis_safeguards_account }}
+  register: cis_safeguards_account_groups
+  changed_when: false
+  check_mode: false
+
+- name: Preflight | The Ansible account is in an allowed SSH group
+  ansible.builtin.assert:
+    # In check mode the group add above is only simulated, so count it as done.
+    that: >-
+      (cis_safeguards_account_groups.stdout.split() | intersect(cis_safeguards_ssh_allow_groups) | length > 0)
+      or (ansible_check_mode and cis_safeguards_account_local.rc == 0)
+    fail_msg: >-
+      {{ cis_safeguards_account }} is in none of {{ cis_safeguards_ssh_allow_groups }} and would
+      lose SSH access. Add it to one of them (domain accounts: in the directory).
+    quiet: true
+
+- name: Preflight | List local interactive users and their groups
+  ansible.builtin.shell: |
+    set -o pipefail
+    awk -F: '$3 >= 1000 && $3 < 65534 && $7 !~ /(nologin|false)$/ {print $1}' /etc/passwd |
+      while read -r u; do echo "$u:$(id -Gn "$u" | tr ' ' ',')"; done
+  register: cis_safeguards_local_users
+  changed_when: false
+  check_mode: false
+
+- name: Preflight | Work out which local users would lose SSH access
+  ansible.builtin.set_fact:
+    cis_safeguards_ssh_locked_out: >-
+      {%- set out = [] -%}
+      {%- for line in cis_safeguards_local_users.stdout_lines -%}
+      {%-   set user, groups = line.split(':', 1) -%}
+      {%-   if user != cis_safeguards_account
+             and user not in cis_safeguards_ssh_user_exceptions
+             and (groups.split(',') | intersect(cis_safeguards_ssh_allow_groups) | length == 0) -%}
+      {%-     set _ = out.append(user) -%}
+      {%-   endif -%}
+      {%- endfor -%}
+      {{ out | join(', ') }}
+
+- name: Preflight | No local user loses SSH access unexpectedly
+  ansible.builtin.assert:
+    that: cis_safeguards_ssh_locked_out | trim | length == 0
+    fail_msg: >-
+      These local users are in none of {{ cis_safeguards_ssh_allow_groups }} and would lose SSH
+      access: {{ cis_safeguards_ssh_locked_out }}. Add them to an allowed group, or
+      list them in cis_safeguards_ssh_user_exceptions if that is intended.
+    quiet: true
+  when: cis_safeguards_fail_on_unlisted_ssh_users | bool
+
+- name: Preflight | Warn about directory (SSSD) users
+  ansible.builtin.debug:
+    msg: >-
+      SSSD is active on this host. Directory users can only log in over SSH if they are in one of
+      {{ cis_safeguards_ssh_allow_groups }}; this check can't see them.
+  when: ansible_facts.services is defined and (ansible_facts.services['sssd.service'].state | default('')) == 'running'
+
+# sshd requires a user to match BOTH AllowUsers and AllowGroups when both are set.
+# Access is controlled by AllowGroups only, so remove any AllowUsers line
+# (an earlier CIS run with role defaults sets it to the Ansible account only).
+- name: Preflight | Remove AllowUsers from sshd_config
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^\s*AllowUsers\s'
+    state: absent
+    validate: sshd -t -f %s
+  notify: Restart sshd for safeguards
+
+# --- sudo (CIS 5.2.4 replaces NOPASSWD with PASSWD for accounts not excluded) ---
+- name: Preflight | Give the Ansible account a NOPASSWD sudoers drop-in
+  ansible.builtin.copy:
+    content: "{{ cis_safeguards_account }} ALL=(ALL) NOPASSWD: ALL\n"
+    dest: /etc/sudoers.d/90-{{ cis_safeguards_account | regex_replace('[^A-Za-z0-9_-]', '_') }}
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+  when: cis_safeguards_manage_sudoers | bool
+
+# --- Password ageing + inactive lock (CIS 5.4.1.x) ---
+- name: Preflight | Read the Ansible account's password expiry
+  ansible.builtin.shell: |
+    set -o pipefail
+    LANG=C chage -l {{ cis_safeguards_account }} | awk -F': ' '/^Password expires/ {print $2}'
+  register: cis_safeguards_account_expiry
+  changed_when: false
+  check_mode: false
+  when: cis_safeguards_account_local.rc == 0
+
+- name: Preflight | The Ansible account's password doesn't expire
+  ansible.builtin.assert:
+    that: cis_safeguards_account_expiry.stdout | trim in ['never', '']
+    fail_msg: >-
+      The password of {{ cis_safeguards_account }} expires ({{ cis_safeguards_account_expiry.stdout }}).
+      With CIS 5.4.1.5 the account is locked 30 days after expiry, which ends automation. Use a
+      key-only account (locked password) or set 'chage -M -1 {{ cis_safeguards_account }}'.
+    quiet: true
+  when:
+    - cis_safeguards_account_local.rc == 0
+    - cis_safeguards_fail_on_expiring_account | bool
+
+# --- Firewall (CIS 4.1.2 installs and starts firewalld) ---
+- name: Preflight | Install firewalld
+  ansible.builtin.package:
+    name: firewalld
+    state: present
+  when:
+    - cis_safeguards_manage_firewall_ssh | bool
+    - rhel9cis_firewall == 'firewalld'
+  register: cis_safeguards_firewalld_pkg
+
+- name: Preflight | Refresh service facts after installing firewalld
+  ansible.builtin.service_facts:
+  when: cis_safeguards_firewalld_pkg is changed
+
+- name: Preflight | Allow SSH in the default zone (firewalld running)
+  ansible.posix.firewalld:
+    zone: "{{ rhel9cis_default_zone }}"
+    port: "{{ cis_safeguards_ssh_port }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+  when:
+    - cis_safeguards_manage_firewall_ssh | bool
+    - rhel9cis_firewall == 'firewalld'
+    - (ansible_facts.services['firewalld.service'].state | default('')) == 'running'
+
+- name: Preflight | Allow SSH in the default zone (firewalld stopped)
+  ansible.posix.firewalld:
+    zone: "{{ rhel9cis_default_zone }}"
+    port: "{{ cis_safeguards_ssh_port }}/tcp"
+    permanent: true
+    offline: true
+    state: enabled
+  when:
+    - cis_safeguards_manage_firewall_ssh | bool
+    - rhel9cis_firewall == 'firewalld'
+    - (ansible_facts.services['firewalld.service'].state | default('')) != 'running'
+
+# --- Reverse-path filtering (CIS 3.3.7) ---
+- name: Preflight | Count IPv4 interfaces
+  ansible.builtin.set_fact:
+    cis_safeguards_ipv4_interfaces: >-
+      {{ ansible_facts.interfaces | reject('equalto', 'lo')
+         | map('regex_replace', '-', '_')
+         | map('extract', ansible_facts) | select('defined')
+         | selectattr('ipv4', 'defined') | map(attribute='device') | list }}
+
+- name: Preflight | Strict reverse-path filtering is safe on multi-homed hosts
+  ansible.builtin.assert:
+    that: >-
+      not (rhel9cis_rule_3_3_7 | bool)
+      or cis_safeguards_ipv4_interfaces | length < 2
+      or cis_safeguards_strict_rp_filter_confirmed | bool
+    fail_msg: >-
+      This host has several IPv4 interfaces ({{ cis_safeguards_ipv4_interfaces | join(', ') }}).
+      CIS 3.3.7 sets rp_filter=1, which drops traffic if routing is asymmetric. If routing is
+      symmetric set cis_safeguards_strict_rp_filter_confirmed: true in host_vars; otherwise set
+      rhel9cis_rule_3_3_7: false for this host.
+    quiet: true
+
+# --- IPv6 (linux_common may disable it) ---
+- name: Preflight | Not managed over IPv6 when IPv6 is being disabled
+  ansible.builtin.assert:
+    that: >-
+      (linux_common_ipv6_enabled | default(false) | bool)
+      or not (linux_common_ipv6_manage | default(true) | bool)
+      or (':' not in (ansible_host | default(inventory_hostname))
+          and ansible_facts.default_ipv4.address is defined)
+    fail_msg: >-
+      IPv6 is set to be disabled, but this host is managed over IPv6 or has no IPv4 default
+      route. Disabling IPv6 would cut the connection. Set linux_common_ipv6_enabled: true for it.
+    quiet: true
+
+# --- SELinux (CIS 1.3.1.x) ---
+# Going from disabled straight to enforcing on reboot, without relabelling, can stop
+# logins. Go to permissive and relabel first; the next CIS run sets enforcing.
+- name: Preflight | Use permissive SELinux for this run (SELinux currently disabled)
+  ansible.builtin.set_fact:
+    rhel9cis_selinux_enforce: permissive
+  when: ansible_facts.selinux.status | default('disabled') == 'disabled'
+
+- name: Preflight | Schedule a full SELinux relabel on next boot
+  ansible.builtin.file:
+    path: /.autorelabel
+    state: touch
+    mode: "0644"
+    modification_time: preserve
+    access_time: preserve
+  when: ansible_facts.selinux.status | default('disabled') == 'disabled'
+
+- name: Preflight | Explain the SELinux change
+  ansible.builtin.debug:
+    msg: >-
+      SELinux was disabled. It is set to permissive with a relabel on next boot. Reboot,
+      then run CIS again to set enforcing.
+  when: ansible_facts.selinux.status | default('disabled') == 'disabled'
+
+# --- authselect (CIS 5.3.2.1 replaces the PAM profile when disruption_high is on) ---
+- name: Preflight | Check the authselect profile
+  when:
+    - rhel9cis_disruption_high | bool
+    - rhel9cis_allow_authselect_updates | bool
+  block:
+    - name: Preflight | Read the current authselect profile
+      ansible.builtin.command: authselect current --raw
+      register: cis_safeguards_authselect
+      changed_when: false
+      check_mode: false
+      failed_when: false
+
+    - name: Preflight | The authselect profile can be replaced safely
+      vars:
+        cis_safeguards_profile: "{{ (cis_safeguards_authselect.stdout.split() + [''])[0] }}"
+        cis_safeguards_features: "{{ cis_safeguards_authselect.stdout.split()[1:] }}"
+      ansible.builtin.assert:
+        that:
+          - cis_safeguards_authselect.rc == 0
+          - >-
+            cis_safeguards_profile in cis_safeguards_authselect_allowed_profiles
+            or cis_safeguards_profile == 'custom/' ~ rhel9cis_authselect_custom_profile_name
+          - cis_safeguards_features | difference(cis_safeguards_authselect_cis_features) | length == 0
+        fail_msg: >-
+          authselect profile is '{{ cis_safeguards_authselect.stdout | default('none') }}'. CIS would
+          replace it with custom/{{ rhel9cis_authselect_custom_profile_name }} plus only
+          {{ cis_safeguards_authselect_cis_features }}, dropping anything else (e.g. with-mkhomedir,
+          with-smartcard) or overwriting unmanaged PAM files. Set rhel9cis_allow_authselect_updates: false
+          for this host, or rhel9cis_disruption_high: false.
+        quiet: true

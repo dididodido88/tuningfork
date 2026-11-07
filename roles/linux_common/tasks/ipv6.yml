@@ -1,4 +1,15 @@
 ---
+- name: IPv6 | Don't disable IPv6 on hosts managed over IPv6
+  ansible.builtin.assert:
+    that:
+      - "':' not in (ansible_host | default(inventory_hostname))"
+      - ansible_facts.default_ipv4.address is defined
+    fail_msg: >-
+      IPv6 is set to be disabled, but this host is managed over IPv6 or has no IPv4 default
+      route. Disabling IPv6 would cut the connection. Set linux_common_ipv6_enabled: true for it.
+    quiet: true
+  when: not (linux_common_ipv6_enabled | bool)
+
 - name: IPv6 | Set disable_ipv6 sysctls
   ansible.posix.sysctl:
     name: "{{ item }}"

@@ -40,6 +40,52 @@ overwriting each other, `playbooks/group_vars/rocky9.yml`:
 So each setting has one source: `inventories/<ENV>/group_vars/linux.yml`. If you disable a
 `linux_common` area, CIS manages it again.
 
+### CIS lockout safeguards
+
+Several CIS rules can cut off SSH, sudo or console login. The CIS play
+(`playbooks/cis_rhel9.yml`) protects access in three ways:
+
+1. **Pre-checks** (`roles/cis_safeguards/tasks/preflight.yml`) run before CIS. They fix what's
+   needed and **stop the host** if a risk remains.
+2. **Post-checks** (`verify.yml`) run after CIS and its handlers (sshd restart, crypto policy).
+   They drop the SSH connection, open a new one and run sudo.
+3. **Staged rollout**: 1 host, then 25%, then the rest (`serial`). With
+   `max_fail_percentage: 0`, any failure stops the remaining hosts.
+
+| Risk | CIS rule | Protection |
+|---|---|---|
+| SSH limited to the Ansible account only (role default `AllowUsers <ansible user>`) | 5.1.7 | `AllowUsers` cleared. Access is controlled by `AllowGroups` = `cis_safeguards_ssh_allow_groups`. The Ansible account is added to `sshusers`. The pre-check **stops** if a local interactive user is in none of the allowed groups. |
+| Leftover `AllowUsers` line (sshd then requires both lists) | 5.1.7 | Removed from `sshd_config`. The post-check confirms it's gone. |
+| Root SSH disabled while Ansible connects as root | 5.1.20 | The pre-check stops if `ansible_user` is root. |
+| `NOPASSWD` sudo changed to `PASSWD`, so `become` fails | 5.2.4 | The Ansible account gets `/etc/sudoers.d/90-<account>`, which is excluded from the change. |
+| Automation account password expires, then is locked by the inactive lock | 5.4.1.x | The pre-check stops if the Ansible account's password can expire. New ageing limits aren't forced on existing accounts. |
+| Firewall started without SSH allowed | 4.1.2 | The SSH port is added to the default zone before CIS starts firewalld. |
+| Strict reverse-path filter drops traffic on multi-homed hosts | 3.3.7 | The pre-check stops on hosts with more than one IPv4 interface unless `cis_safeguards_strict_rp_filter_confirmed: true`. |
+| IPv6 disabled on a host managed over IPv6 | linux_common / 3.x | `linux_common` and the pre-check stop if the host is reached over IPv6 or has no IPv4 default route. |
+| SELinux goes from disabled to enforcing without relabelling, and logins fail after reboot | 1.3.1.x | That run sets permissive and schedules `/.autorelabel` instead. Reboot, then run CIS again to set enforcing. |
+| PAM profile replaced, dropping features or overwriting unmanaged PAM | 5.3.2.x | Only runs when `rhel9cis_disruption_high: true` (off in every environment). If you turn it on, the pre-check stops hosts whose profile isn't plain `sssd`/`local`. |
+| Root locked out at the console after failed logins | 5.3.3.1.3 | Root unlocks automatically after `rhel9cis_root_unlock_time` (60 s). |
+| Host halts when the audit log disk fills | 6.3.2.3 / 6.3.2.4 | Audit logging is suspended and the event logged instead (`inventories/<ENV>/group_vars/rocky9.yml`). **This doesn't meet those two CIS controls.** Set `halt`/`single` if strict compliance matters more than uptime. |
+| GRUB password blocks console recovery | 1.4.1 | Stays off. |
+| Risky changes (`rhel9cis_disruption_high`) | many | Off in every environment. |
+
+Settings CIS still applies that change how people log in (not lockouts, but plan for them):
+
+- `DisableForwarding yes` (5.1.10): no port or agent forwarding, so a host can't be used as an SSH
+  jump host. Set `rhel9cis_rule_5_1_10: false` in host_vars for jump hosts.
+- `GSSAPIAuthentication no` (5.1.11): no Kerberos single sign-on over SSH. Keys and passwords still work.
+- `MaxAuthTries 4` (5.1.16): clients that try many keys fail. Use `IdentitiesOnly yes` client-side.
+- Crypto policy `NO-SHA1`, no CBC, no chacha20, no EtM for SSH (1.6.x): very old SSH clients can't connect.
+- `su` restricted to the empty `sugroup` (5.2.7): use `sudo` instead.
+- Idle shell timeout of 15 minutes (`TMOUT`, 5.4.3.2).
+- Removing X11 server packages (2.1.x) ends graphical login on any host that has one.
+- When IPv6 stays enabled, router advertisements are ignored (3.3.11). Hosts that get their IPv6
+  address from SLAAC lose it.
+
+**Keep console access** (hypervisor or out-of-band) to every host before the first CIS run: it's
+the recovery path if something still goes wrong. CIS backs up the PAM profile before it changes it
+(`authselect backup-list`).
+
 ## Layout
 
 ```
@@ -48,6 +94,7 @@ requirements.yml             record of vendored versions (used only to refresh t
 collections/                 VENDORED collections
 roles/
   RHEL9-CIS/                 VENDORED ansible-lockdown role (see VENDORED.md)
+  cis_safeguards/            pre-checks and post-checks around CIS (lockout protection)
   linux_common/              all Linux
   windows_common/            all Windows
   windows_server_common/     Windows Server only
@@ -123,7 +170,9 @@ These checks haven't been run yet. Run them on the control node:
 3. `ansible-playbook -i inventories/CRGS00 playbooks/site.yml --syntax-check`
 4. Connectivity: `ansible linux -i inventories/CRGS00 -m ping` and
    `ansible windows -i inventories/CRGS00 -m ansible.windows.win_ping`.
-5. On a test host, `--check --diff` first, then a real run.
+5. On a test host, `--check --diff` first, then a real run. Keep a console open to that host.
+   While CIS runs, keep a second SSH session open, then log in from a third as a normal
+   admin user and as the Ansible account.
 6. Run again: the second run should report `changed=0` (except tasks that always run, such as CIS audit commands).
 7. On a Rocky host: `chronyc sources`, `cat /etc/issue`, `sysctl net.ipv6.conf.all.disable_ipv6`,
    `systemd-analyze cat-config systemd/journald.conf`, and after a reboot `journalctl --list-boots`

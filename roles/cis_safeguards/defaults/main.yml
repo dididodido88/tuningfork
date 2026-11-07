@@ -1,0 +1,39 @@
+---
+# Checks that run around the RHEL9-CIS role so applying it can't cut off SSH,
+# sudo or console login. See README.md, "CIS lockout safeguards".
+#
+# The env-facing values are set in inventories/<ENV>/group_vars/rocky9.yml.
+# The matching rhel9cis_* settings are in playbooks/group_vars/rocky9.yml.
+
+# Account Ansible connects as. It must not be root (CIS sets PermitRootLogin no).
+cis_safeguards_account: "{{ ansible_user | default('ansible') }}"
+cis_safeguards_ssh_port: "{{ ansible_port | default(22) }}"
+
+# Groups allowed to log in over SSH (sshd AllowGroups, CIS 5.1.7).
+cis_safeguards_ssh_allow_groups: [sshusers, wheel]
+# Local group the Ansible account is added to; must be in the list above.
+cis_safeguards_ssh_group: sshusers
+
+# Stop if a local interactive user is in none of the allowed groups (they would lose SSH).
+cis_safeguards_fail_on_unlisted_ssh_users: true
+# Local users that are meant to lose SSH access.
+cis_safeguards_ssh_user_exceptions: []
+
+# Give the Ansible account a NOPASSWD sudoers drop-in that CIS 5.2.4 leaves alone.
+cis_safeguards_manage_sudoers: true
+
+# Stop if the Ansible account's password can expire (expiry + CIS inactive lock = lockout).
+cis_safeguards_fail_on_expiring_account: true
+
+# Make sure the firewall allows SSH before CIS turns firewalld on (CIS 4.1.2).
+cis_safeguards_manage_firewall_ssh: true
+
+# CIS 3.3.7 sets strict reverse-path filtering, which drops traffic on hosts with
+# asymmetric routing. Stop on hosts with more than one IPv4 interface unless confirmed.
+cis_safeguards_strict_rp_filter_confirmed: false
+
+# Only these authselect base profiles may be replaced by the CIS profile (when
+# rhel9cis_disruption_high is true). Hosts on anything else (winbind, unmanaged PAM) stop.
+cis_safeguards_authselect_allowed_profiles: [sssd, local]
+# Features CIS re-applies itself; any other feature on the current profile would be dropped.
+cis_safeguards_authselect_cis_features: [with-faillock, with-pwquality, with-pwhistory, without-nullok]

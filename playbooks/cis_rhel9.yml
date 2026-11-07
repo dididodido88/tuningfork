@@ -1,12 +1,37 @@
 ---
 # CIS RHEL 9 benchmark (ansible-lockdown RHEL9-CIS, vendored).
-# Rules handed over to linux_common: playbooks/group_vars/rocky9.yml
+# Rules handed over to linux_common and lockout protections: playbooks/group_vars/rocky9.yml
 # Environment settings: inventories/<ENV>/group_vars/rocky9.yml
+#
+# Lockout protection (roles/cis_safeguards):
+#   - pre_tasks stop a host before CIS runs if it would lose SSH, sudo or login access
+#   - post_tasks open a new SSH connection and run sudo after CIS and its handlers
+#   - serial rolls out to 1 host, then 25%, then the rest, and stops at the first failure
 
 - name: Apply CIS RHEL 9 benchmark
   hosts: rocky9
   become: true
   gather_facts: true
+  serial:
+    - 1
+    - "25%"
+    - "100%"
+  max_fail_percentage: 0
+
+  pre_tasks:
+    - name: CIS lockout pre-checks
+      ansible.builtin.import_role:
+        name: cis_safeguards
+        tasks_from: preflight
+      tags: [always]
+
   roles:
     - role: RHEL9-CIS
       tags: [cis]
+
+  post_tasks:
+    - name: CIS lockout post-checks
+      ansible.builtin.import_role:
+        name: cis_safeguards
+        tasks_from: verify
+      tags: [always]
