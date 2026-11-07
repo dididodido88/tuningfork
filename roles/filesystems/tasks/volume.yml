@@ -1,0 +1,190 @@
+---
+# One volume: partition -> filesystem -> (migrate) -> mount by UUID.
+# Variable: filesystems_volume (an entry of filesystems_volumes).
+
+- name: "Volume {{ filesystems_volume.mount }} | Create GPT partition 1 spanning the disk"
+  community.general.parted:
+    device: "{{ filesystems_volume.disk }}"
+    label: gpt
+    number: 1
+    name: "{{ filesystems_volume.partname }}"
+    part_start: 1MiB
+    part_end: "100%"
+    state: present
+
+- name: "Volume {{ filesystems_volume.mount }} | Wait for udev to create the partition link"
+  ansible.builtin.command: udevadm settle
+  changed_when: false
+
+- name: "Volume {{ filesystems_volume.mount }} | Check the partition exists"
+  ansible.builtin.stat:
+    path: "{{ filesystems_volume.part }}"
+  register: filesystems_part_stat
+
+- name: "Volume {{ filesystems_volume.mount }} | Partition not created yet (check mode)"
+  ansible.builtin.debug:
+    msg: "Would create {{ filesystems_volume.part }}, format it {{ filesystems_volume.fstype }} and mount it on {{ filesystems_volume.mount }}."
+  when: not filesystems_part_stat.stat.exists
+
+- name: "Volume {{ filesystems_volume.mount }} | Format, migrate and mount"
+  when: filesystems_part_stat.stat.exists
+  block:
+    - name: "Volume {{ filesystems_volume.mount }} | Create filesystem"
+      community.general.filesystem:
+        dev: "{{ filesystems_volume.part }}"
+        fstype: "{{ filesystems_volume.fstype }}"
+        opts: "{{ filesystems_volume.mkfs_opts | default(omit, true) }}"
+        force: false
+
+    - name: "Volume {{ filesystems_volume.mount }} | Read filesystem UUID"
+      ansible.builtin.command: blkid -s UUID -o value {{ filesystems_volume.part }}
+      register: filesystems_uuid
+      changed_when: false
+      check_mode: false
+      failed_when: filesystems_uuid.rc not in [0, 2]
+
+    - name: "Volume {{ filesystems_volume.mount }} | Filesystem not created yet (check mode)"
+      ansible.builtin.debug:
+        msg: "Would format {{ filesystems_volume.part }} as {{ filesystems_volume.fstype }} and mount it on {{ filesystems_volume.mount }}."
+      when: filesystems_uuid.stdout | length == 0
+
+    - name: "Volume {{ filesystems_volume.mount }} | Migrate and mount"
+      when: filesystems_uuid.stdout | length > 0
+      vars:
+        filesystems_src: "UUID={{ filesystems_uuid.stdout | trim }}"
+      block:
+        - name: "Volume {{ filesystems_volume.mount }} | Check what is mounted there now"
+          ansible.builtin.command: findmnt -nro UUID --mountpoint {{ filesystems_volume.mount }}
+          register: filesystems_current
+          changed_when: false
+          check_mode: false
+          failed_when: false
+
+        - name: "Volume {{ filesystems_volume.mount }} | Nothing else is mounted there"
+          ansible.builtin.assert:
+            that: >-
+              filesystems_current.rc != 0
+              or filesystems_current.stdout | trim == filesystems_uuid.stdout | trim
+            fail_msg: >-
+              {{ filesystems_volume.mount }} already has another filesystem mounted
+              (UUID '{{ filesystems_current.stdout | trim }}'). Unmount it or remove this volume.
+            quiet: true
+
+        - name: "Volume {{ filesystems_volume.mount }} | Look at the existing directory"
+          ansible.builtin.stat:
+            path: "{{ filesystems_volume.mount }}"
+          register: filesystems_dir
+
+        - name: "Volume {{ filesystems_volume.mount }} | Check whether the directory has content"
+          ansible.builtin.find:
+            paths: "{{ filesystems_volume.mount }}"
+            file_type: any
+            hidden: true
+            recurse: false
+          register: filesystems_dir_content
+          when:
+            - filesystems_current.rc != 0
+            - filesystems_dir.stat.exists
+
+        - name: "Volume {{ filesystems_volume.mount }} | Copy existing data onto the new filesystem"
+          when:
+            - filesystems_current.rc != 0
+            - filesystems_volume.migrate
+            - filesystems_dir.stat.exists
+            - filesystems_dir_content.matched | default(0) > 0
+          block:
+            - name: "Volume {{ filesystems_volume.mount }} | Create the temporary mount point"
+              ansible.builtin.file:
+                path: "{{ filesystems_volume.tmp }}"
+                state: directory
+                owner: root
+                group: root
+                mode: "0700"
+
+            - name: "Volume {{ filesystems_volume.mount }} | Mount temporarily"
+              ansible.posix.mount:
+                path: "{{ filesystems_volume.tmp }}"
+                src: "{{ filesystems_src }}"
+                fstype: "{{ filesystems_volume.fstype }}"
+                state: ephemeral
+
+            - name: "Volume {{ filesystems_volume.mount }} | Copy data (permissions, ACLs, xattrs, SELinux labels)"
+              ansible.builtin.command: >-
+                rsync -aAXHx --numeric-ids --delete
+                {{ filesystems_volume.mount }}/ {{ filesystems_volume.tmp }}/
+              changed_when: true
+
+            - name: "Volume {{ filesystems_volume.mount }} | Unmount the temporary mount"
+              ansible.posix.mount:
+                path: "{{ filesystems_volume.tmp }}"
+                state: unmounted
+
+            - name: "Volume {{ filesystems_volume.mount }} | Record that data was migrated"
+              ansible.builtin.set_fact:
+                filesystems_migrated: true
+
+        - name: "Volume {{ filesystems_volume.mount }} | Note pseudo-filesystems mounted below this path"
+          ansible.builtin.shell: |
+            set -o pipefail
+            findmnt -rno TARGET | awk -v m="{{ filesystems_volume.mount }}/" 'index($0, m) == 1'
+          register: filesystems_submounts
+          changed_when: false
+          check_mode: false
+          when: filesystems_current.rc != 0
+
+        - name: "Volume {{ filesystems_volume.mount }} | Note processes with files open under this path"
+          ansible.builtin.shell: |
+            find /proc/[0-9]*/fd -lname '{{ filesystems_volume.mount }}/*' 2>/dev/null |
+              cut -d/ -f3 | sort -u | tr '\n' ' '
+          register: filesystems_open_pids
+          changed_when: false
+          check_mode: false
+          when: filesystems_current.rc != 0
+
+        - name: "Volume {{ filesystems_volume.mount }} | Create the mount point"
+          ansible.builtin.file:
+            path: "{{ filesystems_volume.mount }}"
+            state: directory
+            mode: "{{ '1777' if filesystems_volume.mount in ['/tmp', '/var/tmp'] else '0755' }}"
+          when: not filesystems_dir.stat.exists
+
+        - name: "Volume {{ filesystems_volume.mount }} | Mount by UUID and add to fstab"
+          ansible.posix.mount:
+            path: "{{ filesystems_volume.mount }}"
+            src: "{{ filesystems_src }}"
+            fstype: "{{ filesystems_volume.fstype }}"
+            opts: "{{ filesystems_volume.opts }}"
+            dump: "0"
+            passno: "{{ filesystems_volume.passno | string }}"
+            state: mounted
+          register: filesystems_mount_result
+
+        - name: "Volume {{ filesystems_volume.mount }} | Set owner, group and mode of the mount root"
+          ansible.builtin.file:
+            path: "{{ filesystems_volume.mount }}"
+            state: directory
+            owner: "{{ filesystems_volume.owner | default(filesystems_dir.stat.pw_name | default('root'), true) }}"
+            group: "{{ filesystems_volume.group | default(filesystems_dir.stat.gr_name | default('root'), true) }}"
+            mode: >-
+              {{ filesystems_volume.mode | default(filesystems_dir.stat.mode | default(
+                 '1777' if filesystems_volume.mount in ['/tmp', '/var/tmp'] else '0755'), true) }}
+
+        # rsync -X already kept the labels; this fixes the new mount root and anything unlabelled.
+        - name: "Volume {{ filesystems_volume.mount }} | Restore SELinux labels"
+          ansible.builtin.command: restorecon -R -v {{ filesystems_volume.mount }}
+          register: filesystems_restorecon
+          changed_when: filesystems_restorecon.stdout | length > 0
+          when:
+            - ansible_facts.selinux.status | default('disabled') == 'enabled'
+            - filesystems_mount_result is changed
+
+        - name: "Volume {{ filesystems_volume.mount }} | Switch services and pseudo-mounts to the new filesystem"
+          ansible.builtin.include_tasks: after_migration.yml
+          when:
+            - filesystems_current.rc != 0
+            - filesystems_dir.stat.exists
+            - filesystems_dir_content.matched | default(0) > 0
+
+        - name: "Volume {{ filesystems_volume.mount }} | Reset migration marker"
+          ansible.builtin.set_fact:
+            filesystems_migrated: false

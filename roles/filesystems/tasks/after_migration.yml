@@ -1,0 +1,65 @@
+---
+# Runs once, right after a non-empty directory was mounted over (no reboot).
+# Processes that had files open there are still using the old copy underneath,
+# and pseudo-filesystems mounted below it (e.g. rpc_pipefs under /var/lib/nfs) are hidden.
+
+- name: "After {{ filesystems_volume.mount }} | Warn that existing data is now hidden"
+  ansible.builtin.debug:
+    msg: >-
+      {{ filesystems_volume.mount }} had content and migrate is false: the old files are
+      hidden under the new mount and still use space on the root filesystem.
+  when: not (filesystems_migrated | default(false) | bool)
+
+- name: "After {{ filesystems_volume.mount }} | Remount pseudo-filesystems hidden by the new mount"
+  ansible.builtin.shell: |
+    set -o pipefail
+    unit=$(systemd-escape --path --suffix=mount "{{ item }}")
+    if systemctl is-active --quiet "$unit"; then
+      systemctl restart "$unit" && echo "restarted $unit"
+    else
+      echo "no unit for {{ item }}" >&2; exit 3
+    fi
+  loop: "{{ filesystems_submounts.stdout_lines | default([]) }}"
+  register: filesystems_submount_restart
+  changed_when: filesystems_submount_restart.rc == 0
+  failed_when: false
+
+- name: "After {{ filesystems_volume.mount }} | Restart services so they write to the new filesystem"
+  ansible.builtin.command: >-
+    {{ 'service auditd restart' if item == 'auditd' else 'systemctl restart ' ~ item }}
+  loop: "{{ filesystems_restart_services[filesystems_volume.mount] | default([]) }}"
+  when:
+    - filesystems_migrated | default(false) | bool
+    - (ansible_facts.services[item ~ '.service'].state | default('')) == 'running'
+  changed_when: true
+
+- name: "After {{ filesystems_volume.mount }} | Flush the journal to disk"
+  ansible.builtin.command: journalctl --flush
+  changed_when: true
+  when:
+    - filesystems_migrated | default(false) | bool
+    - "'systemd-journald' in filesystems_restart_services[filesystems_volume.mount] | default([])"
+
+- name: "After {{ filesystems_volume.mount }} | Find processes still using the old copy"
+  ansible.builtin.shell: |
+    for p in {{ filesystems_open_pids.stdout | default('') }}; do
+      [ -d "/proc/$p" ] && echo "$p $(cat /proc/$p/comm)"
+    done
+    true
+  register: filesystems_stale
+  changed_when: false
+  check_mode: false
+
+- name: "After {{ filesystems_volume.mount }} | Report what still needs a restart"
+  ansible.builtin.debug:
+    msg: >-
+      These processes still have files open in the old {{ filesystems_volume.mount }}
+      (now hidden under the new mount): {{ filesystems_stale.stdout_lines | join('; ') }}.
+      {% if filesystems_submount_restart.results | default([]) | selectattr('rc', 'ne', 0) | list %}
+      Pseudo-filesystems that couldn't be remounted:
+      {{ filesystems_submount_restart.results | selectattr('rc', 'ne', 0) | map(attribute='item') | join(', ') }}.
+      {% endif %}
+      Restart them, or reboot at a convenient time.
+  when: >-
+    filesystems_stale.stdout_lines | length > 0
+    or filesystems_submount_restart.results | default([]) | selectattr('rc', 'ne', 0) | list | length > 0

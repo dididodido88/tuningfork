@@ -1,0 +1,111 @@
+---
+# Checks every volume before any disk is touched. A disk is used only if it is
+# blank, or already carries exactly the partition this role creates (re-runs).
+
+- name: Validate | No mount point or disk is listed twice
+  ansible.builtin.assert:
+    that:
+      - filesystems_volumes | map(attribute='mount') | unique | length == filesystems_volumes | length
+      - filesystems_volumes | map(attribute='disk') | unique | length == filesystems_volumes | length
+    fail_msg: "A mount point or disk appears more than once: {{ filesystems_volumes | map(attribute='mount') | list }}"
+    quiet: true
+
+- name: Validate | Filesystem types are supported
+  ansible.builtin.assert:
+    that: item.fstype in filesystems_supported_fstypes
+    fail_msg: "{{ item.mount }}: fstype '{{ item.fstype }}' isn't in filesystems_supported_fstypes {{ filesystems_supported_fstypes }}"
+    quiet: true
+  loop: "{{ filesystems_volumes }}"
+  loop_control:
+    label: "{{ item.mount }}"
+
+- name: Validate | Mount options don't cancel CIS options
+  ansible.builtin.assert:
+    that: >-
+      item.cis_opts | map('extract', filesystems_cis_conflicts) | intersect(item.user_opts) | length == 0
+    fail_msg: >-
+      {{ item.mount }}: mount_opts {{ item.user_opts }} cancel CIS options {{ item.cis_opts }}.
+      Remove them, or disable the matching rhel9cis_rule_1_1_2_* rule.
+    quiet: true
+  loop: "{{ filesystems_volumes }}"
+  loop_control:
+    label: "{{ item.mount }}"
+
+- name: Validate | /tmp on a disk needs CIS to leave tmp.mount alone
+  ansible.builtin.assert:
+    that: not (rhel9cis_tmp_svc | default(false) | bool)
+    fail_msg: /tmp is defined as a data disk, so rhel9cis_tmp_svc must be false (it would mount tmpfs over it).
+    quiet: true
+  when: "'/tmp' in filesystems_volumes | map(attribute='mount')"
+
+- name: Validate | Find the disks holding the OS (/, /boot, /boot/efi, swap)
+  ansible.builtin.shell: |
+    set -o pipefail
+    {
+      for m in / /boot /boot/efi; do
+        s=$(findmnt -no SOURCE "$m" 2>/dev/null) && lsblk -nsrpo NAME,TYPE "$s"
+      done
+      swapon --show=NAME --noheadings | while read -r s; do lsblk -nsrpo NAME,TYPE "$s"; done
+    } | awk '$2 == "disk" {print $1}' | sort -u
+  register: filesystems_os_disks
+  changed_when: false
+  check_mode: false
+
+- name: Validate | Inspect each disk
+  ansible.builtin.shell: |
+    set -o pipefail
+    d=$(readlink -e "{{ item.disk }}") || { echo "missing"; exit 3; }
+    sigs=$(wipefs -n --noheadings -o TYPE "$d" | tr '\n' ' ')
+    printf '{"real": "%s", "sigs": "%s", "lsblk": %s}\n' "$d" "$sigs" \
+      "$(lsblk -J -b -p -o NAME,TYPE,SIZE,PTTYPE,FSTYPE,MOUNTPOINT "$d")"
+  register: filesystems_disk_info
+  changed_when: false
+  check_mode: false
+  failed_when: false
+  loop: "{{ filesystems_volumes }}"
+  loop_control:
+    label: "{{ item.mount }} -> {{ item.disk }}"
+
+- name: Validate | Disk exists, is a whole disk and isn't an OS disk
+  vars:
+    vol: "{{ item.item }}"
+    info: "{{ item.stdout | from_json if item.rc == 0 else {} }}"
+    dev: "{{ info.lsblk.blockdevices[0] if item.rc == 0 else {} }}"
+  ansible.builtin.assert:
+    that:
+      - item.rc == 0
+      - dev.type == 'disk'
+      - info.real not in filesystems_os_disks.stdout_lines
+      - dev.size | int >= vol.min_size_gb * 1024 * 1024 * 1024
+    fail_msg: >-
+      {{ vol.mount }}: {{ vol.disk }} {{ 'does not exist' if item.rc != 0 else
+      'is not usable (type ' ~ dev.type ~ ', ' ~ (dev.size | int | human_readable) ~
+      ', OS disk: ' ~ (info.real in filesystems_os_disks.stdout_lines) ~ ', minimum ' ~ vol.min_size_gb ~ ' GB)' }}
+    quiet: true
+  loop: "{{ filesystems_disk_info.results }}"
+  loop_control:
+    label: "{{ item.item.mount }}"
+
+- name: Validate | Disk is blank, or already set up by this role
+  vars:
+    vol: "{{ item.item }}"
+    info: "{{ item.stdout | from_json }}"
+    dev: "{{ info.lsblk.blockdevices[0] }}"
+    children: "{{ dev.children | default([]) }}"
+    blank: >-
+      {{ dev.pttype is none and dev.fstype is none and children | length == 0 and info.sigs | trim == '' }}
+    ours: >-
+      {{ dev.pttype == 'gpt' and children | length == 1
+         and children[0].fstype in [none, vol.fstype]
+         and children[0].mountpoint in [none, vol.mount, vol.tmp] }}
+  ansible.builtin.assert:
+    that: blank | bool or ours | bool
+    fail_msg: >-
+      {{ vol.mount }}: {{ vol.disk }} ({{ info.real }}) already has data (partition table
+      '{{ dev.pttype }}', filesystem '{{ dev.fstype }}', {{ children | length }} partition(s),
+      signatures '{{ info.sigs | trim }}'). It won't be touched. Wipe it deliberately
+      (wipefs -a) if it really is the right disk.
+    quiet: true
+  loop: "{{ filesystems_disk_info.results }}"
+  loop_control:
+    label: "{{ item.item.mount }}"

@@ -1,10 +1,15 @@
 ---
 # Full run, in layer order:
-#   1. CIS hardening      2. common OS config      3. server roles
+#   0. data disks   1. CIS hardening   2. common OS config   3. server roles
 #
 #   ansible-playbook -i inventories/CRGS00 playbooks/site.yml
 #
 # Limit with --limit <group|host> or --tags <tag>.
+
+# Before CIS: CIS rewrites an fstab entry (dropping UUID=) if a mount lacks one of
+# its options, so the disks are mounted with those options first.
+- name: Data disks
+  ansible.builtin.import_playbook: filesystems.yml
 
 - name: CIS hardening
   ansible.builtin.import_playbook: cis_rhel9.yml

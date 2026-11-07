@@ -1,0 +1,12 @@
+---
+# Data disks: partition, format, migrate existing data and mount by UUID.
+# Runs before CIS (see site.yml) so CIS finds the partitions with its options already set.
+# Volumes: filesystems_volumes__* variables (see roles/filesystems/defaults/main.yml).
+
+- name: Set up data disks
+  hosts: linux
+  become: true
+  gather_facts: true
+  roles:
+    - role: filesystems
+      tags: [filesystems]

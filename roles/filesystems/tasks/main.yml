@@ -1,0 +1,79 @@
+---
+- name: Storage | Collect volume definitions
+  ansible.builtin.set_fact:
+    filesystems_volumes_raw: "{{ query('vars', *query('varnames', '^filesystems_volumes__.+')) | flatten }}"
+  tags: [filesystems]
+
+- name: Storage | Manage data disks
+  when: filesystems_volumes_raw | length > 0
+  tags: [filesystems]
+  block:
+    - name: Storage | Check every volume has a mount point and a disk
+      ansible.builtin.assert:
+        that:
+          - item.mount is defined and item.mount is string and item.mount is match('^/.')
+          - item.disk is defined and item.disk is match('^/dev/disk/by-(path|id)/')
+        fail_msg: >-
+          Each volume needs an absolute 'mount' and a 'disk' under /dev/disk/by-path/ or
+          /dev/disk/by-id/ (device names like /dev/sdb can change between boots): {{ item }}
+        quiet: true
+      loop: "{{ filesystems_volumes_raw }}"
+      loop_control:
+        label: "{{ item.mount | default('?') }}"
+
+    - name: Storage | Fill in defaults and order parents before children
+      ansible.builtin.set_fact:
+        filesystems_volumes: >-
+          {%- set out = [] -%}
+          {%- for v in filesystems_volumes_raw -%}
+          {%-   set m = v.mount | regex_replace('/+$', '') -%}
+          {%-   set fstype = v.fstype | default(filesystems_default_fstype) -%}
+          {%-   set cis = [] -%}
+          {%-   if filesystems_apply_cis_options | bool -%}
+          {%-     for opt, rule in (filesystems_cis_mount_options[m] | default({})).items() -%}
+          {%-       if lookup('vars', rule, default=true) | bool -%}{%- set _ = cis.append(opt) -%}{%- endif -%}
+          {%-     endfor -%}
+          {%-   endif -%}
+          {%-   set _ = out.append({
+                  'mount': m,
+                  'disk': v.disk,
+                  'part': v.disk ~ '-part1',
+                  'fstype': fstype,
+                  'mkfs_opts': ((v.mkfs_opts | default('')) ~ ((' -L ' ~ v.label) if v.label is defined else '')) | trim,
+                  'label': v.label | default(''),
+                  'partname': v.label | default(m | regex_replace('^/', '') | regex_replace('/', '-')),
+                  'user_opts': v.mount_opts | default([]),
+                  'cis_opts': cis,
+                  'opts': (filesystems_default_mount_opts + (v.mount_opts | default([])) + cis) | unique | join(','),
+                  'passno': filesystems_passno[fstype] | default(filesystems_passno.default),
+                  'owner': v.owner | default(''),
+                  'group': v.group | default(''),
+                  'mode': (v.mode | default('')) | string,
+                  'migrate': v.migrate | default(filesystems_migrate) | bool,
+                  'min_size_gb': v.min_size_gb | default(0) | int,
+                  'tmp': filesystems_tmp_dir ~ '/' ~ (m | regex_replace('^/', '') | regex_replace('/', '-')),
+                  'depth': m.split('/') | length
+                }) -%}
+          {%- endfor -%}
+          {{ out | sort(attribute='depth') }}
+
+    - name: Storage | Install tools
+      ansible.builtin.package:
+        name: "{{ filesystems_packages }}"
+        state: present
+
+    - name: Storage | Gather service facts
+      ansible.builtin.service_facts:
+
+    - name: Storage | Validate all volumes before changing anything
+      ansible.builtin.import_tasks: validate.yml
+
+    - name: Storage | Partition, format, migrate and mount
+      ansible.builtin.include_tasks: volume.yml
+      loop: "{{ filesystems_volumes }}"
+      loop_control:
+        loop_var: filesystems_volume
+        label: "{{ filesystems_volume.mount }}"
+
+    - name: Storage | Verify mounts
+      ansible.builtin.import_tasks: verify.yml

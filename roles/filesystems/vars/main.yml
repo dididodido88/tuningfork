@@ -1,0 +1,34 @@
+---
+# Mount options required by the CIS RHEL 9 benchmark (vendored RHEL9-CIS 2.2.0),
+# mapped to the rule variable that turns each one on. An option is added only
+# while its rule is enabled, so disabling a rule in inventory or
+# playbooks/group_vars also drops the option here.
+filesystems_cis_mount_options:
+  /tmp:
+    nodev: rhel9cis_rule_1_1_2_1_2
+    nosuid: rhel9cis_rule_1_1_2_1_3
+    noexec: rhel9cis_rule_1_1_2_1_4
+  /home:
+    nodev: rhel9cis_rule_1_1_2_3_2
+    nosuid: rhel9cis_rule_1_1_2_3_3
+  /var:
+    nodev: rhel9cis_rule_1_1_2_4_2
+    nosuid: rhel9cis_rule_1_1_2_4_3
+  /var/tmp:
+    nodev: rhel9cis_rule_1_1_2_5_2
+    nosuid: rhel9cis_rule_1_1_2_5_3
+    noexec: rhel9cis_rule_1_1_2_5_4
+  /var/log:
+    nodev: rhel9cis_rule_1_1_2_6_2
+    nosuid: rhel9cis_rule_1_1_2_6_3
+    noexec: rhel9cis_rule_1_1_2_6_4
+  /var/log/audit:
+    nodev: rhel9cis_rule_1_1_2_7_2
+    nosuid: rhel9cis_rule_1_1_2_7_3
+    noexec: rhel9cis_rule_1_1_2_7_4
+
+# A user-supplied option that cancels a CIS option.
+filesystems_cis_conflicts:
+  nodev: dev
+  nosuid: suid
+  noexec: exec

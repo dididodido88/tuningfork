@@ -1,0 +1,52 @@
+---
+# Data disks: partition, format and mount blank disks by UUID.
+#
+# Volumes come from every variable whose name starts with "filesystems_volumes__",
+# merged together, so each group_vars/host_vars level can add its own:
+#   inventories/<ENV>/group_vars/linux.yml        filesystems_volumes__base
+#   inventories/<ENV>/group_vars/db_servers.yml   filesystems_volumes__db
+#   inventories/<ENV>/host_vars/<host>.yml        filesystems_volumes__host
+#
+# Each volume:
+#   - mount: /var/log                          required; absolute path
+#     disk: /dev/disk/by-path/pci-...-scsi-0:0:2:0
+#                                              required; stable path to the WHOLE disk
+#                                              (/dev/disk/by-path/... or /dev/disk/by-id/...)
+#     fstype: ext4                             optional; default filesystems_default_fstype
+#     mkfs_opts: "-m 1"                        optional; extra mkfs options
+#     label: varlog                            optional; filesystem label (ext4 max 16, xfs max 12 chars)
+#     mount_opts: [noatime]                    optional; added to the defaults and CIS options
+#     owner: root                              optional; owner/group/mode of the mount root
+#     group: root                                (default: copied from the existing directory,
+#     mode: "0755"                                else root:root 0755, or 1777 for /tmp and /var/tmp)
+#     migrate: true                            optional; copy existing content onto the new disk
+#     min_size_gb: 20                          optional; refuse disks smaller than this
+
+filesystems_default_fstype: ext4
+# Filesystems whose mkfs tools are installed below. Add more (and their packages) as needed.
+filesystems_supported_fstypes: [ext4, xfs]
+filesystems_packages: [parted, e2fsprogs, xfsprogs, rsync, util-linux]
+
+filesystems_default_mount_opts: [defaults]
+
+# Copy what is already in the directory onto the new filesystem before mounting over it.
+filesystems_migrate: true
+
+# Add the CIS 1.1.2.x options (nodev, nosuid, noexec) for the mount points CIS checks,
+# so CIS finds nothing to change and leaves the UUID-based fstab entry alone.
+filesystems_apply_cis_options: "{{ 'rocky9' in group_names }}"
+
+# Services restarted after migrating a mount point, so they write to the new filesystem
+# rather than the copy hidden underneath. Only services that are running are restarted.
+filesystems_restart_services:
+  /var: [systemd-journald, rsyslog, auditd, chronyd]
+  /var/log: [systemd-journald, rsyslog]
+  /var/log/audit: [auditd]
+
+# Temporary mount location used while copying data.
+filesystems_tmp_dir: /mnt/.filesystems
+
+# fsck pass number per filesystem type (xfs doesn't use fsck at boot).
+filesystems_passno:
+  xfs: 0
+  default: 2

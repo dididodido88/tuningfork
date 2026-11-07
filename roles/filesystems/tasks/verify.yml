@@ -1,0 +1,49 @@
+---
+# Every managed path is mounted from its partition, by UUID in fstab, with every
+# requested option in fstab and every CIS option active on the live mount.
+
+- name: Verify | Read live mounts and fstab entries
+  ansible.builtin.shell: |
+    set -o pipefail
+    printf '%s|%s|%s|%s|%s\n' \
+      "$(findmnt -nro UUID --mountpoint '{{ item.mount }}' || true)" \
+      "$(blkid -s UUID -o value '{{ item.part }}' 2>/dev/null || true)" \
+      "$(findmnt -nro OPTIONS --mountpoint '{{ item.mount }}' || true)" \
+      "$(awk -v m='{{ item.mount }}' '$1 !~ /^#/ && $2 == m {print $1}' /etc/fstab | tr '\n' ' ')" \
+      "$(awk -v m='{{ item.mount }}' '$1 !~ /^#/ && $2 == m {print $4}' /etc/fstab | head -1)"
+  register: filesystems_verify
+  changed_when: false
+  check_mode: false
+  loop: "{{ filesystems_volumes }}"
+  loop_control:
+    label: "{{ item.mount }}"
+  when: not ansible_check_mode
+
+- name: Verify | Mounted by UUID with the required options
+  vars:
+    f: "{{ item.stdout.split('|') }}"
+    live_opts: "{{ f[2].split(',') }}"
+    fstab_opts: "{{ f[4].split(',') }}"
+  ansible.builtin.assert:
+    that:
+      - f[1] | length > 0
+      - f[0] == f[1]
+      - f[3] | trim == 'UUID=' ~ f[1]
+      - item.item.opts.split(',') | difference(fstab_opts) | length == 0
+      - item.item.cis_opts | difference(live_opts) | length == 0
+    fail_msg: >-
+      {{ item.item.mount }}: mounted UUID '{{ f[0] }}', partition UUID '{{ f[1] }}',
+      fstab source '{{ f[3] | trim }}' (expected exactly one line 'UUID={{ f[1] }}'),
+      missing in fstab {{ item.item.opts.split(',') | difference(fstab_opts) }},
+      CIS options not active {{ item.item.cis_opts | difference(live_opts) }}.
+    quiet: true
+  loop: "{{ filesystems_verify.results }}"
+  loop_control:
+    label: "{{ item.item.mount }}"
+  when: not ansible_check_mode
+
+- name: Verify | fstab is consistent
+  ansible.builtin.command: findmnt --verify --tab-file /etc/fstab
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode

@@ -10,6 +10,7 @@ Each host gets three layers, applied in this order by `playbooks/site.yml`:
 
 | Layer | What | Applies to | Playbook | Role(s) |
 |---|---|---|---|---|
+| 0. Data disks | Partition, format and mount blank disks by UUID | `linux` | `filesystems.yml` | `filesystems` |
 | 1. Hardening | CIS RHEL 9 benchmark (ansible-lockdown) | `rocky9` | `cis_rhel9.yml` | `RHEL9-CIS` (vendored) |
 | 2. Common OS | Settings every host of an OS family gets | `linux`, `windows`, `windows_server`, `windows_desktop` | `linux_common.yml`, `windows_common.yml` | `linux_common`, `windows_common`, `windows_server_common`, `windows_desktop_common` |
 | 3. Server role | What the host is for | `nfs_servers`, `db_servers`, `nexus_servers` | `nfs_server.yml`, `database_server.yml`, `nexus_server.yml` | `nfs_server`, `database_server`, `nexus_server` |
@@ -86,6 +87,76 @@ Settings CIS still applies that change how people log in (not lockouts, but plan
 the recovery path if something still goes wrong. CIS backs up the PAM profile before it changes it
 (`authselect backup-list`).
 
+## Data disks (`filesystems`)
+
+New Rocky 9 instances get blank disks for `/var`, `/var/log`, `/var/log/audit`, `/home`, `/tmp` and
+server-role paths. `playbooks/filesystems.yml` (first in `site.yml`) sets each one up:
+
+1. **Validate all volumes first.** Nothing is changed if any check fails:
+   - every disk is given by a stable `/dev/disk/by-path/…` or `/dev/disk/by-id/…` path and is a whole disk;
+   - it isn't the disk holding `/`, `/boot` or swap, and it isn't smaller than `min_size_gb`;
+   - no mount point or disk is listed twice, and the filesystem type is supported;
+   - no mount option cancels a CIS option.
+
+   A disk is used only if it is **blank**, or already holds exactly the one partition this role creates.
+   A disk with any other data is never touched.
+2. **Partition**: GPT with one partition from 1 MiB to the end, named after the label or mount point.
+3. **Format**: ext4 by default (`fstype: xfs` and others are supported). An existing filesystem is never
+   reformatted.
+4. **Migrate**: if the directory already has content, the new filesystem is mounted at a temporary path
+   and the data copied across with `rsync -aAXHx`, which keeps permissions, ACLs, xattrs and SELinux labels.
+5. **Mount by UUID**: the fstab entry is `UUID=…`, so it doesn't depend on device names. Options are
+   `defaults` + the volume's `mount_opts` + the CIS options for that path.
+6. **Without a reboot**:
+   - services listed in `filesystems_restart_services` (journald, rsyslog, auditd, chronyd) are
+     restarted so they write to the new filesystem;
+   - pseudo-filesystems below the path (e.g. `rpc_pipefs`) are remounted;
+   - any other process still using the old copy is listed, so you can restart it or reboot when convenient.
+7. **Verify**: each path is mounted from its partition, fstab has exactly one `UUID=` line with every
+   option, the CIS options are active, and `findmnt --verify` passes.
+
+Define volumes in any variable named `filesystems_volumes__<something>`. Every such variable is combined,
+so levels add up instead of replacing each other:
+
+```yaml
+# inventories/<ENV>/group_vars/linux.yml
+filesystems_volumes__base:
+  - mount: /var/log
+    disk: /dev/disk/by-path/pci-0000:03:00.0-scsi-0:0:2:0   # `ls -l /dev/disk/by-path/` on the host
+    fstype: ext4          # optional, default ext4
+    mount_opts: [noatime] # optional, added to defaults + CIS options
+    label: varlog         # optional
+    min_size_gb: 20       # optional guard against the wrong disk
+# inventories/<ENV>/group_vars/db_servers.yml
+filesystems_volumes__db:
+  - {mount: /var/lib/pgsql, disk: /dev/disk/by-path/...-scsi-0:0:8:0, fstype: xfs, owner: postgres, group: postgres, mode: "0700"}
+```
+
+All fields are described in `roles/filesystems/defaults/main.yml`. The examples in each environment
+are commented out: add the real disk paths for your VM layout.
+
+**How it works with CIS.** CIS 1.1.2.x requires `nodev`/`nosuid`/`noexec` on `/tmp`, `/home`, `/var`,
+`/var/tmp`, `/var/log` and `/var/log/audit`. When one is missing, the CIS handler rewrites that fstab line
+using the device path (`/dev/sdb1`), which **drops `UUID=`**. So `filesystems`:
+
+- runs before CIS;
+- adds the CIS options itself (table in `roles/filesystems/vars/main.yml`). Each option is added only while
+  its `rhel9cis_rule_1_1_2_*` rule is enabled, so a rule you disable also drops the option;
+- refuses `mount_opts` such as `exec` that would cancel an enabled CIS option.
+
+CIS then finds nothing to change. The CIS post-check (`cis_safeguards`) also fails if any data-disk entry
+lost `UUID=`. A disk-based `/tmp` requires `rhel9cis_tmp_svc: false` (the default).
+
+**Things to know**
+
+- After migration the original files stay on the root filesystem, hidden under the new mount. They are
+  harmless, but use space. Free it later, e.g. `mount --bind / /mnt/root` and remove
+  `/mnt/root/var/log/*` (only the hidden copy).
+- Migrating a busy path (`/var`) without a reboot is safe on a freshly built host. On a long-running host,
+  stop the applications that write there first, or reboot after the play.
+- To grow a filesystem later, resize the virtual disk, then `growpart <disk> 1` and `resize2fs` /
+  `xfs_growfs`. This role doesn't resize.
+
 ## Layout
 
 ```
@@ -95,6 +166,7 @@ collections/                 VENDORED collections
 roles/
   RHEL9-CIS/                 VENDORED ansible-lockdown role (see VENDORED.md)
   cis_safeguards/            pre-checks and post-checks around CIS (lockout protection)
+  filesystems/               data disks: GPT partition, mkfs, data migration, mount by UUID
   linux_common/              all Linux
   windows_common/            all Windows
   windows_server_common/     Windows Server only
@@ -147,7 +219,7 @@ ansible-playbook -i inventories/CRGS00 playbooks/site.yml --tags journald
 ansible-playbook -i inventories/CRGS01 playbooks/site.yml --limit nfs_servers
 ```
 
-Useful tags: `cis`, `linux_common`, `ntp`, `banner`, `ipv6`, `journald`, `windows_common`,
+Useful tags: `filesystems`, `cis`, `linux_common`, `ntp`, `banner`, `ipv6`, `journald`, `windows_common`,
 `nfs_server`, `database_server`, `nexus_server`, `firewall`. The CIS role also has a tag per rule
 (e.g. `rule_5.1.1`) and per level (`level1-server`).
 
@@ -174,7 +246,10 @@ These checks haven't been run yet. Run them on the control node:
    While CIS runs, keep a second SSH session open, then log in from a third as a normal
    admin user and as the Ansible account.
 6. Run again: the second run should report `changed=0` (except tasks that always run, such as CIS audit commands).
-7. On a Rocky host: `chronyc sources`, `cat /etc/issue`, `sysctl net.ipv6.conf.all.disable_ipv6`,
+7. Data disks: `lsblk -f` and `findmnt` show each disk mounted where expected, `/etc/fstab` uses
+   `UUID=` for them, a re-run of `playbooks/filesystems.yml` reports `changed=0`, CIS 1.1.2.x reports no
+   changes, and after a reboot the mounts come back.
+8. On a Rocky host: `chronyc sources`, `cat /etc/issue`, `sysctl net.ipv6.conf.all.disable_ipv6`,
    `systemd-analyze cat-config systemd/journald.conf`, and after a reboot `journalctl --list-boots`
    shows more than one boot.
 

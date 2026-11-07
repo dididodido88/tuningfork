@@ -32,3 +32,21 @@
   changed_when: false
   check_mode: false
   failed_when: cis_safeguards_become_check.stdout | trim != '0'
+
+# CIS 1.1.2.x handlers rewrite an fstab entry with a device path (dropping UUID=)
+# when a mount lacks a required option. filesystems sets those options first, so
+# this should never trigger; if it does, re-run playbooks/filesystems.yml.
+- name: Verify | Data-disk fstab entries still use UUID=
+  vars:
+    cis_safeguards_storage_mounts: >-
+      {{ query('vars', *query('varnames', '^filesystems_volumes__.+')) | flatten
+         | map(attribute='mount') | map('regex_replace', '/+$', '') | list }}
+  ansible.builtin.shell: |
+    set -o pipefail
+    awk '$1 !~ /^#/ && $1 !~ /^UUID=/ {print $2}' /etc/fstab
+  register: cis_safeguards_fstab_non_uuid
+  changed_when: false
+  check_mode: false
+  failed_when: >-
+    cis_safeguards_fstab_non_uuid.stdout_lines | intersect(cis_safeguards_storage_mounts) | length > 0
+  when: query('varnames', '^filesystems_volumes__.+') | length > 0
