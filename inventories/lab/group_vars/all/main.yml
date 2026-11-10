@@ -1,18 +1,18 @@
 ---
-# Settings shared by every host in lab.
+# Settings shared by every host in CRGS00.
 
-env_name: lab
-env_domain: lab.local
+env_name: CRGS00
+env_domain: example.internal
 
 # Internal time sources, used by linux.yml and windows.yml.
 env_ntp_servers:
-  - dc1.lab.local
-  - dc2.lab.local
+  - ntp1.example.internal
+  - ntp2.example.internal
 
 # Banner text shown on Linux and Windows logins.
 env_banner_text: >-
-  Authorized lab users only. All activity may be monitored and reported.
+  Authorized users only. All activity may be monitored and reported.
 
 # Internal mirror (e.g. Nexus) that serves packages and binaries in this
 # air-gapped environment.
-env_mirror_base_url: https://registry.lab.local/
+env_mirror_base_url: https://nexus.example.internal/repository
