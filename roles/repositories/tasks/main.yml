@@ -1,0 +1,106 @@
+---
+- name: Repos | Check the mirror and keys are set
+  ansible.builtin.assert:
+    that:
+      - repositories_base_url | length > 0
+      - repositories_gpg_keys | length > 0
+      - repositories_enabled | difference(repositories_list | map(attribute='name')) | length == 0
+      - >-
+        repositories_repo_gpgkeys.values() | flatten | unique
+        | difference(repositories_gpg_keys | map(attribute='name')) | length == 0
+    fail_msg: >-
+      Set repositories_base_url and repositories_gpg_keys in inventories/<ENV>/group_vars/rocky9.yml.
+      Every name in repositories_enabled must be in repositories_list, and every key named in
+      repositories_repo_gpgkeys must be in repositories_gpg_keys.
+    quiet: true
+  tags: [repositories]
+
+- name: Repos | Download GPG keys from the mirror
+  ansible.builtin.get_url:
+    url: "{{ item.url }}"
+    dest: /etc/pki/rpm-gpg/{{ item.name }}
+    owner: root
+    group: root
+    mode: "0644"
+    validate_certs: "{{ repositories_validate_certs }}"
+  loop: "{{ repositories_gpg_keys }}"
+  loop_control:
+    label: "{{ item.name }}"
+  tags: [repositories]
+
+- name: Repos | Import GPG keys into the RPM database
+  ansible.builtin.rpm_key:
+    key: /etc/pki/rpm-gpg/{{ item.name }}
+    fingerprint: "{{ item.fingerprint | default(omit) }}"
+    state: present
+  loop: "{{ repositories_gpg_keys }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: not ansible_check_mode
+  tags: [repositories]
+
+# yum_repository replaces the whole section, so the stock mirrorlist/metalink
+# lines pointing at the internet are dropped.
+- name: Repos | Configure repositories
+  ansible.builtin.yum_repository:
+    name: "{{ item.name }}"
+    description: "{{ item.description }}"
+    file: "{{ item.file }}"
+    baseurl: "{{ repositories_url_overrides[item.name] | default(repositories_base_url | regex_replace('/+$', '') ~ '/' ~ repositories_paths[item.name]) }}"
+    enabled: "{{ item.name in repositories_enabled }}"
+    gpgcheck: true
+    gpgkey: "{{ repositories_repo_gpgkeys[item.name] | map('regex_replace', '^', 'file:///etc/pki/rpm-gpg/') | list }}"
+    sslverify: "{{ repositories_sslverify }}"
+    sslcacert: "{{ repositories_sslcacert | default(omit, true) }}"
+    state: present
+  loop: "{{ repositories_list }}"
+  loop_control:
+    label: "{{ item.name }}"
+  register: repositories_changed
+  tags: [repositories]
+
+- name: Repos | Find other enabled repositories
+  ansible.builtin.shell: |
+    set -o pipefail
+    for f in /etc/yum.repos.d/*.repo; do
+      awk -v f="$f" '
+        /^\[.*\]/ { if (s != "" && en) print f "|" s; s = substr($0, 2, length($0) - 2); en = 1; next }
+        /^[[:space:]]*enabled[[:space:]]*=/ { v = $0; sub(/^[^=]*=[[:space:]]*/, "", v); en = (v ~ /^(1|yes|true|True)/) }
+        END { if (s != "" && en) print f "|" s }
+      ' "$f"
+    done
+  register: repositories_other_enabled
+  changed_when: false
+  check_mode: false
+  when: repositories_disable_unmanaged | bool
+  tags: [repositories]
+
+- name: Repos | Disable repositories not managed here
+  community.general.ini_file:
+    path: "{{ item.split('|')[0] }}"
+    section: "{{ item.split('|')[1] }}"
+    option: enabled
+    value: "0"
+    no_extra_spaces: true
+    mode: "0644"
+  loop: >-
+    {{ repositories_other_enabled.stdout_lines | default([])
+       | reject('search', '\|(' ~ (repositories_list | map(attribute='name') | map('regex_escape') | join('|')) ~ ')$')
+       | list }}
+  register: repositories_disabled
+  when: repositories_disable_unmanaged | bool
+  tags: [repositories]
+
+- name: Repos | Clear cached metadata after changes
+  ansible.builtin.command: dnf clean metadata
+  changed_when: true
+  when: repositories_changed is changed or repositories_disabled is changed
+  tags: [repositories]
+
+# Fails early (before any play installs packages) if the mirror, a URL or a key is wrong.
+- name: Repos | Check every enabled repository is reachable
+  ansible.builtin.command: dnf -q makecache --refresh
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+  tags: [repositories]

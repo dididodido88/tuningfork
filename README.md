@@ -6,11 +6,12 @@ and collection it needs is vendored in this repository.
 
 ## Layers
 
-Each host gets three layers, applied in this order by `playbooks/site.yml`:
+After two preparation steps, each host gets three layers. `playbooks/site.yml` applies them in this order:
 
 | Layer | What | Applies to | Playbook | Role(s) |
 |---|---|---|---|---|
-| 0. Data disks | Partition, format and mount blank disks by UUID | `linux` | `filesystems.yml` | `filesystems` |
+| Prep: Repositories | DNF repos on the internal mirror + GPG keys | `rocky9` | `repositories.yml` | `repositories` |
+| Prep: Data disks | Partition, format and mount blank disks by UUID | `linux` | `filesystems.yml` | `filesystems` |
 | 1. Hardening | CIS RHEL 9 benchmark (ansible-lockdown) | `rocky9` | `cis_rhel9.yml` | `RHEL9-CIS` (vendored) |
 | 2. Common OS | Settings every host of an OS family gets | `linux`, `windows`, `windows_server`, `windows_desktop` | `linux_common.yml`, `windows_common.yml` | `linux_common`, `windows_common`, `windows_server_common`, `windows_desktop_common` |
 | 3. Server role | What the host is for | `nfs_servers`, `db_servers`, `nexus_servers` | `nfs_server.yml`, `database_server.yml`, `nexus_server.yml` | `nfs_server`, `database_server`, `nexus_server` |
@@ -86,6 +87,46 @@ Settings CIS still applies that change how people log in (not lockouts, but plan
 **Keep console access** (hypervisor or out-of-band) to every host before the first CIS run: it's
 the recovery path if something still goes wrong. CIS backs up the PAM profile before it changes it
 (`authselect backup-list`).
+
+## Package repositories (`repositories`)
+
+`playbooks/repositories.yml` runs first in `site.yml` and points every Rocky 9 host at the internal mirror
+before any play installs packages. It configures six repositories: `baseos`, `appstream`, `crb`, `extras`,
+`epel` and `docker-ce-stable`.
+
+Set per environment in `inventories/<ENV>/group_vars/rocky9.yml`:
+
+```yaml
+repositories_base_url: https://maestro
+repositories_gpg_keys:
+  - name: RPM-GPG-KEY-Rocky-9
+    url: "{{ repositories_base_url }}/rocky/repo/gpg/RPM-GPG-KEY-Rocky-9"
+    fingerprint: 21CB256AE16FC54C6E652949702D426D350D275D   # optional; import fails on mismatch
+  - {name: RPM-GPG-KEY-EPEL-9, url: "..."}
+  - {name: docker-ce.gpg, url: "..."}
+```
+
+Each repository's URL is `repositories_base_url` + its path in `repositories_paths`. The default layout is
+`rocky/$releasever/<repo>`, so on Rocky 9 the URLs are `https://maestro/rocky/9/baseos`,
+`https://maestro/rocky/9/epel`, and so on. Override
+`repositories_paths` if the mirror is laid out differently. Use `repositories_url_overrides` for one
+repository on another server. To leave a repository disabled on a group of hosts, remove it from
+`repositories_enabled` (e.g. `docker-ce-stable` on hosts that don't run Docker). All options are in
+`roles/repositories/defaults/main.yml`.
+
+What the play does:
+
+1. Downloads each key to `/etc/pki/rpm-gpg/` and imports it into the RPM database, checking the
+   fingerprint if one is given.
+2. Writes each repository with `gpgcheck=1` and a `file://` key path. BaseOS, AppStream and CRB go in
+   the stock `rocky.repo` and extras in `rocky-extras.repo`, so each repo ID is defined once and the
+   internet `mirrorlist` is removed. RPM keeps these edited files when `rocky-repos` is upgraded.
+3. Disables every other enabled repository (`repositories_disable_unmanaged`), so dnf never tries to
+   reach the internet.
+4. Runs `dnf makecache --refresh`, which fails straight away if a URL, the TLS trust or a key is wrong.
+
+The CIS role's GPG checks pass: rule 1.2.1.1 needs the Rocky release key imported, and rule 1.2.1.2 needs
+`gpgcheck=1`.
 
 ## Data disks (`filesystems`)
 
@@ -166,6 +207,7 @@ collections/                 VENDORED collections
 roles/
   RHEL9-CIS/                 VENDORED ansible-lockdown role (see VENDORED.md)
   cis_safeguards/            pre-checks and post-checks around CIS (lockout protection)
+  repositories/              DNF repositories on the internal mirror, GPG keys
   filesystems/               data disks: GPT partition, mkfs, data migration, mount by UUID
   linux_common/              all Linux
   windows_common/            all Windows
@@ -199,6 +241,9 @@ role defaults: the CIS play reads them and doesn't load the `linux_common` role.
 ## Control node requirements
 
 - ansible-core 2.14 (Rocky 9 AppStream: `dnf install ansible-core`)
+- Python `passlib` for the Python that ansible-core runs on (`dnf install python3-passlib`). The CIS role's
+  `grub_hash` filter needs it. It's only used when a GRUB password is enabled, but without it every run
+  prints `Skipping plugin (.../grub_hash.py), cannot load: No module named 'passlib'`.
 - For Windows hosts: Python `pywinrm` (plus `pykerberos`/`requests-kerberos` if you use Kerberos)
 - Network access to the hosts: SSH (22) for Linux, WinRM HTTPS (5986) for Windows
 - Nothing from the internet: the collections and the CIS role are in this repository.
@@ -219,7 +264,7 @@ ansible-playbook -i inventories/CRGS00 playbooks/site.yml --tags journald
 ansible-playbook -i inventories/CRGS01 playbooks/site.yml --limit nfs_servers
 ```
 
-Useful tags: `filesystems`, `cis`, `linux_common`, `ntp`, `banner`, `ipv6`, `journald`, `windows_common`,
+Useful tags: `repositories`, `filesystems`, `cis`, `linux_common`, `ntp`, `banner`, `ipv6`, `journald`, `windows_common`,
 `nfs_server`, `database_server`, `nexus_server`, `firewall`. The CIS role also has a tag per rule
 (e.g. `rule_5.1.1`) and per level (`level1-server`).
 

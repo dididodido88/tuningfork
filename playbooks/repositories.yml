@@ -1,0 +1,11 @@
+---
+# DNF repositories on the internal mirror. Runs first in site.yml, before any play
+# installs packages. Settings: inventories/<ENV>/group_vars/rocky9.yml.
+
+- name: Configure Rocky 9 repositories
+  hosts: rocky9
+  become: true
+  gather_facts: true
+  roles:
+    - role: repositories
+      tags: [repositories]

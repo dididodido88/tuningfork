@@ -1,10 +1,14 @@
 ---
 # Full run, in layer order:
-#   0. data disks   1. CIS hardening   2. common OS config   3. server roles
+#   repositories -> data disks -> 1. CIS hardening -> 2. common OS config -> 3. server roles
 #
 #   ansible-playbook -i inventories/CRGS00 playbooks/site.yml
 #
 # Limit with --limit <group|host> or --tags <tag>.
+
+# First: point hosts at the internal mirror, since later plays install packages.
+- name: Package repositories
+  ansible.builtin.import_playbook: repositories.yml
 
 # Before CIS: CIS rewrites an fstab entry (dropping UUID=) if a mount lacks one of
 # its options, so the disks are mounted with those options first.

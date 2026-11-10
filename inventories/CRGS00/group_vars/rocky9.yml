@@ -38,3 +38,24 @@ rhel9cis_auditd_space_left_action: syslog
 rhel9cis_auditd_admin_space_left_action: suspend
 rhel9cis_auditd_disk_full_action: suspend
 rhel9cis_auditd_disk_error_action: syslog
+
+# --- Package repositories (roles/repositories/defaults/main.yml lists every option) ---
+# Internal mirror for this environment. Paths below it follow repositories_paths
+# (override that dict if the mirror uses a different layout).
+repositories_base_url: https://maestro
+
+# GPG keys served by the mirror. Uncomment the fingerprints after checking them against
+# the vendor's published values; the import then fails if a key was swapped.
+repositories_gpg_keys:
+  - name: RPM-GPG-KEY-Rocky-9
+    url: "{{ repositories_base_url }}/rocky/repo/gpg/RPM-GPG-KEY-Rocky-9"
+    # fingerprint: 21CB256AE16FC54C6E652949702D426D350D275D
+  - name: RPM-GPG-KEY-EPEL-9
+    url: "{{ repositories_base_url }}/rocky/repo/gpg/RPM-GPG-KEY-EPEL-9"
+    # fingerprint: FF8AD1344597106ECE813B918A3872BF3228467C
+  - name: docker-ce.gpg
+    url: "{{ repositories_base_url }}/rocky/repo/gpg/docker-ce.gpg"
+    # fingerprint: 060A61C51B558A7F742B77AAC52FEB6B621E9F35
+
+# Set if the mirror's TLS certificate is signed by a CA not in the system trust store.
+# repositories_sslcacert: /etc/pki/ca-trust/source/anchors/internal-ca.pem

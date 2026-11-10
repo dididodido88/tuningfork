@@ -1,0 +1,72 @@
+---
+# DNF repositories on the internal (air-gapped) mirror.
+# Set per environment in inventories/<ENV>/group_vars/rocky9.yml:
+#   repositories_base_url   required: the mirror's base URL
+#   repositories_gpg_keys   required: where to download each GPG key
+
+# Base URL of the internal mirror, e.g. https://maestro
+repositories_base_url: ""
+
+# GPG keys, downloaded to /etc/pki/rpm-gpg/<name> and imported into the RPM database.
+# 'fingerprint' is optional; when set, the import fails if the key doesn't match.
+#   - name: RPM-GPG-KEY-Rocky-9
+#     url: https://maestro/rocky/repo/gpg/RPM-GPG-KEY-Rocky-9
+#     fingerprint: 21CB256AE16FC54C6E652949702D426D350D275D
+repositories_gpg_keys: []
+
+# Path of each repository below repositories_base_url. dnf expands $releasever (9 on
+# Rocky 9), so with base URL https://maestro the baseos URL is https://maestro/rocky/9/baseos.
+# Change these if a mirror is laid out differently.
+repositories_paths:
+  baseos: rocky/$releasever/baseos
+  appstream: rocky/$releasever/appstream
+  crb: rocky/$releasever/crb
+  extras: rocky/$releasever/extras
+  epel: rocky/$releasever/epel
+  docker-ce-stable: rocky/$releasever/docker-ce-stable
+
+# Full URL for a repository that lives somewhere else; replaces base_url + path.
+#   repositories_url_overrides:
+#     epel: https://other-mirror.example.internal/epel/9/Everything/x86_64/
+repositories_url_overrides: {}
+
+# Repositories enabled on the host. Repositories left out are written but disabled
+# (e.g. drop docker-ce-stable for hosts that don't run Docker).
+repositories_enabled:
+  - baseos
+  - appstream
+  - crb
+  - extras
+  - epel
+  - docker-ce-stable
+
+# Which key(s) sign each repository (names from repositories_gpg_keys).
+repositories_repo_gpgkeys:
+  baseos: [RPM-GPG-KEY-Rocky-9]
+  appstream: [RPM-GPG-KEY-Rocky-9]
+  crb: [RPM-GPG-KEY-Rocky-9]
+  extras: [RPM-GPG-KEY-Rocky-9]
+  epel: [RPM-GPG-KEY-EPEL-9]
+  docker-ce-stable: [docker-ce.gpg]
+
+# Repository definitions. 'file' is the .repo file under /etc/yum.repos.d. BaseOS,
+# AppStream, CRB and extras reuse the stock Rocky files, so each repo ID is defined
+# once (no "listed more than once" errors) and the stock internet mirrorlist is
+# replaced. rpm keeps the edited files when rocky-repos is upgraded (%config(noreplace)).
+repositories_list:
+  - {name: baseos, file: rocky, description: "Rocky Linux $releasever - BaseOS"}
+  - {name: appstream, file: rocky, description: "Rocky Linux $releasever - AppStream"}
+  - {name: crb, file: rocky, description: "Rocky Linux $releasever - CRB"}
+  - {name: extras, file: rocky-extras, description: "Rocky Linux $releasever - Extras"}
+  - {name: epel, file: epel, description: "Extra Packages for Enterprise Linux $releasever - $basearch"}
+  - {name: docker-ce-stable, file: docker-ce, description: "Docker CE Stable - $basearch"}
+
+# TLS to the mirror.
+repositories_sslverify: true
+# CA bundle for the mirror's certificate if it isn't in the system trust store.
+repositories_sslcacert: ""
+repositories_validate_certs: "{{ repositories_sslverify }}"
+
+# Disable every other enabled repository on the host (e.g. stock repos that point
+# at the internet), so dnf never tries to reach outside the air gap.
+repositories_disable_unmanaged: true
