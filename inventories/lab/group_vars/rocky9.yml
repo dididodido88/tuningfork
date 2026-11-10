@@ -1,0 +1,40 @@
+---
+# CRGS00: CIS settings for Rocky Linux 9 (roles/RHEL9-CIS/defaults/main.yml lists every option).
+# NTP, banner, IPv6 and journald come from linux.yml; see playbooks/group_vars/rocky9.yml.
+
+# Skip high-risk changes until each environment has been tested with them.
+rhel9cis_disruption_high: false
+
+rhel9cis_level_1: true
+rhel9cis_level_2: true
+
+# Internal mirrors usually don't sign repo metadata; keep repo_gpgcheck off.
+rhel9cis_rhel_default_repo: true
+
+rhel9cis_selinux_disable: false
+rhel9cis_firewall: firewalld
+
+# Never reboot hosts from the play.
+skip_reboot: true
+
+# The goss audit downloads from GitHub; keep it off in air-gapped environments.
+setup_audit: false
+run_audit: false
+
+# --- Lockout protection (roles/cis_safeguards/defaults/main.yml lists every option) ---
+# Only members of these groups can log in over SSH after CIS (sshd AllowGroups).
+# Include the groups your admins and directory users are in; the pre-check stops a host
+# if a local interactive user is in none of them.
+cis_safeguards_ssh_allow_groups:
+  - sshusers
+  - wheel
+# The Ansible account is added to this group.
+cis_safeguards_ssh_group: sshusers
+
+# auditd: CIS defaults halt the host when the audit log partition fills up, which
+# is an outage. Here a full disk suspends audit logging and logs to syslog instead.
+# This doesn't meet CIS 6.3.2.3 / 6.3.2.4; set halt or single to be strictly compliant.
+rhel9cis_auditd_space_left_action: syslog
+rhel9cis_auditd_admin_space_left_action: suspend
+rhel9cis_auditd_disk_full_action: suspend
+rhel9cis_auditd_disk_error_action: syslog

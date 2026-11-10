@@ -1,0 +1,5 @@
+---
+# CRGS00: database servers (roles/database_server/defaults/main.yml).
+
+database_server_engine: postgresql
+database_server_postgresql_stream: "16"
