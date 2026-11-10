@@ -42,7 +42,7 @@ rhel9cis_auditd_disk_error_action: syslog
 # --- Package repositories (roles/repositories/defaults/main.yml lists every option) ---
 # Internal mirror for this environment. Paths below it follow repositories_paths
 # (override that dict if the mirror uses a different layout).
-repositories_base_url: https://maestro
+repositories_base_url: http://maestro
 
 # GPG keys served by the mirror. Uncomment the fingerprints after checking them against
 # the vendor's published values; the import then fails if a key was swapped.
@@ -53,7 +53,7 @@ repositories_gpg_keys:
   - name: RPM-GPG-KEY-EPEL-9
     url: "{{ repositories_base_url }}/rocky/repo/gpg/RPM-GPG-KEY-EPEL-9"
     # fingerprint: FF8AD1344597106ECE813B918A3872BF3228467C
-  - name: docker-ce.gpg
+  - name: docker-ce-stable.gpg
     url: "{{ repositories_base_url }}/rocky/repo/gpg/docker-ce-stable.gpg"
     # fingerprint: 060A61C51B558A7F742B77AAC52FEB6B621E9F35
 
