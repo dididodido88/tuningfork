@@ -6,8 +6,8 @@ env_domain: lab.local
 
 # Internal time sources, used by linux.yml and windows.yml.
 env_ntp_servers:
-  - ntp1.example.internal
-  - ntp2.example.internal
+  - 192.168.70.101
+  - 192.168.70.102
 
 # Banner text shown on Linux and Windows logins.
 env_banner_text: >-
