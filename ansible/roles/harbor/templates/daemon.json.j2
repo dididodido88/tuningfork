@@ -1,0 +1,8 @@
+{
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "{{ harbor_docker_log_max_size }}",
+    "max-file": "{{ harbor_docker_log_max_file }}"
+  },
+  "live-restore": false
+}

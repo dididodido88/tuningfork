@@ -1,0 +1,79 @@
+---
+# Nothing is changed until these pass.
+- name: Harbor | Check the settings
+  ansible.builtin.assert:
+    that:
+      - harbor_installer_checksum is match('^sha256:[0-9a-fA-F]{64}$')
+      - harbor_admin_password | length >= 8 and harbor_admin_password != 'CHANGEME'
+      - harbor_db_password | length >= 8 and harbor_db_password != 'CHANGEME'
+      - harbor_auth_mode in ['ldap_auth', 'db_auth']
+      - >-
+        harbor_auth_mode != 'ldap_auth' or (
+          harbor_ldap_base_dn | length > 0 and harbor_ldap_bind_dn | length > 0
+          and harbor_ldap_bind_password | length > 0 and harbor_ldap_bind_password != 'CHANGEME')
+      - harbor_robots | map(attribute='name') | difference(harbor_robot_secrets.keys() | list) | length == 0
+      - >-
+        harbor_robots | map(attribute='name') | map('extract', harbor_robot_secrets)
+        | reject('match', '^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,128}$') | list | length == 0
+    fail_msg: >-
+      Set harbor_installer_checksum (sha256:<hash>) in inventories/<ENV>/group_vars/registry_servers.yml,
+      and vault_harbor_admin_password, vault_harbor_db_password, vault_harbor_ldap_bind_password (ldap_auth)
+      and vault_harbor_robot_secrets (one per harbor_robots entry: 8-128 characters with upper case,
+      lower case and a digit) in inventories/<ENV>/group_vars/all/vault.yml. For ldap_auth also set
+      harbor_ldap_base_dn and harbor_ldap_bind_dn.
+    quiet: true
+
+- name: Harbor | Look up the registry name
+  ansible.builtin.command:
+    argv: [getent, ahostsv4, "{{ harbor_hostname }}"]
+  register: harbor_dns
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Harbor | Check the registry name points at this host
+  ansible.builtin.assert:
+    that:
+      - harbor_dns.rc == 0
+      - harbor_dns_ips | intersect(ansible_facts.all_ipv4_addresses) | length > 0
+    fail_msg: >-
+      {{ harbor_hostname }} must resolve to this host ({{ ansible_facts.all_ipv4_addresses | join(', ') }});
+      it resolves to [{{ harbor_dns_ips | join(', ') }}]. Create a DNS alias (CNAME)
+      {{ harbor_hostname }} -> {{ inventory_hostname }} (docs/harbor.md, "Prerequisites").
+    quiet: true
+  vars:
+    harbor_dns_ips: "{{ harbor_dns.stdout_lines | map('split') | map('first') | unique | list }}"
+
+- name: Harbor | Check the TLS certificate covers the registry name
+  ansible.builtin.command:
+    argv: [openssl, x509, -in, "{{ harbor_tls_certificate }}", -noout, -checkhost, "{{ harbor_hostname }}"]
+  register: harbor_cert_check
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+- name: Harbor | Stop if the certificate doesn't cover the registry name
+  ansible.builtin.fail:
+    msg: >-
+      {{ harbor_tls_certificate }} doesn't cover {{ harbor_hostname }} (or is missing). Issue the host
+      certificate with a subjectAltName DNS:{{ harbor_hostname }} and redeploy it with
+      playbooks/certificates.yml. openssl said: {{ harbor_cert_check.stdout | default('') }}{{ harbor_cert_check.stderr | default('') }}
+  when: harbor_cert_check.rc != 0 or 'does match certificate' not in harbor_cert_check.stdout
+
+- name: Harbor | Read the installed version
+  ansible.builtin.slurp:
+    src: "{{ harbor_version_marker }}"
+  register: harbor_marker
+  failed_when: false
+
+- name: Harbor | Stop if a different version is installed
+  ansible.builtin.fail:
+    msg: >-
+      Harbor {{ harbor_installed_version }} is installed but harbor_version is {{ harbor_version }}.
+      Upgrades need a backup and Harbor's migrate step and are never done automatically; follow
+      docs/harbor.md, "Upgrading", then update {{ harbor_version_marker }}.
+  when:
+    - harbor_installed_version | length > 0
+    - harbor_installed_version != harbor_version
+  vars:
+    harbor_installed_version: "{{ (harbor_marker.content | default('') | b64decode).strip() }}"

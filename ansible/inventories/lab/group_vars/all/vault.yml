@@ -10,3 +10,13 @@ vault_windows_ansible_password: CHANGEME
 
 # Password of sssd_ad_join_user (roles/sssd_ad), used only to join hosts to AD.
 vault_sssd_ad_join_password: CHANGEME
+
+# Harbor (roles/harbor). admin: break-glass local login and API account used by Ansible.
+vault_harbor_admin_password: CHANGEME
+vault_harbor_db_password: CHANGEME
+# Read-only AD account svc-harbor-ldap (harbor_ldap_bind_dn).
+vault_harbor_ldap_bind_password: CHANGEME
+# One per harbor_robots entry: 8-128 characters with upper case, lower case and a digit.
+vault_harbor_robot_secrets:
+  k8s-pull: CHANGEME
+  ci-push: CHANGEME

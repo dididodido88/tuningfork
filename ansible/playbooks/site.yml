@@ -7,7 +7,7 @@
 # Limit with --limit <group|host> or --tags <tag>.
 
 # First: trust the internal root CA and install host certificates, so later plays can reach
-# internal HTTPS services (the mirror, Nexus) signed by that CA.
+# internal HTTPS services (the mirror, Harbor) signed by that CA.
 - name: Certificates
   ansible.builtin.import_playbook: certificates.yml
 
@@ -43,5 +43,5 @@
 - name: Database servers
   ansible.builtin.import_playbook: database_server.yml
 
-- name: Nexus Repository servers
-  ansible.builtin.import_playbook: nexus_server.yml
+- name: Harbor registry (container images and Helm charts)
+  ansible.builtin.import_playbook: harbor.yml

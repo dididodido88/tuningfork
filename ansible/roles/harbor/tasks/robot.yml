@@ -1,0 +1,54 @@
+---
+# One system-level robot account (harbor_robot). Included from initialise.yml.
+# Existing robots are left alone (permissions and secret): change them in the UI, or delete the
+# robot and rerun to recreate it with the vault secret.
+- name: Harbor | Create robot account {{ harbor_robot.name }}
+  ansible.builtin.uri:
+    url: "{{ harbor_api }}/robots"
+    method: POST
+    url_username: admin
+    url_password: "{{ harbor_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      name: "{{ harbor_robot.name }}"
+      description: "{{ harbor_robot.description | default('Managed by Ansible (roles/harbor)') }}"
+      duration: -1
+      level: system
+      disable: false
+      permissions: "{{ harbor_robot_permissions }}"
+    status_code: [201]
+  register: harbor_robot_created
+  changed_when: true
+  when: harbor_robot_existing | length == 0
+  vars:
+    harbor_robot_existing: >-
+      {{ harbor_robot_list.json | default([])
+         | selectattr('name', 'in', [harbor_robot.name, 'robot$' ~ harbor_robot.name]) | list }}
+    # Charts are OCI artifacts in repositories, so repository pull/push covers images and charts.
+    harbor_robot_permissions: >-
+      {%- set out = [] -%}
+      {%- for p in harbor_robot.projects | default(['*']) -%}
+      {%-   set access = [] -%}
+      {%-   for a in harbor_robot.actions | default(['pull']) -%}
+      {%-     set _ = access.append({'resource': 'repository', 'action': a}) -%}
+      {%-   endfor -%}
+      {%-   set _ = out.append({'kind': 'project', 'namespace': p, 'access': access}) -%}
+      {%- endfor -%}
+      {{ out }}
+
+# Set the secret from vault so clients can be configured before the robot exists.
+- name: Harbor | Set the secret of robot account {{ harbor_robot.name }}
+  ansible.builtin.uri:
+    url: "{{ harbor_api }}/robots/{{ harbor_robot_created.json.id }}"
+    method: PATCH
+    url_username: admin
+    url_password: "{{ harbor_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      secret: "{{ harbor_robot_secrets[harbor_robot.name] }}"
+    status_code: [200]
+  changed_when: true
+  no_log: true
+  when: harbor_robot_created is changed

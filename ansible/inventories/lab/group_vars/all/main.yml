@@ -13,9 +13,9 @@ env_ntp_servers:
 env_banner_text: >-
   Authorized users only. All activity may be monitored and reported.
 
-# Internal mirror (e.g. Nexus) that serves packages and binaries in this
+# Internal mirror (e.g. maestro) that serves packages and binaries in this
 # air-gapped environment.
-env_mirror_base_url: https://nexus.example.internal/repository
+env_mirror_base_url: https://maestro
 
 # Folder of this environment under /srv/security/certificates/files on the control node
 # (roles/certificates: root CA in ca/, one folder per short hostname).

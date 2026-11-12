@@ -1,0 +1,99 @@
+---
+# Harbor container image and Helm chart (OCI) registry, installed with the offline installer
+# under Docker Compose and initialised through the Harbor API. See docs/harbor.md for the
+# files to mirror, the AD and DNS prerequisites, and client usage.
+#
+# Set per environment in inventories/<ENV>/group_vars/registry_servers.yml, and the secrets
+# (vault_harbor_*) in inventories/<ENV>/group_vars/all/vault.yml.
+
+# --- Installer (served by the internal mirror) -----------------------------------------------
+harbor_version: v2.15.2
+harbor_mirror_url: "{{ env_mirror_base_url | default('https://maestro') }}/harbor"
+harbor_installer_url: "{{ harbor_mirror_url }}/{{ harbor_version }}/harbor-offline-installer-{{ harbor_version }}.tgz"
+# Required: "sha256:<hash>" recorded when the installer was downloaded and verified.
+harbor_installer_checksum: ""
+
+# --- Host layout --------------------------------------------------------------------------------
+# Name clients use: a DNS alias (CNAME) for this host, e.g. registry.lab.local.
+harbor_hostname: "registry.{{ env_domain }}"
+harbor_install_dir: /opt/harbor
+# Images, charts, database and job logs. Put it on a data disk (Terraform mounts /srv/harbor).
+harbor_data_dir: /srv/harbor/data
+harbor_log_dir: /var/log/harbor
+
+# TLS certificate and key, from the certificates role. The certificate must cover harbor_hostname.
+harbor_tls_certificate: /etc/pki/tls/certs/host.fullchain.crt
+harbor_tls_key: /etc/pki/tls/private/host.key
+# System trust bundle (includes the internal root CA, from the certificates role). Mounted into
+# harbor-core and jobservice so they trust the DCs' LDAPS certificates and other internal services.
+harbor_trust_bundle_dir: /etc/pki/ca-trust/extracted/pem
+
+# --- Secrets --------------------------------------------------------------------------------------
+# admin: the only local user that keeps working in LDAP mode (break-glass). Used by this role
+# for API calls. Changing it later: see docs/harbor.md, "Rotating secrets".
+harbor_admin_password: "{{ vault_harbor_admin_password | default('') }}"
+harbor_db_password: "{{ vault_harbor_db_password | default('') }}"
+
+# --- Docker -----------------------------------------------------------------------------------------
+# From the docker-ce-stable repository (roles/repositories).
+harbor_docker_packages: [docker-ce, docker-ce-cli, containerd.io, docker-compose-plugin]
+harbor_docker_log_max_size: 50m
+harbor_docker_log_max_file: 5
+
+# firewalld services opened in the default zone. http (80) only redirects to https; add it if
+# clients use http:// URLs.
+harbor_firewall_services: [https]
+
+# Trivy vulnerability scanner. Needs an offline vulnerability database; see docs/harbor.md.
+harbor_with_trivy: false
+
+# --- Authentication -------------------------------------------------------------------------------
+# ldap_auth: AD users and groups log in (UI, docker login, helm registry login); the local
+#            'admin' and robot accounts keep working. db_auth: Harbor-local users only.
+# Harbor only allows switching to ldap_auth while no local users other than admin exist.
+harbor_auth_mode: ldap_auth
+
+# The AD domain name resolves to every DC, so one URL fails over between DCs.
+harbor_ldap_url: "ldaps://{{ env_domain }}:636"
+harbor_ldap_verify_cert: true
+harbor_ldap_base_dn: ""          # e.g. DC=lab,DC=local
+harbor_ldap_bind_dn: ""          # read-only account, e.g. CN=svc-harbor-ldap,OU=Servers,DC=lab,DC=local
+harbor_ldap_bind_password: "{{ vault_harbor_ldap_bind_password | default('') }}"
+harbor_ldap_uid: sAMAccountName
+# Users that may log in. Narrow it to a group with
+# (&(objectClass=user)(memberOf=CN=harbor-users,OU=...,DC=lab,DC=local))
+harbor_ldap_filter: "(objectClass=user)"
+harbor_ldap_group_base_dn: "{{ harbor_ldap_base_dn }}"
+harbor_ldap_group_filter: "(objectClass=group)"
+harbor_ldap_group_name_attribute: sAMAccountName
+# Members of this AD group are Harbor system administrators.
+harbor_ldap_group_admin_dn: ""   # e.g. CN=harbor-admins,OU=Linux,OU=Servers,DC=lab,DC=local
+
+# --- Initialisation -----------------------------------------------------------------------------
+# Projects and the AD groups that get a role in them (ldap_auth only).
+# Roles: project_admin, maintainer, developer, guest, limited_guest.
+# 'library' exists after installation; it's made public/private as set here.
+harbor_projects:
+  - name: library
+    public: true
+    members: []
+  - name: charts
+    public: false
+    members: []
+
+# System-level robot accounts (local machine credentials for Kubernetes, Docker hosts and CI).
+# Secrets come from vault_harbor_robot_secrets[name]: 8-128 characters with upper case,
+# lower case and a digit. Clients log in as 'robot$<name>'.
+#   - name: k8s-pull
+#     description: Kubernetes image and chart pulls
+#     projects: ["*"]               # "*" = every project
+#     actions: [pull]
+#   - name: ci-push
+#     projects: [library, charts]
+#     actions: [pull, push]
+harbor_robots: []
+harbor_robot_secrets: "{{ vault_harbor_robot_secrets | default({}) }}"
+
+# Garbage collection (Harbor cron format: seconds minutes hours day month weekday).
+harbor_gc_schedule: "0 0 3 * * 6"
+harbor_gc_delete_untagged: true

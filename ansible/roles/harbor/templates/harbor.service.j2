@@ -1,0 +1,20 @@
+# {{ ansible_managed }} (roles/harbor)
+# Starts Harbor's containers in dependency order at boot (Docker's own restart policy
+# can start them out of order).
+[Unit]
+Description=Harbor registry ({{ harbor_version }}, Docker Compose)
+Requires=docker.service
+After=docker.service network-online.target local-fs.target
+Wants=network-online.target
+RequiresMountsFor={{ harbor_data_dir }}
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory={{ harbor_app_dir }}
+ExecStart=/usr/bin/docker compose up -d --remove-orphans
+ExecStop=/usr/bin/docker compose down
+TimeoutStartSec=600
+
+[Install]
+WantedBy=multi-user.target

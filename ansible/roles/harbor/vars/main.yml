@@ -1,0 +1,18 @@
+---
+# Derived values; change the defaults instead.
+
+# The offline installer unpacks into a 'harbor' directory.
+harbor_app_dir: "{{ harbor_install_dir }}/{{ harbor_version }}/harbor"
+harbor_version_marker: "{{ harbor_install_dir }}/.installed-version"
+harbor_api: "https://{{ harbor_hostname }}/api/v2.0"
+
+# harbor.yml schema version expected by this release's prepare script (v2.15.2 -> 2.15.0).
+harbor_config_version: "{{ harbor_version | regex_replace('^v?(\\d+\\.\\d+)\\..*$', '\\1') }}.0"
+
+# Project role names -> Harbor role IDs.
+harbor_role_ids:
+  project_admin: 1
+  developer: 2
+  guest: 3
+  maintainer: 4
+  limited_guest: 5

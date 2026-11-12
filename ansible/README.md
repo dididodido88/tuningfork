@@ -17,7 +17,7 @@ After three preparation steps, each host gets three layers. `playbooks/site.yml`
 | 2. Common OS | Settings every host of an OS family gets | `linux`, `windows`, `windows_server`, `windows_desktop` | `linux_common.yml`, `windows_common.yml` | `linux_common`, `windows_common`, `windows_server_common`, `windows_desktop_common` |
 | 2. CLI tools | btop, htop, jq, yq, tree, ripgrep, fd, bat | `rocky9` | `cli_tools.yml` | `cli_tools` |
 | 2. AD logins | Join Active Directory; AD + local logins, home directories, SSH and sudo by AD group (when `sssd_ad_enabled`) | `rocky9` | `sssd_ad.yml` | `sssd_ad` |
-| 3. Server role | What the host is for | `nfs_servers`, `db_servers`, `nexus_servers` | `nfs_server.yml`, `database_server.yml`, `nexus_server.yml` | `nfs_server`, `database_server`, `nexus_server` |
+| 3. Server role | What the host is for | `nfs_servers`, `db_servers`, `registry_servers` | `nfs_server.yml`, `database_server.yml`, `harbor.yml` | `nfs_server`, `database_server`, `harbor` |
 
 Membership in an inventory group decides what runs; roles don't check the OS themselves.
 
@@ -164,6 +164,23 @@ Turn it on per environment with `sssd_ad_enabled: true` and the `sssd_ad_*` sett
 UID/GID ranges and PowerShell to assign them, SSH and sudo by group, troubleshooting) and the
 domain-join vs LDAP-only comparison are in [docs/active-directory.md](docs/active-directory.md).
 
+## Harbor registry (`harbor`)
+
+`playbooks/harbor.yml` runs on `registry_servers` and installs **Harbor**, the container image and Helm chart (OCI)
+registry, at `https://registry.<domain>` (lab: `registry.lab.local`, a DNS alias for `lab-registry`).
+- It uses Docker CE (from the `docker-ce-stable` mirror repo) and Harbor's offline installer from
+  `<env_mirror_base_url>/harbor/<version>/`. The certificate is the host certificate from `certificates`, which must
+  include the `registry` name.
+- It then initialises Harbor through its API: AD logins (LDAPS; the local `admin` and robot accounts stay usable),
+  projects (`library` public, `charts`), AD group roles, robot accounts (`k8s-pull`, `ci-push`) and garbage collection.
+- Clients use `registry.lab.local/<project>/<image>:<tag>` and `oci://registry.lab.local/charts/<chart>`.
+- CIS 3.3.1 (IP forwarding off) is turned off for `registry_servers` (`playbooks/group_vars/registry_servers.yml`),
+  because Docker needs forwarding for its published ports.
+
+Settings: `inventories/<ENV>/group_vars/registry_servers.yml`, secrets `vault_harbor_*`. **Files to download for the
+mirror**, prerequisites (DNS alias, certificate SAN, AD bind account and groups), client usage, backups, upgrades and
+Trivy: [docs/harbor.md](docs/harbor.md).
+
 ## Package repositories (`repositories`)
 
 `playbooks/repositories.yml` runs first in `site.yml` and points every Rocky 9 host at the internal mirror
@@ -279,7 +296,7 @@ lost `UUID=`. A disk-based `/tmp` requires `rhel9cis_tmp_svc: false` (the defaul
 ```
 ansible.cfg                  roles_path, vendored collections_path, no default inventory
 requirements.yml             record of vendored versions (used only to refresh them)
-docs/                        longer guides (active-directory.md)
+docs/                        longer guides (active-directory.md, harbor.md)
 collections/                 VENDORED collections
 roles/
   RHEL9-CIS/                 VENDORED ansible-lockdown role (see VENDORED.md)
@@ -293,7 +310,8 @@ roles/
   windows_common/            all Windows
   windows_server_common/     Windows Server only
   windows_desktop_common/    Windows 11 Desktop only
-  nfs_server/  database_server/  nexus_server/
+  nfs_server/  database_server/
+  harbor/                    Harbor registry: Docker CE, offline installer, API initialisation (docs/harbor.md)
 playbooks/
   site.yml                   runs everything in layer order
   group_vars/                settings that apply to every environment (see below)
@@ -345,7 +363,7 @@ ansible-playbook -i inventories/CRGS01 playbooks/site.yml --limit nfs_servers
 ```
 
 Useful tags: `repositories`, `filesystems`, `cis`, `linux_common`, `ntp`, `banner`, `ipv6`, `journald`, `windows_common`,
-`nfs_server`, `database_server`, `nexus_server`, `firewall`. The CIS role also has a tag per rule
+`nfs_server`, `database_server`, `harbor`, `firewall`. The CIS role also has a tag per rule
 (e.g. `rule_5.1.1`) and per level (`level1-server`).
 
 ### Secrets

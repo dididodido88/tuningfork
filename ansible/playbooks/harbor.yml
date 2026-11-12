@@ -1,0 +1,14 @@
+---
+# Harbor registry: container images and Helm charts (OCI), at https://registry.<env domain>.
+# Needs certificates.yml (TLS certificate covering the registry name, CA trust),
+# repositories.yml (docker-ce-stable) and filesystems.yml (/srv/harbor) first; site.yml runs
+# them in that order. Settings: inventories/<ENV>/group_vars/registry_servers.yml.
+# Mirror downloads, prerequisites and client usage: docs/harbor.md.
+
+- name: Harbor registry
+  hosts: registry_servers
+  become: true
+  gather_facts: true
+  roles:
+    - role: harbor
+      tags: [harbor]

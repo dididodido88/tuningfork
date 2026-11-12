@@ -1,0 +1,69 @@
+---
+# One project from harbor_projects (harbor_project). Included from initialise.yml.
+- name: Harbor | Look up project {{ harbor_project.name }}
+  ansible.builtin.uri:
+    url: "{{ harbor_api }}/projects/{{ harbor_project.name }}"
+    headers:
+      X-Is-Resource-Name: "true"
+    url_username: admin
+    url_password: "{{ harbor_admin_password }}"
+    force_basic_auth: true
+    status_code: [200, 404]
+  register: harbor_project_current
+
+- name: Harbor | Create project {{ harbor_project.name }}
+  ansible.builtin.uri:
+    url: "{{ harbor_api }}/projects"
+    method: POST
+    url_username: admin
+    url_password: "{{ harbor_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      project_name: "{{ harbor_project.name }}"
+      metadata:
+        public: "{{ harbor_project_public }}"
+    status_code: [201]
+  changed_when: true
+  when: harbor_project_current.status == 404
+
+- name: Harbor | Set visibility of project {{ harbor_project.name }}
+  ansible.builtin.uri:
+    url: "{{ harbor_api }}/projects/{{ harbor_project.name }}"
+    method: PUT
+    headers:
+      X-Is-Resource-Name: "true"
+    url_username: admin
+    url_password: "{{ harbor_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      metadata:
+        public: "{{ harbor_project_public }}"
+    status_code: [200]
+  changed_when: true
+  when:
+    - harbor_project_current.status == 200
+    - (harbor_project_current.json.metadata.public | default('false')) != harbor_project_public
+
+# AD groups can only be members in ldap_auth mode.
+- name: Harbor | Add AD groups to project {{ harbor_project.name }}
+  ansible.builtin.include_tasks: member.yml
+  loop: "{{ harbor_project.members | default([]) }}"
+  loop_control:
+    loop_var: harbor_member
+    label: "{{ harbor_member.group }} ({{ harbor_member.role }})"
+  when: harbor_auth_mode == 'ldap_auth'
+  vars:
+    # Exact name match first; otherwise the only search result.
+    harbor_group_dn: >-
+      {{ ((harbor_ldap_group.json | default([])
+           | selectattr('group_name', 'equalto', harbor_member.group)
+           | map(attribute='ldap_group_dn') | list)
+          + (harbor_ldap_group.json | default([]) | map(attribute='ldap_group_dn') | list)
+          + ['']) | first }}
+    harbor_existing_member: >-
+      {{ (harbor_project_members.json | default([])
+          | selectattr('entity_type', 'equalto', 'g')
+          | selectattr('entity_name', 'equalto', harbor_member.group) | list
+          + [none]) | first }}

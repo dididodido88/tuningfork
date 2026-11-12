@@ -1,0 +1,48 @@
+---
+- name: Harbor | Install Docker CE and the Compose plugin
+  ansible.builtin.dnf:
+    name: "{{ harbor_docker_packages }}"
+    state: present
+
+- name: Harbor | Create the Docker config directory
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Harbor | Configure the Docker daemon
+  ansible.builtin.template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Harbor | Restart docker
+
+# CIS 3.3.1 is off for registry_servers (playbooks/group_vars/registry_servers.yml).
+- name: Harbor | Allow IP forwarding for Docker's published ports
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    sysctl_file: /etc/sysctl.d/90-docker.conf
+    sysctl_set: true
+    state: present
+
+- name: Harbor | Start Docker
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Harbor | Open the firewall
+  ansible.posix.firewalld:
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ harbor_firewall_services }}"
+
+- name: Harbor | Apply Docker changes before installing Harbor
+  ansible.builtin.meta: flush_handlers

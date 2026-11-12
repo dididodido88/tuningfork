@@ -130,7 +130,7 @@
   notify: Certs | Update CA trust
   tags: [certificates]
 
-# Later plays in the same run (repositories, Nexus) may connect to services signed by this CA.
+# Later plays in the same run (repositories, Harbor) may connect to services signed by this CA.
 - name: Certs | Update the trust store now
   ansible.builtin.meta: flush_handlers
   tags: [certificates]

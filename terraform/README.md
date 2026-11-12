@@ -89,7 +89,7 @@ Edit `vms` in `live/<ENV>/rocky9/terragrunt.hcl`. Every field is described in
   os_disk_gb     = 60
   node_name      = "pve00b"                 # optional; overrides env.hcl
   vm_id          = 2020                     # optional; fixed VM ID
-  ansible_groups = ["nexus_servers"]        # server-role groups (linux -> rocky9 is automatic)
+  ansible_groups = ["registry_servers"]     # server-role groups (linux -> rocky9 is automatic)
   data_disks = [
     { size_gb = 50, mount = "/var/log", fstype = "xfs", label = "varlog" },
     { size_gb = 20 },                        # attached, but not formatted or mounted by Ansible

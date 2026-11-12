@@ -1,0 +1,66 @@
+---
+# One AD group (harbor_member) in one project (harbor_project). Included from project.yml,
+# which also defines harbor_group_dn and harbor_existing_member.
+- name: Harbor | Find AD group {{ harbor_member.group }}
+  ansible.builtin.uri:
+    url: "{{ harbor_api }}/ldap/groups/search?groupname={{ harbor_member.group | urlencode }}"
+    url_username: admin
+    url_password: "{{ harbor_admin_password }}"
+    force_basic_auth: true
+  register: harbor_ldap_group
+
+- name: Harbor | Stop if the AD group doesn't exist
+  ansible.builtin.assert:
+    that: harbor_group_dn | length > 0
+    fail_msg: >-
+      AD group '{{ harbor_member.group }}' wasn't found under {{ harbor_ldap_group_base_dn }}
+      with filter {{ harbor_ldap_group_filter }} (project {{ harbor_project.name }}).
+    quiet: true
+
+- name: Harbor | Read members of project {{ harbor_project.name }}
+  ansible.builtin.uri:
+    url: "{{ harbor_api }}/projects/{{ harbor_project.name }}/members?entityname={{ harbor_member.group | urlencode }}"
+    headers:
+      X-Is-Resource-Name: "true"
+    url_username: admin
+    url_password: "{{ harbor_admin_password }}"
+    force_basic_auth: true
+  register: harbor_project_members
+
+- name: Harbor | Add {{ harbor_member.group }} to {{ harbor_project.name }} as {{ harbor_member.role }}
+  ansible.builtin.uri:
+    url: "{{ harbor_api }}/projects/{{ harbor_project.name }}/members"
+    method: POST
+    headers:
+      X-Is-Resource-Name: "true"
+    url_username: admin
+    url_password: "{{ harbor_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      role_id: "{{ harbor_role_ids[harbor_member.role] }}"
+      member_group:
+        group_name: "{{ harbor_member.group }}"
+        group_type: 1
+        ldap_group_dn: "{{ harbor_group_dn }}"
+    status_code: [201]
+  changed_when: true
+  when: harbor_existing_member is none
+
+- name: Harbor | Change the role of {{ harbor_member.group }} in {{ harbor_project.name }}
+  ansible.builtin.uri:
+    url: "{{ harbor_api }}/projects/{{ harbor_project.name }}/members/{{ harbor_existing_member.id }}"
+    method: PUT
+    headers:
+      X-Is-Resource-Name: "true"
+    url_username: admin
+    url_password: "{{ harbor_admin_password }}"
+    force_basic_auth: true
+    body_format: json
+    body:
+      role_id: "{{ harbor_role_ids[harbor_member.role] }}"
+    status_code: [200]
+  changed_when: true
+  when:
+    - harbor_existing_member is not none
+    - harbor_existing_member.role_id != harbor_role_ids[harbor_member.role]

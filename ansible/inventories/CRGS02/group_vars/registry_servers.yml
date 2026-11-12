@@ -1,0 +1,52 @@
+---
+# CRGS02: Harbor registry (roles/harbor/defaults/main.yml lists every option; docs/harbor.md
+# covers the mirror downloads, DNS/certificate/AD prerequisites and client usage).
+
+# Clients use https://registry.<domain>/<project>/<image>:<tag>. A DNS alias (CNAME) for the
+# registry host; the TLS certificate must include it as a subjectAltName.
+harbor_hostname: "registry.{{ env_domain }}"
+
+# Offline installer on the internal mirror: {{ env_mirror_base_url }}/harbor/<version>/
+harbor_version: v2.15.2
+harbor_installer_checksum: ""   # CHANGEME: sha256:<hash> recorded when downloading
+
+# Images, charts and database live under /srv/harbor (a data disk: Terraform adds one; for a
+# hand-built VM add it to filesystems_volumes, e.g.
+# filesystems_volumes__registry:
+#   - mount: /srv/harbor
+#     disk: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi1
+#     fstype: xfs
+harbor_data_dir: /srv/harbor/data
+
+# --- Logins: AD users and groups (LDAPS); local 'admin' and robot accounts keep working ---
+harbor_auth_mode: ldap_auth
+harbor_ldap_url: "ldaps://{{ env_domain }}:636"
+harbor_ldap_base_dn: "DC=crgs02,DC=local"  # CHANGEME: example values
+harbor_ldap_bind_dn: "CN=svc-harbor-ldap,OU=Servers,DC=crgs02,DC=local"
+harbor_ldap_group_base_dn: "DC=crgs02,DC=local"
+# Members are Harbor system administrators.
+harbor_ldap_group_admin_dn: "CN=harbor-admins,OU=Linux,OU=Servers,DC=crgs02,DC=local"
+
+# --- Projects and AD group roles (project_admin, maintainer, developer, guest, limited_guest) ---
+harbor_projects:
+  - name: library                 # public: anyone can pull (no login needed)
+    public: true
+    members:
+      - group: harbor-developers
+        role: developer
+  - name: charts                  # Helm charts: oci://registry.<domain>/charts
+    public: false
+    members:
+      - group: harbor-developers
+        role: developer
+
+# --- Robot accounts: log in as robot$<name>; secrets in vault_harbor_robot_secrets ---
+harbor_robots:
+  - name: k8s-pull
+    description: Kubernetes clusters and Docker hosts pulling images and charts
+    projects: ["*"]
+    actions: [pull]
+  - name: ci-push
+    description: CI pipelines pushing images and charts
+    projects: [library, charts]
+    actions: [pull, push]

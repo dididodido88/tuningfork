@@ -1,0 +1,141 @@
+---
+# Everything here goes through https://<harbor_hostname>/api/v2.0 as the local admin, so it
+# also proves the DNS alias and the TLS certificate work. All steps are idempotent.
+- name: Harbor | Initialise through the API
+  when: not ansible_check_mode
+  module_defaults:
+    ansible.builtin.uri:
+      url_username: admin
+      url_password: "{{ harbor_admin_password }}"
+      force_basic_auth: true
+      body_format: json
+      validate_certs: true
+      timeout: 30
+  block:
+    - name: Harbor | Wait until every component is healthy
+      ansible.builtin.uri:
+        url: "{{ harbor_api }}/health"
+      register: harbor_health
+      until: >-
+        harbor_health.json is defined and harbor_health.json.status == 'healthy'
+      retries: 30
+      delay: 10
+
+    # --- Authentication ----------------------------------------------------------------------
+    - name: Harbor | Read the configuration
+      ansible.builtin.uri:
+        url: "{{ harbor_api }}/configurations"
+      register: harbor_current_config
+
+    - name: Harbor | Set the authentication mode and LDAP settings
+      ansible.builtin.uri:
+        url: "{{ harbor_api }}/configurations"
+        method: PUT
+        body: >-
+          {{ harbor_auth_settings | combine({'ldap_search_password': harbor_ldap_bind_password}
+             if harbor_auth_mode == 'ldap_auth' else {}) }}
+      when: harbor_config_drift | length > 0
+      no_log: true
+      vars:
+        harbor_config_drift: >-
+          {%- set out = [] -%}
+          {%- for k, v in harbor_auth_settings.items() -%}
+          {%-   if (harbor_current_config.json[k].value | default(none)) != v -%}{%- set _ = out.append(k) -%}{%- endif -%}
+          {%- endfor -%}
+          {{ out }}
+
+    - name: Harbor | Check Harbor can bind to AD
+      ansible.builtin.uri:
+        url: "{{ harbor_api }}/ldap/ping"
+        method: POST
+        body: {}
+      register: harbor_ldap_ping
+      failed_when: >-
+        harbor_ldap_ping.status != 200 or not (harbor_ldap_ping.json.success | default(false))
+      when: harbor_auth_mode == 'ldap_auth'
+
+    # --- Projects and AD group members ---------------------------------------------------------
+    - name: Harbor | Configure projects
+      ansible.builtin.include_tasks: project.yml
+      loop: "{{ harbor_projects }}"
+      loop_control:
+        loop_var: harbor_project
+        label: "{{ harbor_project.name }}"
+
+    # --- Robot accounts --------------------------------------------------------------------------
+    - name: Harbor | List robot accounts
+      ansible.builtin.uri:
+        url: "{{ harbor_api }}/robots?page_size=100"
+      register: harbor_robot_list
+
+    - name: Harbor | Configure robot accounts
+      ansible.builtin.include_tasks: robot.yml
+      loop: "{{ harbor_robots }}"
+      loop_control:
+        loop_var: harbor_robot
+        label: "{{ harbor_robot.name }}"
+
+    # --- Garbage collection ----------------------------------------------------------------------
+    - name: Harbor | Read the garbage collection schedule
+      ansible.builtin.uri:
+        url: "{{ harbor_api }}/system/gc/schedule"
+        status_code: [200, 404]
+      register: harbor_gc
+
+    - name: Harbor | Schedule garbage collection
+      ansible.builtin.uri:
+        url: "{{ harbor_api }}/system/gc/schedule"
+        method: "{{ 'PUT' if harbor_gc_exists else 'POST' }}"
+        body:
+          schedule:
+            type: Custom
+            cron: "{{ harbor_gc_schedule }}"
+          parameters:
+            delete_untagged: "{{ harbor_gc_delete_untagged | bool }}"
+            workers: 1
+        status_code: [200, 201]
+      changed_when: true
+      when: harbor_gc_current_cron != harbor_gc_schedule
+      vars:
+        harbor_gc_exists: "{{ harbor_gc.status == 200 and (harbor_gc.json.schedule | default(none)) is not none }}"
+        harbor_gc_current_cron: "{{ (harbor_gc.json.schedule.cron | default('')) if harbor_gc_exists | bool else '' }}"
+
+    # --- End-to-end check ------------------------------------------------------------------------
+    - name: Harbor | Log in to the registry as a client would
+      ansible.builtin.command:
+        argv:
+          - docker
+          - --config
+          - "{{ harbor_install_dir }}/.login-test"
+          - login
+          - "{{ harbor_hostname }}"
+          - --username
+          - "{{ ('robot$' ~ harbor_robots[0].name) if harbor_robots | length > 0 else 'admin' }}"
+          - --password-stdin
+        stdin: >-
+          {{ harbor_robot_secrets[harbor_robots[0].name] if harbor_robots | length > 0 else harbor_admin_password }}
+      changed_when: false
+      no_log: true
+
+    - name: Harbor | Remove the test login
+      ansible.builtin.file:
+        path: "{{ harbor_install_dir }}/.login-test"
+        state: absent
+      changed_when: false
+  vars:
+    harbor_auth_settings: >-
+      {{ {'auth_mode': harbor_auth_mode} | combine({
+           'ldap_url': harbor_ldap_url,
+           'ldap_verify_cert': harbor_ldap_verify_cert | bool,
+           'ldap_base_dn': harbor_ldap_base_dn,
+           'ldap_search_dn': harbor_ldap_bind_dn,
+           'ldap_filter': harbor_ldap_filter,
+           'ldap_uid': harbor_ldap_uid,
+           'ldap_scope': 2,
+           'ldap_group_base_dn': harbor_ldap_group_base_dn,
+           'ldap_group_search_filter': harbor_ldap_group_filter,
+           'ldap_group_attribute_name': harbor_ldap_group_name_attribute,
+           'ldap_group_search_scope': 2,
+           'ldap_group_admin_dn': harbor_ldap_group_admin_dn,
+           'ldap_group_membership_attribute': 'memberof'
+         } if harbor_auth_mode == 'ldap_auth' else {}) }}

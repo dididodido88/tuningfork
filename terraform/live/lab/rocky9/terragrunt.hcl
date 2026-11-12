@@ -17,7 +17,14 @@ include "envcommon" {
 inputs = {
   vms = {
     "lab-registry" = {
-      ipv4_cidr = "192.168.70.71/24"
+      ipv4_cidr      = "192.168.70.71/24"
+      cores          = 4
+      memory_mb      = 8192
+      ansible_groups = ["registry_servers"]
+      # Harbor data (images, charts, database); harbor_data_dir lives under it.
+      data_disks = [
+        { size_gb = 200, mount = "/srv/harbor", fstype = "xfs" },
+      ]
     }
   }
 }

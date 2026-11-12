@@ -1,0 +1,16 @@
+---
+- name: Harbor | Pre-checks
+  ansible.builtin.import_tasks: preflight.yml
+  tags: [harbor]
+
+- name: Harbor | Docker
+  ansible.builtin.import_tasks: docker.yml
+  tags: [harbor]
+
+- name: Harbor | Install or reconfigure
+  ansible.builtin.import_tasks: install.yml
+  tags: [harbor]
+
+- name: Harbor | Initialise through the API
+  ansible.builtin.import_tasks: initialise.yml
+  tags: [harbor]

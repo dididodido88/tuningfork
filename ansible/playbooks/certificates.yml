@@ -1,6 +1,6 @@
 ---
 # Root CA trust and pre-generated host certificates. Runs first in site.yml, so later plays
-# can reach internal HTTPS services (mirror, Nexus) signed by the CA.
+# can reach internal HTTPS services (mirror, Harbor) signed by the CA.
 #
 # Files are read on the control node from
 #   /srv/security/certificates/files/<certificates_env_dir>/{ca,<short hostname>}/

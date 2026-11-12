@@ -35,13 +35,13 @@ inputs = {
       ]
     }
 
-    "crgs02-nexus01" = {
+    "crgs02-registry01" = {
       ipv4_cidr      = "203.0.113.13/24"
       cores          = 4
       memory_mb      = 8192
-      ansible_groups = ["nexus_servers"]
+      ansible_groups = ["registry_servers"]
       data_disks = [
-        { size_gb = 500, mount = "/opt/sonatype/sonatype-work", fstype = "xfs" },
+        { size_gb = 200, mount = "/srv/harbor", fstype = "xfs" },
       ]
     }
   }

@@ -1,6 +1,0 @@
----
-- name: Restart nexus
-  ansible.builtin.systemd:
-    name: nexus
-    daemon_reload: true
-    state: restarted

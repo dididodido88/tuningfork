@@ -1,0 +1,6 @@
+---
+# Harbor registry hosts run Docker. CIS 3.3.1 sets net.ipv4.ip_forward = 0, which stops
+# Docker forwarding published ports (443) to the Harbor containers, so clients can't reach
+# Harbor. Keep forwarding on these hosts, whatever an environment sets for rocky9; the
+# harbor role sets it to 1 in /etc/sysctl.d/90-docker.conf.
+rhel9cis_rule_3_3_1: false

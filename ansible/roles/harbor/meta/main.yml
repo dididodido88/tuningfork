@@ -1,7 +1,7 @@
 ---
 galaxy_info:
   author: tuningfork
-  description: Sonatype Nexus Repository server
+  description: Harbor container image and Helm chart (OCI) registry from the offline installer, initialised through the Harbor API
   license: proprietary
   min_ansible_version: "2.14"
   platforms:
