@@ -12,3 +12,15 @@
 *.swp
 Thumbs.db
 .DS_Store
+
+# Terraform / Terragrunt
+# Local state holds VM details and must not be committed; back terraform/state/ up separately.
+terraform/state/
+*.tfstate
+*.tfstate.*
+.terraform/
+.terragrunt-cache/
+# Providers are supplied out of band (see terraform/README.md).
+terraform/providers/*
+!terraform/providers/.gitkeep
+# Keep .terraform.lock.hcl files: commit them.

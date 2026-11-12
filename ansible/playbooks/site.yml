@@ -2,7 +2,7 @@
 # Full run, in layer order:
 #   repositories -> data disks -> 1. CIS hardening -> 2. common OS config -> 3. server roles
 #
-#   ansible-playbook -i inventories/CRGS00 playbooks/site.yml
+#   ansible-playbook -i inventories/CRGS00 playbooks/site.yml    (run from the ansible/ directory)
 #
 # Limit with --limit <group|host> or --tags <tag>.
 
