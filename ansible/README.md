@@ -15,6 +15,7 @@ After three preparation steps, each host gets three layers. `playbooks/site.yml`
 | Prep: Data disks | Partition, format and mount blank disks by UUID | `linux` | `filesystems.yml` | `filesystems` |
 | 1. Hardening | CIS RHEL 9 benchmark (ansible-lockdown) | `rocky9` | `cis_rhel9.yml` | `RHEL9-CIS` (vendored) |
 | 2. Common OS | Settings every host of an OS family gets | `linux`, `windows`, `windows_server`, `windows_desktop` | `linux_common.yml`, `windows_common.yml` | `linux_common`, `windows_common`, `windows_server_common`, `windows_desktop_common` |
+| 2. CLI tools | btop, htop, jq, yq, tree, ripgrep, fd, bat | `rocky9` | `cli_tools.yml` | `cli_tools` |
 | 2. AD logins | Join Active Directory; AD + local logins, home directories, SSH and sudo by AD group (when `sssd_ad_enabled`) | `rocky9` | `sssd_ad.yml` | `sssd_ad` |
 | 3. Server role | What the host is for | `nfs_servers`, `db_servers`, `nexus_servers` | `nfs_server.yml`, `database_server.yml`, `nexus_server.yml` | `nfs_server`, `database_server`, `nexus_server` |
 
@@ -127,6 +128,25 @@ chgrp -R certdeploy /srv/security/certificates/files
 chmod -R g+rX,o-rwx /srv/security/certificates/files
 usermod -aG certdeploy ansible
 ```
+
+## Common CLI tools (`cli_tools`)
+
+`playbooks/cli_tools.yml` installs the same tools on every Rocky 9 host from the internal mirror:
+
+| Tool | Package | Repo | Command |
+|---|---|---|---|
+| btop | `btop` | EPEL | `btop` |
+| htop | `htop` | EPEL | `htop` |
+| jq | `jq` | AppStream | `jq` |
+| yq | `yq` (Go, v4) | EPEL | `yq` |
+| tree | `tree` | BaseOS | `tree` |
+| ripgrep | `ripgrep` | EPEL | `rg` |
+| fd | `fd-find` | EPEL | `fd` |
+| bat | `bat` | EPEL | `bat` |
+
+Add packages for an environment or group with `cli_tools_extra_packages` (e.g. in
+`inventories/<ENV>/group_vars/rocky9.yml`). Set `cli_tools_state: latest` to upgrade them on every run.
+If the mirror lacks a package (e.g. EPEL isn't synced), the play fails and names it.
 
 ## Active Directory logins (`sssd_ad`)
 
@@ -268,6 +288,7 @@ roles/
   repositories/              DNF repositories on the internal mirror, GPG keys
   filesystems/               data disks: GPT partition, mkfs, data migration, mount by UUID
   linux_common/              all Linux
+  cli_tools/                 common CLI tools (btop, htop, jq, yq, tree, ripgrep, fd, bat)
   sssd_ad/                   Active Directory join + sssd (AD and local logins, SSH/sudo groups)
   windows_common/            all Windows
   windows_server_common/     Windows Server only

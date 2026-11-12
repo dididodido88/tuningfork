@@ -1,0 +1,19 @@
+---
+# Common CLI tools installed on every Rocky 9 host. They come from the internal mirror
+# (roles/repositories), so EPEL must be enabled there.
+
+cli_tools_packages:
+  - btop      # btop     resource monitor                  EPEL
+  - htop      # htop     process viewer                    EPEL
+  - jq        # jq       JSON processor                    AppStream
+  - yq        # yq       YAML/JSON processor (Go, v4)      EPEL
+  - tree      # tree     directory listing                 BaseOS
+  - ripgrep   # rg       recursive grep                    EPEL
+  - fd-find   # fd       find alternative                  EPEL
+  - bat       # bat      cat with syntax highlighting      EPEL
+
+# Additional packages for an environment or group, e.g. in inventories/<ENV>/group_vars/rocky9.yml.
+cli_tools_extra_packages: []
+
+# present: install if missing. latest: also upgrade on every run.
+cli_tools_state: present

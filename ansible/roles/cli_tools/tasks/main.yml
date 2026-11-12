@@ -1,0 +1,6 @@
+---
+- name: Tools | Install common CLI tools
+  ansible.builtin.dnf:
+    name: "{{ cli_tools_packages + cli_tools_extra_packages }}"
+    state: "{{ cli_tools_state }}"
+  tags: [cli_tools]
