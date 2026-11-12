@@ -79,7 +79,10 @@
 
 - name: Bastion | Generate bash completion scripts
   ansible.builtin.command:
-    argv: [/usr/local/bin/{{ item }}, completion, bash]
+    argv:
+      - "/usr/local/bin/{{ item }}"
+      - completion
+      - bash
   loop: "{{ k8s_bastion_completion_tools | intersect(k8s_bastion_tools | map(attribute='name')) }}"
   register: k8s_bastion_completion
   changed_when: false
