@@ -1,6 +1,6 @@
 # tuningfork
 
-Infrastructure code for the **CRGS00**, **CRGS01** and **CRGS02** environments, built for air-gapped
+Infrastructure code for the **CRGS00**, **CRGS01** and **CRGS02** environments (plus a **lab** environment), built for air-gapped
 networks. Terraform creates the VMs on Proxmox. Ansible then hardens and configures them.
 
 | Directory | Tool | What it does | Docs |

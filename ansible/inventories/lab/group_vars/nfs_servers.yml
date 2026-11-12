@@ -1,5 +1,5 @@
 ---
-# CRGS00: NFS servers (roles/nfs_server/defaults/main.yml).
+# lab: NFS servers (roles/nfs_server/defaults/main.yml).
 
 nfs_server_exports:
   - path: /srv/nfs/share

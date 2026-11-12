@@ -1,5 +1,5 @@
 ---
-# CRGS00: CIS settings for Rocky Linux 9 (roles/RHEL9-CIS/defaults/main.yml lists every option).
+# lab: CIS settings for Rocky Linux 9 (roles/RHEL9-CIS/defaults/main.yml lists every option).
 # NTP, banner, IPv6 and journald come from linux.yml; see playbooks/group_vars/rocky9.yml.
 
 # Skip high-risk changes until each environment has been tested with them.

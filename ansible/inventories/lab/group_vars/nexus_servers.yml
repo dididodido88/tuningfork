@@ -1,5 +1,5 @@
 ---
-# CRGS00: Sonatype Nexus Repository servers (roles/nexus_server/defaults/main.yml).
+# lab: Sonatype Nexus Repository servers (roles/nexus_server/defaults/main.yml).
 
 nexus_server_version: "3.70.1-02"
 nexus_server_download_url: "{{ env_mirror_base_url }}/binaries/sonatype/nexus-{{ nexus_server_version }}-unix.tar.gz"

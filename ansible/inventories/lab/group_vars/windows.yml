@@ -1,5 +1,5 @@
 ---
-# CRGS00: all Windows hosts (Server and Desktop). Connection over WinRM HTTPS.
+# lab: all Windows hosts (Server and Desktop). Connection over WinRM HTTPS.
 
 ansible_connection: winrm
 ansible_port: 5986

@@ -5,7 +5,7 @@ provider. Terragrunt adds the per-environment layout. Each unit clones VMs from 
 their network and the Ansible account's SSH keys through cloud-init, and writes an Ansible inventory
 file that `ansible/` picks up directly.
 
-Currently: **Rocky Linux 9** in **CRGS00**, **CRGS01** and **CRGS02**.
+Currently: **Rocky Linux 9** in **CRGS00**, **CRGS01**, **CRGS02** and **lab**.
 
 ## Layout
 

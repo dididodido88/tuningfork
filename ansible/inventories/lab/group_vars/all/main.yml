@@ -1,8 +1,8 @@
 ---
-# Settings shared by every host in CRGS00.
+# Settings shared by every host in lab.
 
-env_name: CRGS00
-env_domain: example.internal
+env_name: lab
+env_domain: lab.local
 
 # Internal time sources, used by linux.yml and windows.yml.
 env_ntp_servers:

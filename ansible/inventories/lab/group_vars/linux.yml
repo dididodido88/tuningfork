@@ -1,5 +1,5 @@
 ---
-# CRGS00: all Linux hosts.
+# lab: all Linux hosts.
 
 ansible_user: ansible
 ansible_become: true
