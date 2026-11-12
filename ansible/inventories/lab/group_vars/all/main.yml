@@ -16,3 +16,7 @@ env_banner_text: >-
 # Internal mirror (e.g. Nexus) that serves packages and binaries in this
 # air-gapped environment.
 env_mirror_base_url: https://nexus.example.internal/repository
+
+# Folder of this environment under /srv/security/certificates/files on the control node
+# (roles/certificates: root CA in ca/, one folder per short hostname).
+certificates_env_dir: lab.local

@@ -1,12 +1,17 @@
 ---
 # Full run, in layer order:
-#   repositories -> data disks -> 1. CIS hardening -> 2. common OS config -> 3. server roles
+#   certificates -> repositories -> data disks -> 1. CIS hardening -> 2. common OS config -> 3. server roles
 #
 #   ansible-playbook -i inventories/CRGS00 playbooks/site.yml    (run from the ansible/ directory)
 #
 # Limit with --limit <group|host> or --tags <tag>.
 
-# First: point hosts at the internal mirror, since later plays install packages.
+# First: trust the internal root CA and install host certificates, so later plays can reach
+# internal HTTPS services (the mirror, Nexus) signed by that CA.
+- name: Certificates
+  ansible.builtin.import_playbook: certificates.yml
+
+# Then point hosts at the internal mirror, since later plays install packages.
 - name: Package repositories
   ansible.builtin.import_playbook: repositories.yml
 

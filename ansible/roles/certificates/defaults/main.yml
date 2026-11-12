@@ -1,0 +1,57 @@
+---
+# Pre-generated host certificates and the environment's root CA.
+#
+# The files are read on the CONTROL NODE (outside this repository) as the user running
+# ansible-playbook, not as root. That user needs read access to the whole tree:
+#   <certificates_source_root>/<certificates_env_dir>/ca/ca.cert.pem
+#   <certificates_source_root>/<certificates_env_dir>/<host>/<host>.crt
+#   <certificates_source_root>/<certificates_env_dir>/<host>/<host>.key
+#   <certificates_source_root>/<certificates_env_dir>/<host>/<host>.p12
+#   <certificates_source_root>/<certificates_env_dir>/<host>/<host>.fullchain.crt
+#
+# Set per environment in inventories/<ENV>/group_vars/all/main.yml:
+#   certificates_env_dir    required: folder of this environment, e.g. lab.local
+
+certificates_source_root: /srv/security/certificates/files
+certificates_env_dir: ""
+
+# Folder and file prefix of a host's files: the short hostname (lab-registry for
+# lab-registry.lab.local). Set in host_vars if a host's files are named differently.
+certificates_host_name: "{{ inventory_hostname_short }}"
+
+certificates_source_dir: "{{ certificates_source_root }}/{{ certificates_env_dir }}"
+certificates_host_source_dir: "{{ certificates_source_dir }}/{{ certificates_host_name }}"
+
+# Root CA: added to the system trust store (update-ca-trust).
+certificates_ca_src: "{{ certificates_source_dir }}/ca/ca.cert.pem"
+certificates_ca_anchor_dir: /etc/pki/ca-trust/source/anchors
+certificates_ca_anchor_name: "{{ certificates_env_dir }}-root-ca.pem"
+
+# Host files: source is <host source dir>/<host><suffix>. 'secret' files (private key
+# material) get certificates_key_owner/group and are kept out of logs and --diff output.
+certificates_files:
+  - suffix: .crt
+    dest: /etc/pki/tls/certs/host.crt
+    mode: "0644"
+    secret: false
+  - suffix: .fullchain.crt
+    dest: /etc/pki/tls/certs/host.fullchain.crt
+    mode: "0644"
+    secret: false
+  - suffix: .key
+    dest: /etc/pki/tls/private/host.key
+    mode: "0600"
+    secret: true
+  - suffix: .p12
+    dest: /etc/pki/tls/private/host.p12
+    mode: "0600"
+    secret: true
+
+# Owner/group of the secret files. To let a service read the key without running as root,
+# set the group to the service's group and the secret modes to "0640" in certificates_files.
+certificates_key_owner: root
+certificates_key_group: root
+
+# Before copying, check on the control node (needs openssl there) that the certificate
+# chains to the CA, matches the private key, hasn't expired and covers the host's FQDN.
+certificates_verify: true

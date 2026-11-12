@@ -1,0 +1,162 @@
+---
+# Source paths on the control node, checked and copied below.
+- name: Certs | Check the environment folder is set
+  ansible.builtin.assert:
+    that:
+      - certificates_env_dir | length > 0
+    fail_msg: >-
+      Set certificates_env_dir (e.g. lab.local) in inventories/<ENV>/group_vars/all/main.yml.
+    quiet: true
+  tags: [certificates]
+
+- name: Certs | Look up the source files on the control node
+  ansible.builtin.stat:
+    path: "{{ item }}"
+    get_checksum: false
+  loop: "{{ [certificates_ca_src] + certificates_host_files }}"
+  vars:
+    certificates_host_files: >-
+      {{ certificates_files | map(attribute='suffix')
+         | map('regex_replace', '^', certificates_host_source_dir ~ '/' ~ certificates_host_name) | list }}
+  register: certificates_source_stat
+  delegate_to: localhost
+  become: false
+  check_mode: false
+  tags: [certificates]
+
+- name: Certs | Stop if a source file is missing or not readable
+  ansible.builtin.fail:
+    msg: >-
+      These files are missing or not readable on the control node by user
+      '{{ lookup('env', 'USER') }}' (the control node reads them without become):
+      {{ certificates_bad_files | join(', ') }}.
+      Check the files exist and grant read access, e.g. through a group:
+      chgrp -R <group> {{ certificates_source_root }} && chmod -R g+rX,o-rwx {{ certificates_source_root }}
+  vars:
+    certificates_bad_files: >-
+      {{ certificates_source_stat.results
+         | rejectattr('stat.readable', 'defined')
+         | map(attribute='item') | list
+         + certificates_source_stat.results
+         | selectattr('stat.readable', 'defined') | rejectattr('stat.readable')
+         | map(attribute='item') | list }}
+  when: certificates_bad_files | length > 0
+  tags: [certificates]
+
+# --- Checks on the control node before anything is copied --------------------------------
+
+- name: Certs | Verify the certificate chains to the root CA
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - verify
+      - -CAfile
+      - "{{ certificates_ca_src }}"
+      - -untrusted
+      - "{{ certificates_host_source_dir }}/{{ certificates_host_name }}.fullchain.crt"
+      - "{{ certificates_host_source_dir }}/{{ certificates_host_name }}.crt"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  check_mode: false
+  when: certificates_verify | bool
+  tags: [certificates]
+
+# -passin pass: makes openssl fail at once on an encrypted key instead of prompting.
+- name: Certs | Verify the private key matches the certificate
+  ansible.builtin.shell: |
+    set -o pipefail
+    cert=$(openssl x509 -in "{{ certificates_host_source_dir }}/{{ certificates_host_name }}.crt" -noout -pubkey | openssl sha256)
+    key=$(openssl pkey -in "{{ certificates_host_source_dir }}/{{ certificates_host_name }}.key" -passin pass: -pubout | openssl sha256)
+    if [ "$cert" != "$key" ]; then
+      echo "The private key doesn't belong to the certificate." >&2
+      exit 1
+    fi
+  args:
+    executable: /bin/bash
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  check_mode: false
+  when: certificates_verify | bool
+  tags: [certificates]
+
+- name: Certs | Verify the certificate hasn't expired
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -in
+      - "{{ certificates_host_source_dir }}/{{ certificates_host_name }}.crt"
+      - -noout
+      - -checkend
+      - "0"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  check_mode: false
+  when: certificates_verify | bool
+  tags: [certificates]
+
+# openssl exits 0 whether or not the name matches, so check its message.
+- name: Certs | Verify the certificate covers the host name
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - x509
+      - -in
+      - "{{ certificates_host_source_dir }}/{{ certificates_host_name }}.crt"
+      - -noout
+      - -checkhost
+      - "{{ inventory_hostname }}"
+  register: certificates_checkhost
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  failed_when: certificates_checkhost.rc != 0 or 'does match certificate' not in certificates_checkhost.stdout
+  check_mode: false
+  when: certificates_verify | bool
+  tags: [certificates]
+
+# --- Deploy -------------------------------------------------------------------------------
+
+- name: Certs | Install the root CA as a trust anchor
+  ansible.builtin.copy:
+    src: "{{ certificates_ca_src }}"
+    dest: "{{ certificates_ca_anchor_dir }}/{{ certificates_ca_anchor_name }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Certs | Update CA trust
+  tags: [certificates]
+
+# Later plays in the same run (repositories, Nexus) may connect to services signed by this CA.
+- name: Certs | Update the trust store now
+  ansible.builtin.meta: flush_handlers
+  tags: [certificates]
+
+- name: Certs | Copy the host certificates
+  ansible.builtin.copy:
+    src: "{{ certificates_host_source_dir }}/{{ certificates_host_name }}{{ item.suffix }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop: "{{ certificates_files | rejectattr('secret') | list }}"
+  loop_control:
+    label: "{{ item.dest }}"
+  tags: [certificates]
+
+- name: Certs | Copy the private key files
+  ansible.builtin.copy:
+    src: "{{ certificates_host_source_dir }}/{{ certificates_host_name }}{{ item.suffix }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ certificates_key_owner }}"
+    group: "{{ certificates_key_group }}"
+    mode: "{{ item.mode }}"
+  loop: "{{ certificates_files | selectattr('secret') | list }}"
+  loop_control:
+    label: "{{ item.dest }}"
+  diff: false
+  no_log: true
+  tags: [certificates]

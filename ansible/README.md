@@ -6,10 +6,11 @@ and collection it needs is vendored in this repository.
 
 ## Layers
 
-After two preparation steps, each host gets three layers. `playbooks/site.yml` applies them in this order:
+After three preparation steps, each host gets three layers. `playbooks/site.yml` applies them in this order:
 
 | Layer | What | Applies to | Playbook | Role(s) |
 |---|---|---|---|---|
+| Prep: Certificates | Root CA in the trust store; host certificate, key, p12, full chain | `rocky9` | `certificates.yml` | `certificates` |
 | Prep: Repositories | DNF repos on the internal mirror + GPG keys | `rocky9` | `repositories.yml` | `repositories` |
 | Prep: Data disks | Partition, format and mount blank disks by UUID | `linux` | `filesystems.yml` | `filesystems` |
 | 1. Hardening | CIS RHEL 9 benchmark (ansible-lockdown) | `rocky9` | `cis_rhel9.yml` | `RHEL9-CIS` (vendored) |
@@ -87,6 +88,44 @@ Settings CIS still applies that change how people log in (not lockouts, but plan
 **Keep console access** (hypervisor or out-of-band) to every host before the first CIS run: it's
 the recovery path if something still goes wrong. CIS backs up the PAM profile before it changes it
 (`authselect backup-list`).
+
+## Certificates (`certificates`)
+
+`playbooks/certificates.yml` runs first in `site.yml`. It adds the environment's root CA to the system
+trust store and installs each host's pre-generated certificate and key. The files are **not** in this
+repository. They are read on the control node from:
+
+```
+/srv/security/certificates/files/<certificates_env_dir>/ca/ca.cert.pem
+/srv/security/certificates/files/<certificates_env_dir>/<short hostname>/<short hostname>.{crt,key,p12,fullchain.crt}
+```
+
+`certificates_env_dir` is set in `inventories/<ENV>/group_vars/all/main.yml` (`lab.local`, `crgs00.local`, ...).
+The short hostname comes from the inventory name (`lab-registry` for `lab-registry.lab.local`).
+
+| Source | Destination on the host | Owner / mode |
+|---|---|---|
+| `ca/ca.cert.pem` | `/etc/pki/ca-trust/source/anchors/<env dir>-root-ca.pem`, then `update-ca-trust extract` | root:root 0644 |
+| `<host>.crt` | `/etc/pki/tls/certs/host.crt` | root:root 0644 |
+| `<host>.fullchain.crt` | `/etc/pki/tls/certs/host.fullchain.crt` | root:root 0644 |
+| `<host>.key` | `/etc/pki/tls/private/host.key` | `certificates_key_owner`:`certificates_key_group` 0600 |
+| `<host>.p12` | `/etc/pki/tls/private/host.p12` | `certificates_key_owner`:`certificates_key_group` 0600 |
+
+Before copying anything to a host, the play checks on the control node (with `openssl`) that all five files exist and
+are readable, the certificate chains to the CA, the key matches the certificate, the certificate hasn't
+expired, and it covers the host's FQDN. If any check fails, that host gets nothing. Turn the `openssl` checks off with
+`certificates_verify: false`. Key contents never appear in logs or `--diff` output.
+
+**Control node access.** Run the play on the control node that holds `/srv/security/certificates/files`
+(an execution environment needs that path mounted). The control node reads the files as the user running
+`ansible-playbook`. `become` only applies on the target host. Give that user read access through a group
+instead of using `sudo ansible-playbook`:
+
+```sh
+chgrp -R certdeploy /srv/security/certificates/files
+chmod -R g+rX,o-rwx /srv/security/certificates/files
+usermod -aG certdeploy ansible
+```
 
 ## Package repositories (`repositories`)
 
@@ -207,6 +246,7 @@ collections/                 VENDORED collections
 roles/
   RHEL9-CIS/                 VENDORED ansible-lockdown role (see VENDORED.md)
   cis_safeguards/            pre-checks and post-checks around CIS (lockout protection)
+  certificates/              root CA trust + pre-generated host certificates (files on the control node)
   repositories/              DNF repositories on the internal mirror, GPG keys
   filesystems/               data disks: GPT partition, mkfs, data migration, mount by UUID
   linux_common/              all Linux
