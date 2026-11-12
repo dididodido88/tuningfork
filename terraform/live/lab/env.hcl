@@ -18,8 +18,8 @@ locals {
   # Network. vlan_id = null for an untagged bridge.
   network_bridge = "vmbr0"
   vlan_id        = null
-  ipv4_gateway   = "192.168.70.1"
-  dns_servers    = ["192.168.70.2"] # REPLACE
+  ipv4_gateway   = "192.168.70.254"
+  dns_servers    = ["192.168.70.101", "192.168.70.102"]
   dns_domain     = "lab.local" # same as env_domain in ansible/inventories/lab/group_vars/all/main.yml
 
   # Keys authorised for the ansible account on new VMs.
