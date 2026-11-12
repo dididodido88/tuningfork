@@ -1,0 +1,23 @@
+---
+# kubectl from the internal mirror. Used by playbooks/kubectl.yml (group kubectl_hosts) and
+# playbooks/k8s_bastion.yml. Mirror layout and download steps: docs/kubernetes-clients.md.
+#
+# Set per environment in inventories/<ENV>/group_vars/all/main.yml:
+#   kubectl_version   required, e.g. v1.31.0 (within one minor version of your clusters)
+
+kubectl_version: ""
+
+# https://maestro/kubernetes/<version>/kubectl (same file names as dl.k8s.io).
+kubectl_mirror_url: "{{ env_mirror_base_url | default('https://maestro') }}/kubernetes"
+kubectl_url: "{{ kubectl_mirror_url }}/{{ kubectl_version }}/kubectl"
+
+# Empty: verify against <kubectl_url>.sha256 on the mirror. Set "sha256:<hash>" to pin the
+# value recorded when the binary was downloaded on the internet side.
+kubectl_checksum: ""
+
+# Each version is kept in <install_dir>/<version>/kubectl; the link points at kubectl_version.
+kubectl_install_dir: /usr/local/lib/kubectl
+kubectl_bin_link: /usr/local/bin/kubectl
+
+# System-wide bash completion (/etc/bash_completion.d/kubectl).
+kubectl_bash_completion: true

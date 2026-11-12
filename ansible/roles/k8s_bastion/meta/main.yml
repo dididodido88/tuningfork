@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  author: tuningfork
+  description: Kubernetes bastion host - client tools (helm, k9s, kubectx/kubens), shared cluster contexts, login environment
+  license: proprietary
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+dependencies: []

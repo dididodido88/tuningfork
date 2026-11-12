@@ -15,9 +15,10 @@ After three preparation steps, each host gets three layers. `playbooks/site.yml`
 | Prep: Data disks | Partition, format and mount blank disks by UUID | `linux` | `filesystems.yml` | `filesystems` |
 | 1. Hardening | CIS RHEL 9 benchmark (ansible-lockdown) | `rocky9` | `cis_rhel9.yml` | `RHEL9-CIS` (vendored) |
 | 2. Common OS | Settings every host of an OS family gets | `linux`, `windows`, `windows_server`, `windows_desktop` | `linux_common.yml`, `windows_common.yml` | `linux_common`, `windows_common`, `windows_server_common`, `windows_desktop_common` |
-| 2. CLI tools | btop, htop, jq, yq, tree, ripgrep, fd, bat | `rocky9` | `cli_tools.yml` | `cli_tools` |
+| 2. CLI tools | btop, htop, jq, yq, tree, ripgrep, fd, bat, SELinux utilities (semanage, audit2allow) | `rocky9` | `cli_tools.yml` | `cli_tools` |
 | 2. AD logins | Join Active Directory; AD + local logins, home directories, SSH and sudo by AD group (when `sssd_ad_enabled`) | `rocky9` | `sssd_ad.yml` | `sssd_ad` |
 | 3. Server role | What the host is for | `nfs_servers`, `db_servers`, `registry_servers` | `nfs_server.yml`, `database_server.yml`, `harbor.yml` | `nfs_server`, `database_server`, `harbor` |
+| 3. Kubernetes clients | kubectl on `kubectl_hosts`; bastion tools (helm, k9s, kubectx/kubens), shared cluster contexts | `kubectl_hosts`, `k8s_bastions` | `kubectl.yml`, `k8s_bastion.yml` | `kubectl`, `k8s_bastion` |
 
 Membership in an inventory group decides what runs; roles don't check the OS themselves.
 
@@ -131,7 +132,7 @@ usermod -aG certdeploy ansible
 
 ## Common CLI tools (`cli_tools`)
 
-`playbooks/cli_tools.yml` installs the same tools on every Rocky 9 host from the internal mirror:
+`playbooks/cli_tools.yml` installs the same tools and SELinux utilities on every Rocky 9 host from the internal mirror:
 
 | Tool | Package | Repo | Command |
 |---|---|---|---|
@@ -143,6 +144,8 @@ usermod -aG certdeploy ansible
 | ripgrep | `ripgrep` | EPEL | `rg` |
 | fd | `fd-find` | EPEL | `fd` |
 | bat | `bat` | EPEL | `bat` |
+| SELinux core tools | `policycoreutils` | BaseOS | `restorecon`, `semodule`, `setfiles`, `fixfiles` |
+| SELinux management | `policycoreutils-python-utils` | AppStream | `semanage`, `audit2allow`, `audit2why` |
 
 Add packages for an environment or group with `cli_tools_extra_packages` (e.g. in
 `inventories/<ENV>/group_vars/rocky9.yml`). Set `cli_tools_state: latest` to upgrade them on every run.
@@ -180,6 +183,19 @@ registry, at `https://registry.<domain>` (lab: `registry.lab.local`, a DNS alias
 Settings: `inventories/<ENV>/group_vars/registry_servers.yml`, secrets `vault_harbor_*`. **Files to download for the
 mirror**, prerequisites (DNS alias, certificate SAN, AD bind account and groups), client usage, backups, upgrades and
 Trivy: [docs/harbor.md](docs/harbor.md).
+
+## Kubernetes clients (`kubectl`, `k8s_bastion`)
+
+- `playbooks/kubectl.yml` installs a pinned `kubectl` (`kubectl_version` in `group_vars/all/main.yml`) from
+  `<env_mirror_base_url>/kubernetes/<version>/` on every host in `kubectl_hosts`. Each version gets its own directory,
+  and a symlink in `/usr/local/bin` points at the active one.
+- `playbooks/k8s_bastion.yml` builds the Kubernetes bastion (`k8s_bastions`, lab: `lab-k8s-bastion`):
+  - kubectl, plus helm, k9s and kubectx/kubens from `<mirror>/kubernetes/tools/`
+  - shared cluster contexts without credentials (`k8s_bastion_clusters`)
+  - a `KUBECONFIG` set up at login
+  - AD logins for the `k8s-users` group (`sssd_ad_extra_ssh_groups`)
+
+Files to download, versions and checksums, and using the bastion: [docs/kubernetes-clients.md](docs/kubernetes-clients.md).
 
 ## Package repositories (`repositories`)
 
@@ -296,7 +312,7 @@ lost `UUID=`. A disk-based `/tmp` requires `rhel9cis_tmp_svc: false` (the defaul
 ```
 ansible.cfg                  roles_path, vendored collections_path, no default inventory
 requirements.yml             record of vendored versions (used only to refresh them)
-docs/                        longer guides (active-directory.md, harbor.md)
+docs/                        longer guides (active-directory.md, harbor.md, kubernetes-clients.md)
 collections/                 VENDORED collections
 roles/
   RHEL9-CIS/                 VENDORED ansible-lockdown role (see VENDORED.md)
@@ -305,13 +321,15 @@ roles/
   repositories/              DNF repositories on the internal mirror, GPG keys
   filesystems/               data disks: GPT partition, mkfs, data migration, mount by UUID
   linux_common/              all Linux
-  cli_tools/                 common CLI tools (btop, htop, jq, yq, tree, ripgrep, fd, bat)
+  cli_tools/                 common CLI tools (btop, htop, jq, yq, tree, ripgrep, fd, bat) + SELinux utilities
   sssd_ad/                   Active Directory join + sssd (AD and local logins, SSH/sudo groups)
   windows_common/            all Windows
   windows_server_common/     Windows Server only
   windows_desktop_common/    Windows 11 Desktop only
   nfs_server/  database_server/
   harbor/                    Harbor registry: Docker CE, offline installer, API initialisation (docs/harbor.md)
+  kubectl/                   pinned kubectl from the mirror (any host in kubectl_hosts)
+  k8s_bastion/               Kubernetes bastion: helm, k9s, kubectx/kubens, shared cluster contexts
 playbooks/
   site.yml                   runs everything in layer order
   group_vars/                settings that apply to every environment (see below)
@@ -363,7 +381,7 @@ ansible-playbook -i inventories/CRGS01 playbooks/site.yml --limit nfs_servers
 ```
 
 Useful tags: `repositories`, `filesystems`, `cis`, `linux_common`, `ntp`, `banner`, `ipv6`, `journald`, `windows_common`,
-`nfs_server`, `database_server`, `harbor`, `firewall`. The CIS role also has a tag per rule
+`nfs_server`, `database_server`, `harbor`, `kubectl`, `k8s_bastion`, `firewall`. The CIS role also has a tag per rule
 (e.g. `rule_5.1.1`) and per level (`level1-server`).
 
 ### Secrets

@@ -1,0 +1,9 @@
+Kubernetes bastion: kubectl {{ kubectl_version }}{% for t in k8s_bastion_tools %}, {{ t.name }} {{ t.version }}{% endfor %}
+
+{% if k8s_bastion_clusters | length > 0 %}
+  Clusters: {{ k8s_bastion_clusters | map(attribute='name') | join(', ') }}  (kubectl config get-contexts)
+  First time: kubectl config set-credentials <cluster> --token=<token>   (or your OIDC/cert method)
+{% endif %}
+  Switch:   kubectx <cluster>   kubens <namespace>      Explore: k9s
+  Charts:   helm install <name> oci://registry.{{ env_domain }}/charts/<chart> --version <v>
+

@@ -10,7 +10,7 @@
           - sssd_ad_domain | length > 0
           - sssd_ad_join_user | length > 0
           - sssd_ad_join_password | length > 0
-          - (sssd_ad_ssh_groups + sssd_ad_admin_groups) | length > 0
+          - (sssd_ad_ssh_groups + sssd_ad_extra_ssh_groups + sssd_ad_admin_groups) | length > 0
           - inventory_hostname_short | length <= 15
         fail_msg: >-
           Set sssd_ad_domain, sssd_ad_join_user and at least one group in
@@ -167,7 +167,7 @@
     - name: AD | Check the AD groups resolve
       ansible.builtin.command:
         argv: [getent, group, "{{ item }}"]
-      loop: "{{ sssd_ad_ssh_groups + sssd_ad_admin_groups }}"
+      loop: "{{ sssd_ad_ssh_groups + sssd_ad_extra_ssh_groups + sssd_ad_admin_groups }}"
       register: sssd_ad_groups
       changed_when: false
       failed_when: false

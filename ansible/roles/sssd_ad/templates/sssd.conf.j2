@@ -31,7 +31,7 @@ default_shell = {{ sssd_ad_shell }}
 
 # Only members of these AD groups may log in. Local users aren't affected.
 access_provider = simple
-simple_allow_groups = {{ (sssd_ad_ssh_groups + sssd_ad_admin_groups) | unique | join(', ') }}
+simple_allow_groups = {{ (sssd_ad_ssh_groups + sssd_ad_extra_ssh_groups + sssd_ad_admin_groups) | unique | join(', ') }}
 # Don't apply Windows logon-right GPOs to Linux hosts.
 ad_gpo_access_control = disabled
 

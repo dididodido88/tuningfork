@@ -1,0 +1,12 @@
+---
+# kubectl on every host in kubectl_hosts (Kubernetes bastions are a child group; add other
+# hosts, e.g. CI runners, directly). Version: kubectl_version in group_vars/all/main.yml.
+# Mirror layout: docs/kubernetes-clients.md.
+
+- name: Install kubectl
+  hosts: kubectl_hosts
+  become: true
+  gather_facts: false
+  roles:
+    - role: kubectl
+      tags: [kubectl]

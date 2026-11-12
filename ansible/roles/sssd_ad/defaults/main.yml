@@ -32,6 +32,9 @@ sssd_ad_join_password: "{{ vault_sssd_ad_join_password | default('') }}"
 # AD groups whose members may log in over SSH (and at the console). They are also added to
 # sshd AllowGroups through cis_safeguards_ssh_allow_groups (inventories/<ENV>/group_vars/rocky9.yml).
 sssd_ad_ssh_groups: [linux-ssh-users]
+# Extra SSH groups for a subset of hosts, set in that group's group_vars (e.g. k8s_bastions.yml:
+# [k8s-users]). A separate variable avoids clashing with sssd_ad_ssh_groups from linux.yml.
+sssd_ad_extra_ssh_groups: []
 # AD groups whose members may log in and use sudo (ALL commands, with their AD password).
 sssd_ad_admin_groups: [linux-admins]
 # Let admin groups use sudo without a password. CIS 5.2.4 removes NOPASSWD unless these

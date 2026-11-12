@@ -1,0 +1,15 @@
+---
+# Kubernetes bastion hosts: kubectl (shared kubectl role) plus helm, k9s, kubectx/kubens,
+# shared cluster contexts and the login environment. Only AD users in the groups from
+# sssd_ad_extra_ssh_groups (k8s-users) and the normal SSH/admin groups can log in.
+# Settings: inventories/<ENV>/group_vars/k8s_bastions.yml. Mirror: docs/kubernetes-clients.md.
+
+- name: Kubernetes bastion hosts
+  hosts: k8s_bastions
+  become: true
+  gather_facts: false
+  roles:
+    - role: kubectl
+      tags: [kubectl]
+    - role: k8s_bastion
+      tags: [k8s_bastion]

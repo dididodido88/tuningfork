@@ -1,0 +1,22 @@
+# {{ ansible_managed }} (roles/k8s_bastion)
+# Kubernetes bastion login environment.
+
+# Personal kubeconfig first (credentials and current context are written there), then every
+# shared cluster definition, so all clusters appear in "kubectl config get-contexts".
+if [ -n "$HOME" ] && [ ! -d "$HOME/.kube" ]; then
+  mkdir -p -m 700 "$HOME/.kube" 2>/dev/null
+fi
+_k8s_kubeconfig="$HOME/.kube/config"
+for _k8s_file in {{ k8s_bastion_clusters_dir }}/*.yaml; do
+  [ -r "$_k8s_file" ] && _k8s_kubeconfig="$_k8s_kubeconfig:$_k8s_file"
+done
+export KUBECONFIG="$_k8s_kubeconfig"
+unset _k8s_kubeconfig _k8s_file
+
+# Interactive bash: short alias with completion.
+if [ -n "$BASH_VERSION" ] && [ -n "$PS1" ]; then
+  alias k=kubectl
+  if type __start_kubectl >/dev/null 2>&1; then
+    complete -o default -F __start_kubectl k
+  fi
+fi

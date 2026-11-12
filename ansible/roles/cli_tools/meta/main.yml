@@ -1,7 +1,7 @@
 ---
 galaxy_info:
   author: tuningfork
-  description: Install common CLI tools (btop, htop, jq, yq, tree, ripgrep, fd, bat) on Rocky 9
+  description: Install common CLI tools (btop, htop, jq, yq, tree, ripgrep, fd, bat) and SELinux utilities on Rocky 9
   license: proprietary
   min_ansible_version: "2.14"
   platforms:

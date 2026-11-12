@@ -20,3 +20,7 @@ env_mirror_base_url: https://maestro
 # Folder of this environment under /srv/security/certificates/files on the control node
 # (roles/certificates: root CA in ca/, one folder per short hostname).
 certificates_env_dir: crgs02.local
+
+# kubectl version for every host in kubectl_hosts (roles/kubectl). Keep it within one minor
+# version of the clusters; the binary is served from <env_mirror_base_url>/kubernetes/<version>/.
+kubectl_version: v1.31.0

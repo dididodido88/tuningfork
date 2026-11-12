@@ -160,6 +160,11 @@ the sssd cache expires (up to about 90 minutes). To apply it immediately on a ho
 
 Local accounts keep working as before: SSH requires membership of `sshusers` or `wheel`.
 
+**Extra SSH groups for some hosts** (e.g. only Kubernetes users on the bastion): set `sssd_ad_extra_ssh_groups`
+in that group's `group_vars` (e.g. `inventories/<ENV>/group_vars/k8s_bastions.yml: [k8s-users]`). These groups are
+added to sssd's allowed groups and to sshd `AllowGroups` on those hosts only. A separate variable is used because
+a group-level `sssd_ad_ssh_groups` would compete with the one in `linux.yml`.
+
 ## 5. sudo by AD group
 
 Members of `sssd_ad_admin_groups` (default `linux-admins`) get `/etc/sudoers.d/50-ad-admins`:

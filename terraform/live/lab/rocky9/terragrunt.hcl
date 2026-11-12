@@ -26,5 +26,10 @@ inputs = {
         { size_gb = 200, mount = "/srv/harbor", fstype = "xfs" },
       ]
     }
+
+    "lab-k8s-bastion" = {
+      ipv4_cidr      = "192.168.70.72/24"
+      ansible_groups = ["k8s_bastions"]
+    }
   }
 }

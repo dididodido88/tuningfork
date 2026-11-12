@@ -1,5 +1,5 @@
 ---
-# Common CLI tools installed on every Rocky 9 host. They come from the internal mirror
+# Common CLI tools and SELinux utilities installed on every Rocky 9 host. They come from the internal mirror
 # (roles/repositories), so EPEL must be enabled there.
 
 cli_tools_packages:
@@ -11,6 +11,9 @@ cli_tools_packages:
   - ripgrep   # rg       recursive grep                    EPEL
   - fd-find   # fd       find alternative                  EPEL
   - bat       # bat      cat with syntax highlighting      EPEL
+  # SELinux utilities
+  - policycoreutils              # restorecon, semodule, setfiles, fixfiles   BaseOS
+  - policycoreutils-python-utils # semanage, audit2allow, audit2why           AppStream
 
 # Additional packages for an environment or group, e.g. in inventories/<ENV>/group_vars/rocky9.yml.
 cli_tools_extra_packages: []

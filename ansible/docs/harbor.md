@@ -27,13 +27,11 @@ fetches them from the mirror only.
 
 ```
 https://maestro/harbor/
-├── v2.15.2/
-│   ├── harbor-offline-installer-v2.15.2.tgz          required (~700 MB, contains every Harbor image)
-│   ├── harbor-offline-installer-v2.15.2.tgz.sha256   recorded checksum (you create it)
-│   └── *.sigstore.json / *.asc                      signature material, kept for audit
-└── tools/                                            optional, for admin workstations
-    ├── helm-v3.x.y-linux-amd64.tar.gz
-    └── helm-v3.x.y-linux-amd64.tar.gz.sha256sum
+└── v2.15.2/
+    ├── harbor-offline-installer-v2.15.2.tgz          required (~700 MB, contains every Harbor image)
+    ├── harbor-offline-installer-v2.15.2.tgz.sha256   recorded checksum (you create it)
+    └── *.sigstore.json / *.asc                       signature material, kept for audit
+https://maestro/kubernetes/tools/helm/<version>/      helm client (docs/kubernetes-clients.md)
 https://maestro/rocky/repo/9/docker-ce-stable/       already mirrored (roles/repositories)
 ```
 
@@ -47,7 +45,7 @@ https://maestro/rocky/repo/9/docker-ce-stable/       already mirrored (roles/rep
 | `harbor-offline-installer-vX.Y.Z.tgz` | https://github.com/goharbor/harbor/releases (assets of the release) | Harbor itself (all images included) |
 | Signature for it: `….tgz.sigstore.json` (Cosign bundle, v2.15+) or `….tgz.asc` (GPG, older releases) | same release page | Proving the download is genuine |
 | Docker CE packages `docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-compose-plugin` (+ `docker-buildx-plugin`, `docker-ce-rootless-extras` as pulled by dnf) | https://download.docker.com/linux/rhel/9/x86_64/stable/ (synced into the existing `docker-ce-stable` mirror) | Running Harbor. `container-selinux` comes from Rocky AppStream |
-| `helm-vX.Y.Z-linux-amd64.tar.gz` + `.sha256sum` (optional) | https://get.helm.sh (version list: https://github.com/helm/helm/releases) | Pushing charts from admin workstations |
+| Helm client (optional here) | see [kubernetes-clients.md](kubernetes-clients.md): mirrored under `maestro/kubernetes/tools/helm/` and installed on the Kubernetes bastion | Pushing charts |
 
 Pick the newest **patch** release of a Harbor minor version that you can support, e.g. the latest v2.15.x, and set
 `harbor_version` to it. Read the release notes for upgrade steps (section 6).
@@ -56,7 +54,7 @@ Pick the newest **patch** release of a Harbor minor version that you can support
 
 ```sh
 VER=v2.15.2
-mkdir -p harbor/$VER harbor/tools && cd harbor/$VER
+mkdir -p harbor/$VER && cd harbor/$VER
 
 BASE=https://github.com/goharbor/harbor/releases/download/$VER
 curl -fLO $BASE/harbor-offline-installer-$VER.tgz
@@ -73,13 +71,6 @@ cosign verify-blob \
 #   gpg -v --verify harbor-offline-installer-$VER.tgz.asc
 
 sha256sum harbor-offline-installer-$VER.tgz | tee harbor-offline-installer-$VER.tgz.sha256
-
-# Optional: Helm client
-cd ../tools
-HELM=v3.16.4
-curl -fLO https://get.helm.sh/helm-$HELM-linux-amd64.tar.gz
-curl -fLO https://get.helm.sh/helm-$HELM-linux-amd64.tar.gz.sha256sum
-sha256sum -c helm-$HELM-linux-amd64.tar.gz.sha256sum
 ```
 
 Carry the `harbor/` directory into the air-gapped network (approved media transfer), and place it on the mirror

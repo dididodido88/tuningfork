@@ -1,0 +1,167 @@
+---
+- name: Bastion | Check every tool has a checksum
+  ansible.builtin.assert:
+    that:
+      - k8s_bastion_tools | rejectattr('checksum', 'match', '^sha256:[0-9a-fA-F]{64}$') | list | length == 0
+    fail_msg: >-
+      Set checksum (sha256:<hash>) for every entry of k8s_bastion_tools in
+      inventories/<ENV>/group_vars/k8s_bastions.yml. Missing:
+      {{ k8s_bastion_tools | rejectattr('checksum', 'match', '^sha256:[0-9a-fA-F]{64}$') | map(attribute='name') | join(', ') }}
+    quiet: true
+  tags: [k8s_bastion]
+
+- name: Bastion | Install packages for interactive work
+  ansible.builtin.dnf:
+    name: "{{ k8s_bastion_packages }}"
+    state: present
+  tags: [k8s_bastion]
+
+# --- Client tools ------------------------------------------------------------------------------
+- name: Bastion | Create the tool version directories
+  ansible.builtin.file:
+    path: "{{ k8s_bastion_tools_dir }}/{{ item.name }}/{{ item.version }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop: "{{ k8s_bastion_tools }}"
+  loop_control:
+    label: "{{ item.name }} {{ item.version }}"
+  tags: [k8s_bastion]
+
+- name: Bastion | Download the tools from the mirror
+  ansible.builtin.get_url:
+    url: "{{ k8s_bastion_tools_mirror_url }}/{{ item.name }}/{{ item.version }}/{{ item.archive }}"
+    dest: "{{ k8s_bastion_tools_dir }}/{{ item.name }}/{{ item.version }}/{{ item.archive }}"
+    checksum: "{{ item.checksum }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ k8s_bastion_tools }}"
+  loop_control:
+    label: "{{ item.name }} {{ item.version }}"
+  tags: [k8s_bastion]
+
+- name: Bastion | Unpack the tools
+  ansible.builtin.unarchive:
+    src: "{{ k8s_bastion_tools_dir }}/{{ item.name }}/{{ item.version }}/{{ item.archive }}"
+    dest: "{{ k8s_bastion_tools_dir }}/{{ item.name }}/{{ item.version }}"
+    remote_src: true
+    include: ["{{ item.member }}"]
+    creates: "{{ k8s_bastion_tools_dir }}/{{ item.name }}/{{ item.version }}/{{ item.member }}"
+  loop: "{{ k8s_bastion_tools }}"
+  loop_control:
+    label: "{{ item.name }} {{ item.version }}"
+  tags: [k8s_bastion]
+
+- name: Bastion | Make the tools executable
+  ansible.builtin.file:
+    path: "{{ k8s_bastion_tools_dir }}/{{ item.name }}/{{ item.version }}/{{ item.member }}"
+    owner: root
+    group: root
+    mode: "0755"
+  loop: "{{ k8s_bastion_tools }}"
+  loop_control:
+    label: "{{ item.name }} {{ item.version }}"
+  tags: [k8s_bastion]
+
+# A plain symlink per tool (same pattern as kubectl): changing a version repoints it.
+- name: Bastion | Link the tools into /usr/local/bin
+  ansible.builtin.file:
+    src: "{{ k8s_bastion_tools_dir }}/{{ item.name }}/{{ item.version }}/{{ item.member }}"
+    dest: /usr/local/bin/{{ item.name }}
+    state: link
+    force: true
+  loop: "{{ k8s_bastion_tools }}"
+  loop_control:
+    label: "{{ item.name }} -> {{ item.version }}"
+  tags: [k8s_bastion]
+
+- name: Bastion | Generate bash completion scripts
+  ansible.builtin.command:
+    argv: [/usr/local/bin/{{ item }}, completion, bash]
+  loop: "{{ k8s_bastion_completion_tools | intersect(k8s_bastion_tools | map(attribute='name')) }}"
+  register: k8s_bastion_completion
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+  tags: [k8s_bastion]
+
+- name: Bastion | Install bash completion scripts
+  ansible.builtin.copy:
+    content: "{{ item.stdout }}\n"
+    dest: /etc/bash_completion.d/{{ item.item }}
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ k8s_bastion_completion.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: not ansible_check_mode
+  tags: [k8s_bastion]
+
+# --- Shared cluster definitions and the login environment ------------------------------------
+- name: Bastion | Create the shared clusters directory
+  ansible.builtin.file:
+    path: "{{ k8s_bastion_clusters_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: [k8s_bastion]
+
+- name: Bastion | Write shared cluster definitions (no credentials)
+  ansible.builtin.template:
+    src: cluster-kubeconfig.yaml.j2
+    dest: "{{ k8s_bastion_clusters_dir }}/{{ item.name }}.yaml"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ k8s_bastion_clusters }}"
+  loop_control:
+    label: "{{ item.name }}"
+  tags: [k8s_bastion]
+
+- name: Bastion | Find cluster definitions no longer listed
+  ansible.builtin.find:
+    paths: "{{ k8s_bastion_clusters_dir }}"
+    patterns: ["*.yaml"]
+  register: k8s_bastion_cluster_files
+  tags: [k8s_bastion]
+
+- name: Bastion | Remove cluster definitions no longer listed
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ k8s_bastion_cluster_files.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when: (item.path | basename | regex_replace('\.yaml$', '')) not in (k8s_bastion_clusters | map(attribute='name'))
+  tags: [k8s_bastion]
+
+- name: Bastion | Set up the Kubernetes login environment
+  ansible.builtin.template:
+    src: k8s-bastion.sh.j2
+    dest: /etc/profile.d/k8s-bastion.sh
+    owner: root
+    group: root
+    mode: "0644"
+  tags: [k8s_bastion]
+
+- name: Bastion | Create the motd.d directory
+  ansible.builtin.file:
+    path: /etc/motd.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: [k8s_bastion]
+
+- name: Bastion | Show usage notes at login
+  ansible.builtin.template:
+    src: motd.j2
+    dest: /etc/motd.d/k8s-bastion
+    owner: root
+    group: root
+    mode: "0644"
+  tags: [k8s_bastion]

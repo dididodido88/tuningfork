@@ -1,5 +1,5 @@
 ---
-# Common CLI tools on every Rocky 9 host. Needs repositories.yml first (most come from EPEL).
+# Common CLI tools and SELinux utilities on every Rocky 9 host. Needs repositories.yml first (most come from EPEL).
 # Package list: roles/cli_tools/defaults/main.yml; add more with cli_tools_extra_packages.
 
 - name: Install common CLI tools

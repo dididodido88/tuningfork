@@ -1,0 +1,50 @@
+---
+# Kubernetes bastion: the Rocky 9 host Kubernetes users log in to (AD, k8s-users group) to run
+# kubectl and related tools. playbooks/k8s_bastion.yml runs the kubectl role first.
+# Mirror layout and download steps: docs/kubernetes-clients.md.
+#
+# Set per environment in inventories/<ENV>/group_vars/k8s_bastions.yml.
+
+# Client tools from https://maestro/kubernetes/tools/<name>/<version>/<archive>.
+# Each archive is unpacked to /usr/local/lib/k8s-tools/<name>/<version>/ and <member> (the
+# binary inside the archive) is linked as /usr/local/bin/<name>. checksum: "sha256:<hash>"
+# from the upstream checksum file, required.
+k8s_bastion_tools_mirror_url: "{{ env_mirror_base_url | default('https://maestro') }}/kubernetes/tools"
+k8s_bastion_tools_dir: /usr/local/lib/k8s-tools
+k8s_bastion_tools:
+  - name: helm
+    version: v3.16.4
+    archive: helm-v3.16.4-linux-amd64.tar.gz
+    member: linux-amd64/helm
+    checksum: ""
+  - name: k9s
+    version: v0.32.7
+    archive: k9s_Linux_amd64.tar.gz
+    member: k9s
+    checksum: ""
+  - name: kubectx
+    version: v0.9.5
+    archive: kubectx_v0.9.5_linux_x86_64.tar.gz
+    member: kubectx
+    checksum: ""
+  - name: kubens
+    version: v0.9.5
+    archive: kubens_v0.9.5_linux_x86_64.tar.gz
+    member: kubens
+    checksum: ""
+
+# Tools that print a bash completion script with "<name> completion bash".
+k8s_bastion_completion_tools: [helm, k9s]
+
+# OS packages for interactive work (jq, yq, ripgrep, ... come from cli_tools).
+k8s_bastion_packages: [bash-completion, git, vim-enhanced, tmux]
+
+# Shared cluster definitions: /etc/kubernetes/clusters/<name>.yaml with the cluster and a
+# context but NO credentials. Every user sees them in "kubectl config get-contexts" and adds
+# their own credentials with "kubectl config set-credentials <name> ...".
+#   - name: lab-k8s
+#     server: https://lab-k8s-api.lab.local:6443
+#     ca_file: /etc/pki/tls/certs/ca-bundle.crt   # optional; system bundle trusts the internal CA
+#     namespace: default                          # optional
+k8s_bastion_clusters: []
+k8s_bastion_clusters_dir: /etc/kubernetes/clusters

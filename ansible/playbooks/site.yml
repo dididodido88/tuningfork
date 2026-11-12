@@ -45,3 +45,9 @@
 
 - name: Harbor registry (container images and Helm charts)
   ansible.builtin.import_playbook: harbor.yml
+
+- name: Kubectl on kubectl_hosts
+  ansible.builtin.import_playbook: kubectl.yml
+
+- name: Kubernetes bastion hosts
+  ansible.builtin.import_playbook: k8s_bastion.yml

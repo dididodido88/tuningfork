@@ -1,0 +1,39 @@
+---
+# lab: Kubernetes bastion hosts (roles/k8s_bastion/defaults/main.yml lists every option;
+# docs/kubernetes-clients.md covers the mirror downloads and usage).
+
+# Besides linux-ssh-users and linux-admins, members of these AD groups may log in here
+# (sssd and sshd AllowGroups). The groups need a gidNumber (docs/active-directory.md).
+sssd_ad_extra_ssh_groups:
+  - k8s-users
+
+# Tools from {{ env_mirror_base_url }}/kubernetes/tools/<name>/<version>/<archive>.
+# checksum: sha256 from the upstream checksum file (CHANGEME before the first run).
+k8s_bastion_tools:
+  - name: helm
+    version: v3.16.4
+    archive: helm-v3.16.4-linux-amd64.tar.gz
+    member: linux-amd64/helm
+    checksum: ""
+  - name: k9s
+    version: v0.32.7
+    archive: k9s_Linux_amd64.tar.gz
+    member: k9s
+    checksum: ""
+  - name: kubectx
+    version: v0.9.5
+    archive: kubectx_v0.9.5_linux_x86_64.tar.gz
+    member: kubectx
+    checksum: ""
+  - name: kubens
+    version: v0.9.5
+    archive: kubens_v0.9.5_linux_x86_64.tar.gz
+    member: kubens
+    checksum: ""
+
+# Shared cluster definitions (cluster + context, no credentials) for every bastion user.
+# k8s_bastion_clusters:
+#   - name: lab-k8s
+#     server: https://lab-k8s-api.{{ env_domain }}:6443
+#     namespace: default
+k8s_bastion_clusters: []
