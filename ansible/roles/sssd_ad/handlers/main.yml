@@ -1,0 +1,5 @@
+---
+- name: AD | Restart sssd
+  ansible.builtin.systemd:
+    name: sssd
+    state: restarted

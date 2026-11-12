@@ -1,6 +1,6 @@
 ---
 # Full run, in layer order:
-#   certificates -> repositories -> data disks -> 1. CIS hardening -> 2. common OS config -> 3. server roles
+#   certificates -> repositories -> data disks -> 1. CIS hardening -> 2. common OS config + AD logins -> 3. server roles
 #
 #   ansible-playbook -i inventories/CRGS00 playbooks/site.yml    (run from the ansible/ directory)
 #
@@ -25,6 +25,11 @@
 
 - name: Common Linux configuration
   ansible.builtin.import_playbook: linux_common.yml
+
+# After common Linux config (NTP must be right before the Kerberos join). Skipped in
+# environments where sssd_ad_enabled is false.
+- name: Active Directory logins
+  ansible.builtin.import_playbook: sssd_ad.yml
 
 - name: Common Windows configuration
   ansible.builtin.import_playbook: windows_common.yml

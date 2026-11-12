@@ -1,0 +1,191 @@
+---
+- name: AD | Join the domain and configure sssd
+  when: sssd_ad_enabled | bool
+  tags: [sssd_ad]
+  block:
+    # --- Pre-checks: nothing is changed until these pass ----------------------------------
+    - name: AD | Check the settings
+      ansible.builtin.assert:
+        that:
+          - sssd_ad_domain | length > 0
+          - sssd_ad_join_user | length > 0
+          - sssd_ad_join_password | length > 0
+          - (sssd_ad_ssh_groups + sssd_ad_admin_groups) | length > 0
+          - inventory_hostname_short | length <= 15
+        fail_msg: >-
+          Set sssd_ad_domain, sssd_ad_join_user and at least one group in
+          inventories/<ENV>/group_vars/linux.yml, and vault_sssd_ad_join_password in
+          inventories/<ENV>/group_vars/all/vault.yml. The short hostname
+          ({{ inventory_hostname_short }}) must be 15 characters or fewer (NetBIOS computer name).
+        quiet: true
+
+    - name: AD | Check the domain controllers resolve in DNS
+      ansible.builtin.command:
+        argv: [getent, hosts, "{{ item }}"]
+      loop: "{{ sssd_ad_servers if sssd_ad_servers | length > 0 else [sssd_ad_domain] }}"
+      register: sssd_ad_dns
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: AD | Stop if a domain controller doesn't resolve
+      ansible.builtin.fail:
+        msg: >-
+          These names don't resolve on {{ inventory_hostname }}:
+          {{ sssd_ad_dns.results | rejectattr('rc', 'eq', 0) | map(attribute='item') | join(', ') }}.
+          The host's DNS servers must be the AD DNS servers (or forward the AD zone).
+      when: sssd_ad_dns.results | rejectattr('rc', 'eq', 0) | list | length > 0
+
+    # --- Packages and Kerberos --------------------------------------------------------------
+    - name: AD | Install sssd, adcli and Kerberos tools
+      ansible.builtin.dnf:
+        name:
+          - sssd
+          - sssd-ad
+          - sssd-tools
+          - adcli
+          - krb5-workstation
+          - oddjob-mkhomedir
+          - authselect
+        state: present
+
+    - name: AD | Configure Kerberos for the realm
+      ansible.builtin.template:
+        src: krb5-ad.conf.j2
+        dest: /etc/krb5.conf.d/tuningfork-ad.conf
+        owner: root
+        group: root
+        mode: "0644"
+
+    # --- Join -------------------------------------------------------------------------------
+    - name: AD | Check whether the host is joined
+      ansible.builtin.command:
+        argv: [adcli, testjoin, --domain, "{{ sssd_ad_domain }}"]
+      register: sssd_ad_testjoin
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: AD | Join the domain
+      ansible.builtin.command:
+        argv: "{{ sssd_ad_join_argv }}"
+        stdin: "{{ sssd_ad_join_password }}"
+      vars:
+        sssd_ad_join_argv: >-
+          {{ ['adcli', 'join', '--domain', sssd_ad_domain, '--domain-realm', sssd_ad_realm,
+              '--login-user', sssd_ad_join_user, '--stdin-password',
+              '--host-fqdn', inventory_hostname,
+              '--os-name', 'Rocky Linux', '--os-version', '9']
+             + (['--domain-ou', sssd_ad_computer_ou] if sssd_ad_computer_ou | length > 0 else [])
+             + (['--domain-controller', sssd_ad_servers[0]] if sssd_ad_servers | length > 0 else []) }}
+      when: sssd_ad_testjoin.rc != 0
+      changed_when: true
+      no_log: true
+
+    - name: AD | Keep the machine keytab private
+      ansible.builtin.file:
+        path: /etc/krb5.keytab
+        owner: root
+        group: root
+        mode: "0600"
+      when: not ansible_check_mode
+
+    # --- sssd -------------------------------------------------------------------------------
+    - name: AD | Configure sssd
+      ansible.builtin.template:
+        src: sssd.conf.j2
+        dest: /etc/sssd/sssd.conf
+        owner: root
+        group: root
+        mode: "0600"
+        validate: sssctl config-check -c %s
+      notify: AD | Restart sssd
+
+    # --- PAM / nsswitch: sssd profile with automatic home directories ----------------------
+    - name: AD | Read the authselect profile
+      ansible.builtin.command: authselect current --raw
+      register: sssd_ad_authselect
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    # Profile sssd, or a custom profile based on it (CIS creates custom/<name> from sssd):
+    # add the feature and keep everything else.
+    - name: AD | Turn on automatic home directories
+      ansible.builtin.command: authselect enable-feature with-mkhomedir
+      when:
+        - sssd_ad_profile == 'sssd' or sssd_ad_profile is match('custom/')
+        - "'with-mkhomedir' not in sssd_ad_features"
+      changed_when: true
+
+    # Any other profile (local, none): switch to sssd, keeping the current features.
+    - name: AD | Switch to the sssd authselect profile
+      ansible.builtin.command:
+        argv: "{{ ['authselect', 'select', 'sssd'] + (sssd_ad_features | difference(['with-mkhomedir'])) + ['with-mkhomedir', '--force'] }}"
+      when: not (sssd_ad_profile == 'sssd' or sssd_ad_profile is match('custom/'))
+      changed_when: true
+
+    - name: AD | Start oddjobd (creates home directories) and sssd
+      ansible.builtin.systemd:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      loop: [oddjobd, sssd]
+
+    # --- sudo -------------------------------------------------------------------------------
+    - name: AD | Allow AD admin groups to use sudo
+      ansible.builtin.template:
+        src: sudoers-ad.j2
+        dest: /etc/sudoers.d/50-ad-admins
+        owner: root
+        group: root
+        mode: "0440"
+        validate: visudo -cf %s
+      when: sssd_ad_admin_groups | length > 0
+
+    - name: AD | Remove the sudo drop-in when there are no admin groups
+      ansible.builtin.file:
+        path: /etc/sudoers.d/50-ad-admins
+        state: absent
+      when: sssd_ad_admin_groups | length == 0
+
+    # --- Verify -----------------------------------------------------------------------------
+    - name: AD | Apply the new configuration before checking
+      ansible.builtin.meta: flush_handlers
+
+    - name: AD | Check sssd is online with the domain
+      ansible.builtin.command:
+        argv: [sssctl, domain-status, "{{ sssd_ad_domain }}", --online]
+      register: sssd_ad_status
+      changed_when: false
+      # Output is "Online status: Online" or "Online status: Offline".
+      until: sssd_ad_status.stdout is search('Online status:\s*Online')
+      retries: 6
+      delay: 5
+      when: not ansible_check_mode
+
+    - name: AD | Check the AD groups resolve
+      ansible.builtin.command:
+        argv: [getent, group, "{{ item }}"]
+      loop: "{{ sssd_ad_ssh_groups + sssd_ad_admin_groups }}"
+      register: sssd_ad_groups
+      changed_when: false
+      failed_when: false
+      retries: 3
+      delay: 5
+      until: sssd_ad_groups.rc == 0
+      when: not ansible_check_mode
+
+    - name: AD | Stop if an AD group isn't visible
+      ansible.builtin.fail:
+        msg: >-
+          These AD groups don't resolve on {{ inventory_hostname }}:
+          {{ sssd_ad_groups.results | rejectattr('rc', 'eq', 0) | map(attribute='item') | join(', ') }}.
+          Check they exist and have a gidNumber of at least {{ sssd_ad_min_id }} in AD
+          (docs/active-directory.md, "UID/GID plan"). Their members can't log in until then.
+      when:
+        - not ansible_check_mode
+        - sssd_ad_groups.results | rejectattr('rc', 'eq', 0) | list | length > 0
+  vars:
+    sssd_ad_profile: "{{ (sssd_ad_authselect.stdout | default('')).split() | first | default('') }}"
+    sssd_ad_features: "{{ (sssd_ad_authselect.stdout | default('')).split()[1:] }}"

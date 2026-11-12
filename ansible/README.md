@@ -15,6 +15,7 @@ After three preparation steps, each host gets three layers. `playbooks/site.yml`
 | Prep: Data disks | Partition, format and mount blank disks by UUID | `linux` | `filesystems.yml` | `filesystems` |
 | 1. Hardening | CIS RHEL 9 benchmark (ansible-lockdown) | `rocky9` | `cis_rhel9.yml` | `RHEL9-CIS` (vendored) |
 | 2. Common OS | Settings every host of an OS family gets | `linux`, `windows`, `windows_server`, `windows_desktop` | `linux_common.yml`, `windows_common.yml` | `linux_common`, `windows_common`, `windows_server_common`, `windows_desktop_common` |
+| 2. AD logins | Join Active Directory; AD + local logins, home directories, SSH and sudo by AD group (when `sssd_ad_enabled`) | `rocky9` | `sssd_ad.yml` | `sssd_ad` |
 | 3. Server role | What the host is for | `nfs_servers`, `db_servers`, `nexus_servers` | `nfs_server.yml`, `database_server.yml`, `nexus_server.yml` | `nfs_server`, `database_server`, `nexus_server` |
 
 Membership in an inventory group decides what runs; roles don't check the OS themselves.
@@ -126,6 +127,22 @@ chgrp -R certdeploy /srv/security/certificates/files
 chmod -R g+rX,o-rwx /srv/security/certificates/files
 usermod -aG certdeploy ansible
 ```
+
+## Active Directory logins (`sssd_ad`)
+
+`playbooks/sssd_ad.yml` runs after the common Linux configuration. It joins the host to AD with
+`adcli` (a computer object in `sssd_ad_computer_ou`) and configures sssd (`id_provider = ad`).
+- **Who can log in:** local accounts as before, plus AD users in `sssd_ad_ssh_groups` or `sssd_ad_admin_groups`.
+- **Home directories:** created on first login (authselect `with-mkhomedir` + oddjobd).
+- **IDs:** POSIX IDs come from `uidNumber`/`gidNumber` in AD.
+- **SSH:** the AD groups are added to sshd `AllowGroups` through `cis_safeguards_ssh_allow_groups`.
+- **sudo:** `sssd_ad_admin_groups` get `/etc/sudoers.d/50-ad-admins` (password required).
+
+Turn it on per environment with `sssd_ad_enabled: true` and the `sssd_ad_*` settings in
+`inventories/<ENV>/group_vars/linux.yml`. The join password goes in `vault_sssd_ad_join_password` in
+`group_vars/all/vault.yml`. Only lab is enabled today. **AD-side setup** (join account, OU, groups,
+UID/GID ranges and PowerShell to assign them, SSH and sudo by group, troubleshooting) and the
+domain-join vs LDAP-only comparison are in [docs/active-directory.md](docs/active-directory.md).
 
 ## Package repositories (`repositories`)
 
@@ -242,6 +259,7 @@ lost `UUID=`. A disk-based `/tmp` requires `rhel9cis_tmp_svc: false` (the defaul
 ```
 ansible.cfg                  roles_path, vendored collections_path, no default inventory
 requirements.yml             record of vendored versions (used only to refresh them)
+docs/                        longer guides (active-directory.md)
 collections/                 VENDORED collections
 roles/
   RHEL9-CIS/                 VENDORED ansible-lockdown role (see VENDORED.md)
@@ -250,6 +268,7 @@ roles/
   repositories/              DNF repositories on the internal mirror, GPG keys
   filesystems/               data disks: GPT partition, mkfs, data migration, mount by UUID
   linux_common/              all Linux
+  sssd_ad/                   Active Directory join + sssd (AD and local logins, SSH/sudo groups)
   windows_common/            all Windows
   windows_server_common/     Windows Server only
   windows_desktop_common/    Windows 11 Desktop only

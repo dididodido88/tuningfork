@@ -1,0 +1,5 @@
+# {{ ansible_managed }} (roles/sssd_ad)
+# Members of these AD groups may run any command as any user.
+{% for group in sssd_ad_admin_groups %}
+%{{ group | replace(' ', '\\ ') }} ALL=(ALL) {{ 'NOPASSWD: ' if sssd_ad_sudoers_nopasswd | bool else '' }}ALL
+{% endfor %}

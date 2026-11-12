@@ -1,0 +1,50 @@
+---
+# Active Directory logins on Rocky 9: join the domain (adcli) and configure sssd
+# (id_provider = ad) so both local and AD users can log in. AD users get a home
+# directory on first login. See docs/active-directory.md for the AD-side setup
+# (join account, groups, uidNumber/gidNumber).
+#
+# Set per environment in inventories/<ENV>/group_vars/linux.yml:
+#   sssd_ad_enabled, sssd_ad_domain, sssd_ad_servers, sssd_ad_join_user,
+#   sssd_ad_computer_ou, sssd_ad_ssh_groups, sssd_ad_admin_groups
+# and the join password in inventories/<ENV>/group_vars/all/vault.yml.
+
+# Off by default so environments without AD settings are skipped.
+sssd_ad_enabled: false
+
+# AD DNS domain (e.g. lab.local) and Kerberos realm.
+sssd_ad_domain: ""
+sssd_ad_realm: "{{ sssd_ad_domain | upper }}"
+
+# Domain controllers to use, in order of preference (one or more). Leave empty to
+# find them through DNS SRV records (site-aware discovery).
+#   sssd_ad_servers: [dc1.lab.local, dc2.lab.local]
+sssd_ad_servers: []
+
+# OU the computer object is created in, e.g. OU=Linux,OU=Servers,DC=lab,DC=local.
+# Empty uses the domain's default Computers container.
+sssd_ad_computer_ou: ""
+
+# AD account allowed to create computer objects in that OU (see docs/active-directory.md).
+sssd_ad_join_user: ""
+sssd_ad_join_password: "{{ vault_sssd_ad_join_password | default('') }}"
+
+# AD groups whose members may log in over SSH (and at the console). They are also added to
+# sshd AllowGroups through cis_safeguards_ssh_allow_groups (inventories/<ENV>/group_vars/rocky9.yml).
+sssd_ad_ssh_groups: [linux-ssh-users]
+# AD groups whose members may log in and use sudo (ALL commands, with their AD password).
+sssd_ad_admin_groups: [linux-admins]
+# Let admin groups use sudo without a password. CIS 5.2.4 removes NOPASSWD unless these
+# groups are added to rhel9cis_sudoers_exclude_nopasswd_list; keep false.
+sssd_ad_sudoers_nopasswd: false
+
+# Only AD users/groups with uidNumber/gidNumber at or above this are visible. Keeps AD out of
+# the local and system ID ranges (docs/active-directory.md, "UID/GID plan").
+sssd_ad_min_id: 1000000
+
+# Home directory (overrides unixHomeDirectory from AD) and the shell used when AD sets none.
+sssd_ad_homedir: /home/%u
+sssd_ad_shell: /bin/bash
+
+# Let users who logged in before log in while no domain controller is reachable.
+sssd_ad_cache_credentials: true

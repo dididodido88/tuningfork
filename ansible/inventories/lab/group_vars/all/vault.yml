@@ -7,3 +7,6 @@
 
 vault_windows_ansible_user: CHANGEME
 vault_windows_ansible_password: CHANGEME
+
+# Password of sssd_ad_join_user (roles/sssd_ad), used only to join hosts to AD.
+vault_sssd_ad_join_password: CHANGEME

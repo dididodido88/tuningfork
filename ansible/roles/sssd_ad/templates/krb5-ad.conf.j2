@@ -1,0 +1,20 @@
+# {{ ansible_managed }} (roles/sssd_ad)
+[libdefaults]
+  default_realm = {{ sssd_ad_realm }}
+  dns_lookup_realm = false
+  dns_lookup_kdc = true
+  rdns = false
+
+{% if sssd_ad_servers | length > 0 %}
+[realms]
+  {{ sssd_ad_realm }} = {
+{% for dc in sssd_ad_servers %}
+    kdc = {{ dc }}
+{% endfor %}
+    admin_server = {{ sssd_ad_servers[0] }}
+  }
+
+{% endif %}
+[domain_realm]
+  .{{ sssd_ad_domain }} = {{ sssd_ad_realm }}
+  {{ sssd_ad_domain }} = {{ sssd_ad_realm }}

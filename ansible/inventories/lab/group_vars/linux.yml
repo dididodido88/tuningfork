@@ -40,3 +40,20 @@ linux_common_journald_max_retention: 90day
 #     disk: /dev/disk/by-path/pci-0000:03:00.0-scsi-0:0:5:0
 #   - mount: /tmp
 #     disk: /dev/disk/by-path/pci-0000:03:00.0-scsi-0:0:6:0
+
+# --- Active Directory logins (roles/sssd_ad/defaults/main.yml lists every option) ---
+# AD-side setup (join account, OU, groups, uidNumber/gidNumber): docs/active-directory.md.
+# Join password: vault_sssd_ad_join_password in group_vars/all/vault.yml.
+sssd_ad_enabled: true
+sssd_ad_domain: lab.local
+sssd_ad_servers:
+  - dc1.lab.local
+  - dc2.lab.local
+sssd_ad_join_user: svc-linux-join # CHANGEME: account delegated to create computers in the OU
+sssd_ad_computer_ou: OU=Linux,OU=Servers,DC=lab,DC=local # CHANGEME
+# Members may log in (SSH and console). Also added to sshd AllowGroups (rocky9.yml).
+sssd_ad_ssh_groups:
+  - linux-ssh-users
+# Members may log in and use sudo (with their AD password).
+sssd_ad_admin_groups:
+  - linux-admins

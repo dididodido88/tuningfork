@@ -1,0 +1,16 @@
+---
+# Active Directory logins (sssd, domain join). Runs in site.yml after common Linux
+# configuration, so NTP is set before the Kerberos join.
+# Settings: inventories/<ENV>/group_vars/linux.yml (sssd_ad_*), join password in
+# group_vars/all/vault.yml. AD-side setup: docs/active-directory.md.
+#
+# Changing sssd_ad_ssh_groups/sssd_ad_admin_groups also changes sshd AllowGroups; run
+# cis_rhel9.yml afterwards (or site.yml) to apply it.
+
+- name: Active Directory logins
+  hosts: rocky9
+  become: true
+  gather_facts: false
+  roles:
+    - role: sssd_ad
+      tags: [sssd_ad]

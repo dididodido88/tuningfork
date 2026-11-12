@@ -25,9 +25,11 @@ run_audit: false
 # Only members of these groups can log in over SSH after CIS (sshd AllowGroups).
 # Include the groups your admins and directory users are in; the pre-check stops a host
 # if a local interactive user is in none of them.
-cis_safeguards_ssh_allow_groups:
-  - sshusers
-  - wheel
+# With AD logins on (sssd_ad_enabled), the AD SSH and admin groups are added.
+cis_safeguards_ssh_allow_groups: >-
+  {{ ['sshusers', 'wheel']
+     + ((sssd_ad_ssh_groups | default([])) + (sssd_ad_admin_groups | default([]))
+        if sssd_ad_enabled | default(false) | bool else []) }}
 # The Ansible account is added to this group.
 cis_safeguards_ssh_group: sshusers
 

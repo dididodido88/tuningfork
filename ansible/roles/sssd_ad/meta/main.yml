@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  author: tuningfork
+  description: Join Rocky 9 to Active Directory (adcli) and configure sssd for AD and local logins, home directories, SSH and sudo groups
+  license: proprietary
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+dependencies: []

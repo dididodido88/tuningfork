@@ -40,3 +40,17 @@ linux_common_journald_max_retention: 90day
 #     disk: /dev/disk/by-path/pci-0000:03:00.0-scsi-0:0:5:0
 #   - mount: /tmp
 #     disk: /dev/disk/by-path/pci-0000:03:00.0-scsi-0:0:6:0
+
+# --- Active Directory logins (roles/sssd_ad/defaults/main.yml lists every option) ---
+# AD-side setup (join account, OU, groups, uidNumber/gidNumber): docs/active-directory.md.
+# Join password: vault_sssd_ad_join_password in group_vars/all/vault.yml.
+sssd_ad_enabled: false
+# sssd_ad_domain: crgs01.local
+# sssd_ad_servers:            # one DC in this environment
+#   - dc1.crgs01.local
+# sssd_ad_join_user: svc-linux-join
+# sssd_ad_computer_ou: OU=Linux,OU=Servers,DC=crgs01,DC=local
+# sssd_ad_ssh_groups:
+#   - linux-ssh-users
+# sssd_ad_admin_groups:
+#   - linux-admins
