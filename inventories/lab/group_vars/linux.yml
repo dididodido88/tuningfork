@@ -1,0 +1,42 @@
+---
+# CRGS00: all Linux hosts.
+
+ansible_user: ansible
+ansible_become: true
+
+# Common Linux configuration (roles/linux_common/defaults/main.yml lists every option).
+# Define these here, not only in role defaults: the CIS play reads them too.
+linux_common_ntp_enabled: true
+linux_common_ntp_servers: "{{ env_ntp_servers }}"
+
+linux_common_banner_enabled: true
+linux_common_banner_text: "{{ env_banner_text }}"
+
+linux_common_ipv6_manage: true
+linux_common_ipv6_enabled: false
+
+linux_common_journald_enabled: true
+linux_common_journald_storage: persistent
+linux_common_journald_max_retention: 90day
+
+# --- Data disks (roles/filesystems/defaults/main.yml documents every field) ---
+# Blank disks are partitioned (GPT, one partition), formatted, existing data is copied
+# across, and they are mounted by UUID with the CIS options for that mount point.
+# Identify disks by a stable path: `ls -l /dev/disk/by-path/` on the host shows the
+# controller/target of each disk (as defined in the VM), e.g. ...-scsi-0:0:1:0.
+# Volumes from every filesystems_volumes__* variable are combined, so server-role
+# groups and host_vars can add their own.
+#
+# filesystems_volumes__base:
+#   - mount: /var
+#     disk: /dev/disk/by-path/pci-0000:03:00.0-scsi-0:0:1:0
+#   - mount: /var/log
+#     disk: /dev/disk/by-path/pci-0000:03:00.0-scsi-0:0:2:0
+#   - mount: /var/log/audit
+#     disk: /dev/disk/by-path/pci-0000:03:00.0-scsi-0:0:3:0
+#   - mount: /var/tmp
+#     disk: /dev/disk/by-path/pci-0000:03:00.0-scsi-0:0:4:0
+#   - mount: /home
+#     disk: /dev/disk/by-path/pci-0000:03:00.0-scsi-0:0:5:0
+#   - mount: /tmp
+#     disk: /dev/disk/by-path/pci-0000:03:00.0-scsi-0:0:6:0

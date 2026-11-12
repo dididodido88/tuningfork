@@ -1,0 +1,14 @@
+---
+# CRGS00: NFS servers (roles/nfs_server/defaults/main.yml).
+
+nfs_server_exports:
+  - path: /srv/nfs/share
+    clients:
+      - host: 192.0.2.0/24
+        options: rw,sync,root_squash
+
+# Data disk for the exports (see linux.yml for the format).
+# filesystems_volumes__nfs:
+#   - mount: /srv/nfs
+#     disk: /dev/disk/by-path/pci-0000:03:00.0-scsi-0:0:8:0
+#     fstype: xfs

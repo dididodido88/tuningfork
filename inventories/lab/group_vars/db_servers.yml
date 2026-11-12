@@ -1,0 +1,14 @@
+---
+# CRGS00: database servers (roles/database_server/defaults/main.yml).
+
+database_server_engine: postgresql
+database_server_postgresql_stream: "16"
+
+# Data disk for PostgreSQL (see linux.yml for the format).
+# filesystems_volumes__db:
+#   - mount: /var/lib/pgsql
+#     disk: /dev/disk/by-path/pci-0000:03:00.0-scsi-0:0:8:0
+#     fstype: xfs
+#     owner: postgres
+#     group: postgres
+#     mode: "0700"

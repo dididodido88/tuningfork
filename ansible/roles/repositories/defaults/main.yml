@@ -15,15 +15,15 @@ repositories_base_url: ""
 repositories_gpg_keys: []
 
 # Path of each repository below repositories_base_url. dnf expands $releasever (9 on
-# Rocky 9), so with base URL https://maestro the baseos URL is https://maestro/rocky/9/baseos.
+# Rocky 9), so with base URL https://maestro the baseos URL is https://maestro/rocky/repo/9/baseos.
 # Change these if a mirror is laid out differently.
 repositories_paths:
-  baseos: rocky/$releasever/baseos
-  appstream: rocky/$releasever/appstream
-  crb: rocky/$releasever/crb
-  extras: rocky/$releasever/extras
-  epel: rocky/$releasever/epel
-  docker-ce-stable: rocky/$releasever/docker-ce-stable
+  baseos: rocky/repo/$releasever/baseos
+  appstream: rocky/repo/$releasever/appstream
+  crb: rocky/repo/$releasever/crb
+  extras: rocky/repo/$releasever/extras
+  epel: rocky/repo/$releasever/epel
+  docker-ce-stable: rocky/repo/$releasever/docker-ce-stable
 
 # Full URL for a repository that lives somewhere else; replaces base_url + path.
 #   repositories_url_overrides:
@@ -47,7 +47,7 @@ repositories_repo_gpgkeys:
   crb: [RPM-GPG-KEY-Rocky-9]
   extras: [RPM-GPG-KEY-Rocky-9]
   epel: [RPM-GPG-KEY-EPEL-9]
-  docker-ce-stable: [docker-ce.gpg]
+  docker-ce-stable: [docker-ce-stable.gpg]
 
 # Repository definitions. 'file' is the .repo file under /etc/yum.repos.d. BaseOS,
 # AppStream, CRB and extras reuse the stock Rocky files, so each repo ID is defined
