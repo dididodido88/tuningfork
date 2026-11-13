@@ -56,9 +56,12 @@
           playbooks/linux_common.yml, then 'chronyc makestep'.
         quiet: true
       vars:
+        # "System time     : 0.000012345 seconds fast of NTP time" -> 0.000012345 (999999 if absent).
+        # No \1 back-reference: Jinja string literals turn it into a control character.
         sssd_ad_clock_offset: >-
           {{ (sssd_ad_chrony.stdout | default('')
-              | regex_search('System time\s*:\s*([0-9.]+)', '\1') | default(['999999'], true) | first) }}
+              | regex_search('System time\s*:\s*[0-9.]+') | default('', true)
+              | regex_replace('[^0-9.]', '')) | default('999999', true) }}
 
     # --- Packages and Kerberos --------------------------------------------------------------
     - name: AD | Install sssd, adcli and Kerberos tools
@@ -160,8 +163,9 @@
           - sssd_ad_pam.stdout is search('/etc/pam.d/password-auth:.*pam_sss\.so')
           - sssd_ad_pam.stdout is search('/etc/pam.d/system-auth:.*pam_sss\.so')
           - sssd_ad_pam.stdout is search('pam_oddjob_mkhomedir\.so')
-          - sssd_ad_pam.stdout is search('/etc/nsswitch.conf:passwd:.*\bsss\b')
-          - sssd_ad_pam.stdout is search('/etc/nsswitch.conf:group:.*\bsss\b')
+          # No \b here: Jinja string literals turn \b into a backspace character.
+          - sssd_ad_pam.stdout is search('/etc/nsswitch.conf:passwd:.*\ssss(\s|$)')
+          - sssd_ad_pam.stdout is search('/etc/nsswitch.conf:group:.*\ssss(\s|$)')
         fail_msg: >-
           PAM/NSS on {{ inventory_hostname }} don't use sssd (authselect profile:
           '{{ sssd_ad_authselect.stdout | default('none') }}'). AD users resolve but can't log in.
