@@ -4,11 +4,12 @@
     that:
       - (env_repo_base_url | default('')) is match('^https?://')
       - kubectl_version is match('^v\d+\.\d+\.\d+$')
-      - kubectl_checksum | length == 0 or kubectl_checksum is match('^sha256:[0-9a-fA-F]{64}$')
+      - kubectl_binaries | length > 0 and 'kubectl' in kubectl_binaries
+      - kubectl_checksums.values() | reject('match', '^sha256:[0-9a-fA-F]{64}$') | list | length == 0
     fail_msg: >-
-      Set env_repo_base_url (mirror base URL) and kubectl_version (e.g. v1.31.0) in
-      inventories/<ENV>/group_vars/all/main.yml, and if
-      kubectl_checksum is set it must be sha256:<64 hex characters>.
+      Set env_repo_base_url (mirror base URL) and kubectl_version (e.g. v1.36.5) in
+      inventories/<ENV>/group_vars/all/main.yml. kubectl_binaries must include kubectl, and any
+      kubectl_checksums entry must be sha256:<64 hex characters>.
     quiet: true
   tags: [kubectl]
 
@@ -21,28 +22,30 @@
     mode: "0755"
   tags: [kubectl]
 
-- name: Kubectl | Download kubectl {{ kubectl_version }} from the mirror
+- name: Kubectl | Download {{ kubectl_version }} binaries from the mirror
   ansible.builtin.get_url:
-    url: "{{ kubectl_url }}"
-    dest: "{{ kubectl_install_dir }}/{{ kubectl_version }}/kubectl"
-    checksum: "{{ kubectl_checksum if kubectl_checksum | length > 0 else 'sha256:' ~ kubectl_url ~ '.sha256' }}"
+    url: "{{ kubectl_version_url }}/{{ item }}"
+    dest: "{{ kubectl_install_dir }}/{{ kubectl_version }}/{{ item }}"
+    checksum: "{{ kubectl_checksums[item] | default('sha256:' ~ kubectl_version_url ~ '/' ~ item ~ '.sha256') }}"
     owner: root
     group: root
     mode: "0755"
+  loop: "{{ kubectl_binaries }}"
   tags: [kubectl]
 
-# A plain symlink: only Ansible changes the active version. Older versions stay on disk.
-- name: Kubectl | Point {{ kubectl_bin_link }} at {{ kubectl_version }}
+# Plain symlinks: only Ansible changes the active version. Older versions stay on disk.
+- name: Kubectl | Link the binaries to {{ kubectl_version }}
   ansible.builtin.file:
-    src: "{{ kubectl_install_dir }}/{{ kubectl_version }}/kubectl"
-    dest: "{{ kubectl_bin_link }}"
+    src: "{{ kubectl_install_dir }}/{{ kubectl_version }}/{{ item }}"
+    dest: "{{ kubectl_bin_dir }}/{{ item }}"
     state: link
     force: true
+  loop: "{{ kubectl_binaries }}"
   tags: [kubectl]
 
 - name: Kubectl | Check the installed version
   ansible.builtin.command:
-    argv: ["{{ kubectl_bin_link }}", version, --client, -o, json]
+    argv: ["{{ kubectl_bin_dir }}/kubectl", version, --client, -o, json]
   register: kubectl_client
   changed_when: false
   failed_when: >-
@@ -63,7 +66,7 @@
 
     - name: Kubectl | Generate the completion script
       ansible.builtin.command:
-        argv: ["{{ kubectl_bin_link }}", completion, bash]
+        argv: ["{{ kubectl_bin_dir }}/kubectl", completion, bash]
       register: kubectl_completion
       changed_when: false
       check_mode: false

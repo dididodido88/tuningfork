@@ -27,5 +27,6 @@ env_repo_base_url: https://maestro
 certificates_env_dir: crgs02.local
 
 # kubectl version for every host in kubectl_hosts (roles/kubectl). Keep it within one minor
-# version of the clusters; the binary is served from <env_repo_base_url>/kubernetes/<version>/.
-kubectl_version: v1.31.0
+# version of the clusters. Served from <env_repo_base_url>/kubernetes/<kubectl_version>/ (kubectl,
+# kubectl-convert and their .sha256 files).
+kubectl_version: v1.36.5

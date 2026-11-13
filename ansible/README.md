@@ -190,7 +190,7 @@ Trivy: [docs/harbor.md](docs/harbor.md).
 
 ## Kubernetes clients (`kubectl`, `k8s_bastion`)
 
-- `playbooks/kubectl.yml` installs a pinned `kubectl` (`kubectl_version` in `group_vars/all/main.yml`) from
+- `playbooks/kubectl.yml` installs a pinned `kubectl` and `kubectl-convert` (`kubectl_version` in `group_vars/all/main.yml`) from
   `<env_repo_base_url>/kubernetes/<version>/` on every host in `kubectl_hosts`. Each version gets its own directory,
   and a symlink in `/usr/local/bin` points at the active one.
 - `playbooks/k8s_bastion.yml` builds the Kubernetes bastion (`k8s_bastions`, lab: `mgmt.lab.local`):

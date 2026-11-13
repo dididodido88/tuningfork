@@ -4,7 +4,7 @@ Two playbooks install the Kubernetes client tools from the air-gapped mirror:
 
 | Playbook | Hosts | Installs |
 |---|---|---|
-| `playbooks/kubectl.yml` (role `kubectl`) | group `kubectl_hosts`: every Kubernetes bastion, plus any host you add (CI runners, admin hosts) | `kubectl` only |
+| `playbooks/kubectl.yml` (role `kubectl`) | group `kubectl_hosts`: every Kubernetes bastion, plus any host you add (CI runners, admin hosts) | `kubectl` and `kubectl-convert` |
 | `playbooks/k8s_bastion.yml` (roles `kubectl` + `k8s_bastion`) | group `k8s_bastions` (lab: `mgmt.lab.local`) | `kubectl`, `helm`, `k9s`, `kubectx`, `kubens`, shared cluster contexts, login environment |
 
 Both run in `site.yml` after the server roles.
@@ -17,9 +17,13 @@ Both run in `site.yml` after the server roles.
 
 ```
 https://maestro/kubernetes/
-├── v1.31.0/                                   one directory per kubectl version (kubectl_version)
-│   ├── kubectl
-│   └── kubectl.sha256                         checked by the playbook unless kubectl_checksum pins it
+├── v1.34.12/                                  one directory per kubectl version; each environment
+│   ├── kubectl                                selects one with kubectl_version
+│   ├── kubectl.sha256                         checked by the playbook unless kubectl_checksums pins it
+│   ├── kubectl-convert
+│   └── kubectl-convert.sha256
+├── v1.35.9/   (same four files)
+├── v1.36.5/   (same four files)
 └── tools/
     ├── helm/v3.16.4/helm-v3.16.4-linux-amd64.tar.gz
     ├── k9s/v0.32.7/k9s_Linux_amd64.tar.gz
@@ -34,27 +38,29 @@ signature files next to each tool for audit.
 
 | Tool | Download | Checksum / signature |
 |---|---|---|
-| kubectl | `https://dl.k8s.io/release/<version>/bin/linux/amd64/kubectl` | `kubectl.sha256` (same URL + `.sha256`); optional Sigstore signature `kubectl.sig` + `kubectl.cert` |
+| kubectl, kubectl-convert | `https://dl.k8s.io/release/<version>/bin/linux/amd64/kubectl` (and `…/kubectl-convert`) | `.sha256` next to each (same URL + `.sha256`); optional Sigstore signature `.sig` + `.cert` |
 | helm | `https://get.helm.sh/helm-<version>-linux-amd64.tar.gz` (versions: https://github.com/helm/helm/releases) | `….tar.gz.sha256sum` |
 | k9s | `https://github.com/derailed/k9s/releases/download/<version>/k9s_Linux_amd64.tar.gz` | the checksums file on the same release page |
 | kubectx / kubens | `https://github.com/ahmetb/kubectx/releases/download/<version>/kubectx_<version>_linux_x86_64.tar.gz` (and `kubens_…`) | `checksums.txt` on the same release page |
 
 **kubectl version:** use a version within **one minor version** of your clusters' API servers (e.g. kubectl
-v1.31 for clusters on 1.30–1.32). To support clusters several minor versions apart, mirror more than one
+v1.36 for clusters on 1.35–1.37). To support clusters several minor versions apart, mirror more than one
 kubectl version. Each environment chooses one with `kubectl_version`.
 
 ### Example: download and verify (internet-connected Linux machine)
 
 ```sh
 set -euo pipefail
-K=v1.31.0; HELM=v3.16.4; K9S=v0.32.7; KCTX=v0.9.5
+K=v1.36.5; HELM=v3.16.4; K9S=v0.32.7; KCTX=v0.9.5
 mkdir -p kubernetes/$K kubernetes/tools/{helm/$HELM,k9s/$K9S,kubectx/$KCTX,kubens/$KCTX}
 cd kubernetes
 
-# kubectl
-curl -fLo $K/kubectl        https://dl.k8s.io/release/$K/bin/linux/amd64/kubectl
-curl -fLo $K/kubectl.sha256 https://dl.k8s.io/release/$K/bin/linux/amd64/kubectl.sha256
-echo "$(cat $K/kubectl.sha256)  $K/kubectl" | sha256sum -c
+# kubectl and kubectl-convert (repeat with K=<other version> for each version you mirror)
+for b in kubectl kubectl-convert; do
+  curl -fLo $K/$b        https://dl.k8s.io/release/$K/bin/linux/amd64/$b
+  curl -fLo $K/$b.sha256 https://dl.k8s.io/release/$K/bin/linux/amd64/$b.sha256
+  echo "$(cat $K/$b.sha256)  $K/$b" | sha256sum -c
+done
 
 # helm
 ( cd tools/helm/$HELM
@@ -84,9 +90,10 @@ Copy the `kubernetes/` directory to the mirror so that it is served as `https://
 
 ### Set versions and checksums
 
-- `inventories/<ENV>/group_vars/all/main.yml`: `kubectl_version: v1.31.0`. The playbook verifies the binary against
-  `kubectl.sha256` on the mirror. To pin the hash you recorded on the internet side instead, also set
-  `kubectl_checksum: "sha256:<hash>"`.
+- `inventories/<ENV>/group_vars/all/main.yml`: `kubectl_version: v1.36.5`. The playbook downloads
+  `<env_repo_base_url>/kubernetes/<kubectl_version>/kubectl` and `kubectl-convert`, and verifies each against its
+  `.sha256` file on the mirror. To pin the hashes you recorded on the internet side instead, also set
+  `kubectl_checksums: {kubectl: "sha256:<hash>", kubectl-convert: "sha256:<hash>"}`.
 - `inventories/<ENV>/group_vars/k8s_bastions.yml`: for each entry in `k8s_bastion_tools`, set `version`, `archive` and
   `checksum: "sha256:<hash>"`. The playbook stops if a checksum is missing.
 
@@ -171,4 +178,4 @@ Then run, from `ansible/`:
 ansible-playbook -i inventories/lab playbooks/kubectl.yml --limit lab-ci01.lab.local
 ```
 
-Only kubectl and its bash completion are installed. The host's own SSH access rules don't change.
+Only kubectl, kubectl-convert and the bash completion are installed. The host's own SSH access rules don't change.

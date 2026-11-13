@@ -1,24 +1,37 @@
 ---
-# kubectl from the internal mirror. Used by playbooks/kubectl.yml (group kubectl_hosts) and
-# playbooks/k8s_bastion.yml. Mirror layout and download steps: docs/kubernetes-clients.md.
+# kubectl and kubectl-convert from the internal mirror. Used by playbooks/kubectl.yml (group
+# kubectl_hosts) and playbooks/k8s_bastion.yml. Mirror layout and download steps:
+# docs/kubernetes-clients.md.
 #
 # Set per environment in inventories/<ENV>/group_vars/all/main.yml:
-#   kubectl_version   required, e.g. v1.31.0 (within one minor version of your clusters)
+#   env_repo_base_url  required: the mirror's base URL
+#   kubectl_version    required, e.g. v1.36.5 (within one minor version of your clusters)
 
 kubectl_version: ""
 
-# <env_repo_base_url>/kubernetes/<version>/kubectl (same file names as dl.k8s.io). env_repo_base_url
-# is set per environment in group_vars/all/main.yml.
+# Mirror layout, built from the version (same file names as dl.k8s.io):
+#   <env_repo_base_url>/kubernetes/v1.36.5/kubectl
+#   <env_repo_base_url>/kubernetes/v1.36.5/kubectl.sha256
+#   <env_repo_base_url>/kubernetes/v1.36.5/kubectl-convert
+#   <env_repo_base_url>/kubernetes/v1.36.5/kubectl-convert.sha256
+#   <kubectl_mirror_url>/<kubectl_version>/<binary>
 kubectl_mirror_url: "{{ env_repo_base_url | default('') }}/kubernetes"
-kubectl_url: "{{ kubectl_mirror_url }}/{{ kubectl_version }}/kubectl"
+kubectl_version_url: "{{ kubectl_mirror_url }}/{{ kubectl_version }}"
 
-# Empty: verify against <kubectl_url>.sha256 on the mirror. Set "sha256:<hash>" to pin the
-# value recorded when the binary was downloaded on the internet side.
-kubectl_checksum: ""
+# Binaries installed from that directory. Each is checked against <binary>.sha256 next to it,
+# unless kubectl_checksums pins its hash.
+kubectl_binaries: [kubectl, kubectl-convert]
 
-# Each version is kept in <install_dir>/<version>/kubectl; the link points at kubectl_version.
+# Optional: hashes recorded when downloading on the internet side, per binary, e.g.
+#   kubectl_checksums:
+#     kubectl: "sha256:<hash>"
+#     kubectl-convert: "sha256:<hash>"
+kubectl_checksums: {}
+
+# Each version is kept in <install_dir>/<version>/; /usr/local/bin/<binary> links to the
+# selected version (a plain symlink: only Ansible changes it, older versions stay on disk).
 kubectl_install_dir: /usr/local/lib/kubectl
-kubectl_bin_link: /usr/local/bin/kubectl
+kubectl_bin_dir: /usr/local/bin
 
 # System-wide bash completion (/etc/bash_completion.d/kubectl).
 kubectl_bash_completion: true
