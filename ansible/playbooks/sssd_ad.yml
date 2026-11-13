@@ -4,8 +4,13 @@
 # Settings: inventories/<ENV>/group_vars/linux.yml (sssd_ad_*), join password in
 # group_vars/all/vault.yml. AD-side setup: docs/active-directory.md.
 #
+# Also writes /etc/ssh/sshd_config.d/40-sssd-ad.conf so AD users can log in with their password.
+#
 # Changing sssd_ad_ssh_groups/sssd_ad_admin_groups also changes sshd AllowGroups; run
-# cis_rhel9.yml afterwards (or site.yml) to apply it.
+# cis_rhel9.yml afterwards (or site.yml) to apply it. The same applies when AD is first turned on:
+# sshd AllowGroups only includes the AD groups after cis_rhel9.yml runs with sssd_ad_enabled: true.
+#
+# Check a real user end to end: -e sssd_ad_test_user=<aduser>
 
 - name: Active Directory logins
   hosts: rocky9

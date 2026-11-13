@@ -158,7 +158,11 @@ If the mirror lacks a package (e.g. EPEL isn't synced), the play fails and names
 - **Who can log in:** local accounts as before, plus AD users in `sssd_ad_ssh_groups` or `sssd_ad_admin_groups`.
 - **Home directories:** created on first login (authselect `with-mkhomedir` + oddjobd).
 - **IDs:** POSIX IDs come from `uidNumber`/`gidNumber` in AD.
-- **SSH:** the AD groups are added to sshd `AllowGroups` through `cis_safeguards_ssh_allow_groups`.
+- **SSH:** the AD groups are added to sshd `AllowGroups` through `cis_safeguards_ssh_allow_groups` (rerun
+  `cis_rhel9.yml` after turning AD on or changing groups). `/etc/ssh/sshd_config.d/40-sssd-ad.conf` allows password
+  logins (`sssd_ad_ssh_password_auth`), overriding cloud-init's `PasswordAuthentication no`.
+- **Checks:** clock offset before joining; PAM/NSS use sssd; sshd accepts password logins; optional
+  `sssd_ad_test_user` resolves and passes the PAM account check.
 - **sudo:** `sssd_ad_admin_groups` get `/etc/sudoers.d/50-ad-admins` (password required).
 
 Turn it on per environment with `sssd_ad_enabled: true` and the `sssd_ad_*` settings in

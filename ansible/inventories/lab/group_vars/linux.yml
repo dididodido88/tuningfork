@@ -57,3 +57,6 @@ sssd_ad_ssh_groups:
 # Members may log in and use sudo (with their AD password).
 sssd_ad_admin_groups:
   - sg-lab-admins
+# End-to-end check after joining: an AD user (short name) that must resolve and be allowed to
+# log in over SSH. Or pass it once: -e sssd_ad_test_user=<aduser>
+# sssd_ad_test_user: jdoe

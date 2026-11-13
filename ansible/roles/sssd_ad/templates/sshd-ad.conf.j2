@@ -1,0 +1,7 @@
+# {{ ansible_managed }} (roles/sssd_ad)
+# Read before 50-cloud-init.conf and 50-redhat.conf; sshd keeps the first value it reads.
+# AD users log in with their AD password (PAM -> sssd -> Kerberos). Keyboard-interactive also
+# handles "password expired, change it now". Local accounts can still use SSH keys.
+PasswordAuthentication {{ 'yes' if sssd_ad_ssh_password_auth | bool else 'no' }}
+KbdInteractiveAuthentication {{ 'yes' if sssd_ad_ssh_password_auth | bool else 'no' }}
+UsePAM yes

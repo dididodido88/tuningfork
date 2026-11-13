@@ -3,3 +3,8 @@
   ansible.builtin.systemd:
     name: sssd
     state: restarted
+
+- name: AD | Restart sshd
+  ansible.builtin.systemd:
+    name: sshd
+    state: restarted

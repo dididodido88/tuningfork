@@ -36,6 +36,30 @@
           The host's DNS servers must be the AD DNS servers (or forward the AD zone).
       when: sssd_ad_dns.results | rejectattr('rc', 'eq', 0) | list | length > 0
 
+    # Kerberos (join and every login) fails beyond 5 minutes of clock skew.
+    - name: AD | Read the clock offset from chrony
+      ansible.builtin.command: chronyc tracking
+      register: sssd_ad_chrony
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: AD | Check the clock is in sync
+      ansible.builtin.assert:
+        that:
+          - sssd_ad_chrony.rc == 0
+          - sssd_ad_clock_offset | float | abs <= sssd_ad_max_clock_offset | float
+        fail_msg: >-
+          The clock on {{ inventory_hostname }} isn't usable for Kerberos (offset
+          {{ sssd_ad_clock_offset }} s, limit {{ sssd_ad_max_clock_offset }} s; chronyc rc {{ sssd_ad_chrony.rc }}).
+          Point chrony at the DCs or the environment's NTP servers (linux_common_ntp_servers) and run
+          playbooks/linux_common.yml, then 'chronyc makestep'.
+        quiet: true
+      vars:
+        sssd_ad_clock_offset: >-
+          {{ (sssd_ad_chrony.stdout | default('')
+              | regex_search('System time\s*:\s*([0-9.]+)', '\1') | default(['999999'], true) | first) }}
+
     # --- Packages and Kerberos --------------------------------------------------------------
     - name: AD | Install sssd, adcli and Kerberos tools
       ansible.builtin.dnf:
@@ -118,6 +142,35 @@
         - "'with-mkhomedir' not in sssd_ad_features"
       changed_when: true
 
+    # A custom profile that isn't based on sssd has no pam_sss: AD users would resolve
+    # (getent works) but could never authenticate. Check the generated files, not the name.
+    - name: AD | Read the PAM and NSS configuration
+      ansible.builtin.command:
+        argv: [grep, -H, -E, 'pam_sss\.so|pam_oddjob_mkhomedir\.so|^(passwd|group):',
+               /etc/pam.d/password-auth, /etc/pam.d/system-auth, /etc/nsswitch.conf]
+      register: sssd_ad_pam
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      when: not ansible_check_mode
+
+    - name: AD | Check PAM and NSS use sssd
+      ansible.builtin.assert:
+        that:
+          - sssd_ad_pam.stdout is search('/etc/pam.d/password-auth:.*pam_sss\.so')
+          - sssd_ad_pam.stdout is search('/etc/pam.d/system-auth:.*pam_sss\.so')
+          - sssd_ad_pam.stdout is search('pam_oddjob_mkhomedir\.so')
+          - sssd_ad_pam.stdout is search('/etc/nsswitch.conf:passwd:.*\bsss\b')
+          - sssd_ad_pam.stdout is search('/etc/nsswitch.conf:group:.*\bsss\b')
+        fail_msg: >-
+          PAM/NSS on {{ inventory_hostname }} don't use sssd (authselect profile:
+          '{{ sssd_ad_authselect.stdout | default('none') }}'). AD users resolve but can't log in.
+          A custom profile must be based on sssd; otherwise run
+          'authselect select sssd with-mkhomedir <other features> --force'. Found:
+          {{ sssd_ad_pam.stdout_lines | default([]) }}
+        quiet: true
+      when: not ansible_check_mode
+
     # Any other profile (local, none): switch to sssd, keeping the current features.
     - name: AD | Switch to the sssd authselect profile
       ansible.builtin.command:
@@ -131,6 +184,17 @@
         enabled: true
         state: started
       loop: [oddjobd, sssd]
+
+    # --- sshd: let AD users log in with their password ----------------------------------------
+    - name: AD | Allow password logins in sshd (read before cloud-init's drop-in)
+      ansible.builtin.template:
+        src: sshd-ad.conf.j2
+        dest: /etc/ssh/sshd_config.d/40-sssd-ad.conf
+        owner: root
+        group: root
+        mode: "0600"
+        validate: /usr/sbin/sshd -t -f %s
+      notify: AD | Restart sshd
 
     # --- sudo -------------------------------------------------------------------------------
     - name: AD | Allow AD admin groups to use sudo
@@ -176,6 +240,30 @@
       until: sssd_ad_groups.rc == 0
       when: not ansible_check_mode
 
+    # The effective sshd configuration (all drop-ins merged).
+    - name: AD | Read the effective sshd settings
+      ansible.builtin.command:
+        argv: [/usr/sbin/sshd, -T]
+      register: sssd_ad_sshd
+      changed_when: false
+      check_mode: false
+      when: not ansible_check_mode
+
+    - name: AD | Check sshd accepts AD password logins
+      ansible.builtin.assert:
+        that:
+          - sssd_ad_sshd.stdout is search('(?m)^usepam yes$')
+          - >-
+            not (sssd_ad_ssh_password_auth | bool)
+            or sssd_ad_sshd.stdout is search('(?m)^(passwordauthentication|kbdinteractiveauthentication) yes$')
+        fail_msg: >-
+          sshd on {{ inventory_hostname }} won't accept AD password logins. Another file in
+          /etc/ssh/sshd_config.d/ that sorts before 40-sssd-ad.conf (or a Match block) sets
+          PasswordAuthentication/KbdInteractiveAuthentication no, or UsePAM is off:
+          {{ sssd_ad_sshd.stdout_lines | select('search', '^(usepam|passwordauthentication|kbdinteractiveauthentication) ') | list }}
+        quiet: true
+      when: not ansible_check_mode
+
     - name: AD | Stop if an AD group isn't visible
       ansible.builtin.fail:
         msg: >-
@@ -186,6 +274,47 @@
       when:
         - not ansible_check_mode
         - sssd_ad_groups.results | rejectattr('rc', 'eq', 0) | list | length > 0
+
+    # --- Optional end-to-end check with a real AD user ----------------------------------------
+    - name: AD | Look up the test user
+      ansible.builtin.command:
+        argv: [getent, passwd, "{{ sssd_ad_test_user }}"]
+      register: sssd_ad_test_passwd
+      changed_when: false
+      failed_when: false
+      retries: 3
+      delay: 5
+      until: sssd_ad_test_passwd.rc == 0
+      when:
+        - not ansible_check_mode
+        - sssd_ad_test_user | length > 0
+
+    - name: AD | Check the test user is a POSIX user
+      ansible.builtin.assert:
+        that:
+          - sssd_ad_test_passwd.rc == 0
+          - (sssd_ad_test_passwd.stdout.split(':')[2] | int) >= (sssd_ad_min_id | int)
+        fail_msg: >-
+          AD user '{{ sssd_ad_test_user }}' doesn't resolve as a POSIX user on {{ inventory_hostname }}
+          ({{ sssd_ad_test_passwd.stdout | default('no entry') }}). Give it a uidNumber of at least
+          {{ sssd_ad_min_id }} and a gidNumber in AD (docs/active-directory.md, "UID/GID plan").
+        quiet: true
+      when:
+        - not ansible_check_mode
+        - sssd_ad_test_user | length > 0
+
+    # PAM account phase only (group access, account lock/expiry); needs no password.
+    - name: AD | Check the test user may log in over SSH
+      ansible.builtin.command:
+        argv: [sssctl, user-checks, "{{ sssd_ad_test_user }}", -a, acct, -s, sshd]
+      register: sssd_ad_test_acct
+      changed_when: false
+      failed_when: >-
+        sssd_ad_test_acct.rc != 0
+        or sssd_ad_test_acct.stdout is not search('pam_acct_mgmt: Success')
+      when:
+        - not ansible_check_mode
+        - sssd_ad_test_user | length > 0
   vars:
     sssd_ad_profile: "{{ (sssd_ad_authselect.stdout | default('')).split() | first | default('') }}"
     sssd_ad_features: "{{ (sssd_ad_authselect.stdout | default('')).split()[1:] }}"
