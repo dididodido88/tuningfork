@@ -104,7 +104,7 @@ repository. They are read on the control node from:
 ```
 
 `certificates_env_dir` is set in `inventories/<ENV>/group_vars/all/main.yml` (`lab.local`, `crgs00.local`, ...).
-The short hostname comes from the inventory name (`lab-registry` for `lab-registry.lab.local`).
+The short hostname comes from the inventory name (`registry` for `registry.lab.local`).
 
 | Source | Destination on the host | Owner / mode |
 |---|---|---|
@@ -170,7 +170,7 @@ domain-join vs LDAP-only comparison are in [docs/active-directory.md](docs/activ
 ## Harbor registry (`harbor`)
 
 `playbooks/harbor.yml` runs on `registry_servers` and installs **Harbor**, the container image and Helm chart (OCI)
-registry, at `https://registry.<domain>` (lab: `registry.lab.local`, a DNS alias for `lab-registry`).
+registry, at `https://registry.<domain>` (lab: the host `registry.lab.local` itself).
 - It uses Docker CE (from the `docker-ce-stable` mirror repo) and Harbor's offline installer from
   `<env_mirror_base_url>/harbor/<version>/`. The certificate is the host certificate from `certificates`, which must
   include the `registry` name.
@@ -189,11 +189,11 @@ Trivy: [docs/harbor.md](docs/harbor.md).
 - `playbooks/kubectl.yml` installs a pinned `kubectl` (`kubectl_version` in `group_vars/all/main.yml`) from
   `<env_mirror_base_url>/kubernetes/<version>/` on every host in `kubectl_hosts`. Each version gets its own directory,
   and a symlink in `/usr/local/bin` points at the active one.
-- `playbooks/k8s_bastion.yml` builds the Kubernetes bastion (`k8s_bastions`, lab: `lab-k8s-bastion`):
+- `playbooks/k8s_bastion.yml` builds the Kubernetes bastion (`k8s_bastions`, lab: `mgmt.lab.local`):
   - kubectl, plus helm, k9s and kubectx/kubens from `<mirror>/kubernetes/tools/`
   - shared cluster contexts without credentials (`k8s_bastion_clusters`)
   - a `KUBECONFIG` set up at login
-  - AD logins for the `k8s-users` group (`sssd_ad_extra_ssh_groups`)
+  - AD logins for the bastion group (`sssd_ad_extra_ssh_groups`, lab: `sg-lab-k8s-users`)
 
 Files to download, versions and checksums, and using the bastion: [docs/kubernetes-clients.md](docs/kubernetes-clients.md).
 

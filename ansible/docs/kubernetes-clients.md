@@ -5,7 +5,7 @@ Two playbooks install the Kubernetes client tools from the air-gapped mirror:
 | Playbook | Hosts | Installs |
 |---|---|---|
 | `playbooks/kubectl.yml` (role `kubectl`) | group `kubectl_hosts`: every Kubernetes bastion, plus any host you add (CI runners, admin hosts) | `kubectl` only |
-| `playbooks/k8s_bastion.yml` (roles `kubectl` + `k8s_bastion`) | group `k8s_bastions` (lab: `lab-k8s-bastion.lab.local`) | `kubectl`, `helm`, `k9s`, `kubectx`, `kubens`, shared cluster contexts, login environment |
+| `playbooks/k8s_bastion.yml` (roles `kubectl` + `k8s_bastion`) | group `k8s_bastions` (lab: `mgmt.lab.local`) | `kubectl`, `helm`, `k9s`, `kubectx`, `kubens`, shared cluster contexts, login environment |
 
 Both run in `site.yml` after the server roles.
 
@@ -98,8 +98,8 @@ in `/usr/local/bin` is repointed. To roll back, set the old version again.
 
 ## 2. The bastion host
 
-**Who can log in:** AD users in `k8s-users` (`sssd_ad_extra_ssh_groups` in `group_vars/k8s_bastions.yml`), plus the
-usual `linux-ssh-users` and `linux-admins`, and local accounts in `sshusers`/`wheel`. Before the first run, create
+**Who can log in:** AD users in `sg-lab-k8s-users` (`sssd_ad_extra_ssh_groups` in `group_vars/k8s_bastions.yml`), plus the
+usual SSH and admin groups (lab: `sg-all-users`, `sg-lab-admins`), and local accounts in `sshusers`/`wheel`. Before the first run, create
 the AD group and give it a `gidNumber` (docs/active-directory.md, sections 3–4). Then run `sssd_ad.yml` and
 `cis_rhel9.yml` (or `site.yml`) so sssd and sshd `AllowGroups` include it.
 

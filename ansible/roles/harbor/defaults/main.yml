@@ -57,7 +57,7 @@ harbor_auth_mode: ldap_auth
 harbor_ldap_url: "ldaps://{{ env_domain }}:636"
 harbor_ldap_verify_cert: true
 harbor_ldap_base_dn: ""          # e.g. DC=lab,DC=local
-harbor_ldap_bind_dn: ""          # read-only account, e.g. CN=svc-harbor-ldap,OU=Servers,DC=lab,DC=local
+harbor_ldap_bind_dn: ""          # read-only account, e.g. CN=svc_harbor,OU=Service Accounts,OU=Lab,DC=lab,DC=local
 harbor_ldap_bind_password: "{{ vault_harbor_ldap_bind_password | default('') }}"
 harbor_ldap_uid: sAMAccountName
 # Users that may log in. Narrow it to a group with
@@ -67,7 +67,7 @@ harbor_ldap_group_base_dn: "{{ harbor_ldap_base_dn }}"
 harbor_ldap_group_filter: "(objectClass=group)"
 harbor_ldap_group_name_attribute: sAMAccountName
 # Members of this AD group are Harbor system administrators.
-harbor_ldap_group_admin_dn: ""   # e.g. CN=harbor-admins,OU=Linux,OU=Servers,DC=lab,DC=local
+harbor_ldap_group_admin_dn: ""   # e.g. CN=sg-lab-harbor-admins,OU=Groups,OU=Lab,DC=lab,DC=local
 
 # --- Initialisation -----------------------------------------------------------------------------
 # Projects and the AD groups that get a role in them (ldap_auth only).

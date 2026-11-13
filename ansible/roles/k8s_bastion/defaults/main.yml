@@ -1,5 +1,5 @@
 ---
-# Kubernetes bastion: the Rocky 9 host Kubernetes users log in to (AD, k8s-users group) to run
+# Kubernetes bastion: the Rocky 9 host Kubernetes users log in to (AD, sssd_ad_extra_ssh_groups) to run
 # kubectl and related tools. playbooks/k8s_bastion.yml runs the kubectl role first.
 # Mirror layout and download steps: docs/kubernetes-clients.md.
 #

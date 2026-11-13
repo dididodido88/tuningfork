@@ -2,10 +2,10 @@
 # lab: Kubernetes bastion hosts (roles/k8s_bastion/defaults/main.yml lists every option;
 # docs/kubernetes-clients.md covers the mirror downloads and usage).
 
-# Besides linux-ssh-users and linux-admins, members of these AD groups may log in here
+# Besides sg-all-users and sg-lab-admins (linux.yml), members of these AD groups may log in here
 # (sssd and sshd AllowGroups). The groups need a gidNumber (docs/active-directory.md).
 sssd_ad_extra_ssh_groups:
-  - k8s-users
+  - sg-lab-k8s-users
 
 # Tools from {{ env_mirror_base_url }}/kubernetes/tools/<name>/<version>/<archive>.
 # checksum: sha256 from the upstream checksum file (CHANGEME before the first run).

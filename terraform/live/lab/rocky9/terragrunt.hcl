@@ -16,7 +16,7 @@ include "envcommon" {
 
 inputs = {
   vms = {
-    "lab-registry" = {
+    "registry" = {
       ipv4_cidr      = "192.168.70.71/24"
       cores          = 4
       memory_mb      = 8192
@@ -27,7 +27,7 @@ inputs = {
       ]
     }
 
-    "lab-k8s-bastion" = {
+    "mgmt" = {
       ipv4_cidr      = "192.168.70.72/24"
       ansible_groups = ["k8s_bastions"]
     }

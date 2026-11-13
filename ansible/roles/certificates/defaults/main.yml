@@ -15,8 +15,8 @@
 certificates_source_root: /srv/security/certificates/files
 certificates_env_dir: ""
 
-# Folder and file prefix of a host's files: the short hostname (lab-registry for
-# lab-registry.lab.local). Set in host_vars if a host's files are named differently.
+# Folder and file prefix of a host's files: the short hostname (registry for
+# registry.lab.local). Set in host_vars if a host's files are named differently.
 certificates_host_name: "{{ inventory_hostname_short }}"
 
 certificates_source_dir: "{{ certificates_source_root }}/{{ certificates_env_dir }}"

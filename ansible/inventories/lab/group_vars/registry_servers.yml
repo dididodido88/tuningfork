@@ -2,8 +2,8 @@
 # lab: Harbor registry (roles/harbor/defaults/main.yml lists every option; docs/harbor.md
 # covers the mirror downloads, DNS/certificate/AD prerequisites and client usage).
 
-# Clients use https://registry.<domain>/<project>/<image>:<tag>. A DNS alias (CNAME) for the
-# registry host; the TLS certificate must include it as a subjectAltName.
+# Clients use https://registry.<domain>/<project>/<image>:<tag>. In lab this is the host's own name
+# (registry.lab.local, DNS A record); the TLS certificate must cover it.
 harbor_hostname: "registry.{{ env_domain }}"
 
 # Offline installer on the internal mirror: {{ env_mirror_base_url }}/harbor/<version>/
@@ -22,22 +22,22 @@ harbor_data_dir: /srv/harbor/data
 harbor_auth_mode: ldap_auth
 harbor_ldap_url: "ldaps://{{ env_domain }}:636"
 harbor_ldap_base_dn: "DC=lab,DC=local"
-harbor_ldap_bind_dn: "CN=svc-harbor-ldap,OU=Servers,DC=lab,DC=local"
+harbor_ldap_bind_dn: "CN=svc_harbor,OU=Service Accounts,OU=Lab,DC=lab,DC=local"
 harbor_ldap_group_base_dn: "DC=lab,DC=local"
 # Members are Harbor system administrators.
-harbor_ldap_group_admin_dn: "CN=harbor-admins,OU=Linux,OU=Servers,DC=lab,DC=local"
+harbor_ldap_group_admin_dn: "CN=sg-lab-harbor-admins,OU=Groups,OU=Lab,DC=lab,DC=local"
 
 # --- Projects and AD group roles (project_admin, maintainer, developer, guest, limited_guest) ---
 harbor_projects:
   - name: library                 # public: anyone can pull (no login needed)
     public: true
     members:
-      - group: harbor-developers
+      - group: sg-lab-harbor-developers
         role: developer
   - name: charts                  # Helm charts: oci://registry.<domain>/charts
     public: false
     members:
-      - group: harbor-developers
+      - group: sg-lab-harbor-developers
         role: developer
 
 # --- Robot accounts: log in as robot$<name>; secrets in vault_harbor_robot_secrets ---

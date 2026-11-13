@@ -37,31 +37,36 @@ Run on a DC or a machine with RSAT (PowerShell, `ActiveDirectory` module). Adjus
 ```powershell
 $base = "DC=lab,DC=local"
 
-# OU for Linux computer objects (matches sssd_ad_computer_ou)
-New-ADOrganizationalUnit -Name "Servers" -Path $base
-New-ADOrganizationalUnit -Name "Linux"   -Path "OU=Servers,$base"
-$ou = "OU=Linux,OU=Servers,$base"
+# Lab OU structure: computers in OU=Servers (matches sssd_ad_computer_ou), groups in
+# OU=Groups, service accounts in OU=Service Accounts.
+New-ADOrganizationalUnit -Name "Lab"              -Path $base
+New-ADOrganizationalUnit -Name "Servers"          -Path "OU=Lab,$base"
+New-ADOrganizationalUnit -Name "Groups"           -Path "OU=Lab,$base"
+New-ADOrganizationalUnit -Name "Service Accounts" -Path "OU=Lab,$base"
+$ou = "OU=Groups,OU=Lab,$base"
 
 # Join account (matches sssd_ad_join_user). Password goes into the Ansible vault
 # as vault_sssd_ad_join_password.
-New-ADUser -Name "svc-linux-join" -SamAccountName "svc-linux-join" -Path "OU=Servers,$base" `
+New-ADUser -Name "svc_sssd" -SamAccountName "svc_sssd" -Path "OU=Service Accounts,OU=Lab,$base" `
   -AccountPassword (Read-Host -AsSecureString "Password") -Enabled $true -PasswordNeverExpires $true `
   -CannotChangePassword $true -Description "Joins Linux hosts to AD (Ansible sssd_ad)"
 
-# Groups (sssd_ad_ssh_groups / sssd_ad_admin_groups, plus the shared primary group)
-New-ADGroup -Name "linux-users"     -GroupScope Global -GroupCategory Security -Path $ou
-New-ADGroup -Name "linux-ssh-users" -GroupScope Global -GroupCategory Security -Path $ou
-New-ADGroup -Name "linux-admins"    -GroupScope Global -GroupCategory Security -Path $ou
+# Groups (sssd_ad_ssh_groups / sssd_ad_admin_groups / sssd_ad_extra_ssh_groups on bastions,
+# plus the shared primary group)
+New-ADGroup -Name "linux-users"      -GroupScope Global -GroupCategory Security -Path $ou
+New-ADGroup -Name "sg-all-users"     -GroupScope Global -GroupCategory Security -Path $ou
+New-ADGroup -Name "sg-lab-admins"    -GroupScope Global -GroupCategory Security -Path $ou
+New-ADGroup -Name "sg-lab-k8s-users" -GroupScope Global -GroupCategory Security -Path $ou
 ```
 
-**Delegate the join account on the Linux OU only.** In ADUC, right-click the OU, choose *Delegate Control...*,
-add `svc-linux-join`, pick *Create a custom task*, and select *Only the following objects: Computer objects* with
+**Delegate the join account on the computer OU only** (`OU=Servers,OU=Lab`). In ADUC, right-click the OU, choose *Delegate Control...*,
+add `svc_sssd`, pick *Create a custom task*, and select *Only the following objects: Computer objects* with
 *Create selected objects* and *Delete selected objects*. On the next page, select *Reset password*,
 *Read and write Account Restrictions*, *Validated write to DNS host name* and
 *Validated write to service principal name*. The account needs no other rights. In particular it should not be in Domain Admins.
 
-Group names: use lowercase names **without spaces**. Hosts use short names (`linux-admins`, not
-`linux-admins@lab.local`), and the same names appear in sshd and sudoers.
+Group names: use lowercase names **without spaces**. Hosts use short names (`sg-lab-admins`, not
+`sg-lab-admins@lab.local`), and the same names appear in sshd and sudoers.
 
 ## 3. UID/GID plan
 
@@ -112,7 +117,7 @@ function Get-NextGid {
 Set-ADGroup linux-users -Replace @{gidNumber = 2000000}
 
 # Other groups that Linux should see
-foreach ($g in "linux-ssh-users", "linux-admins") {
+foreach ($g in "sg-all-users", "sg-lab-admins", "sg-lab-k8s-users") {
   if (-not (Get-ADGroup $g -Properties gidNumber).gidNumber) {
     Set-ADGroup $g -Replace @{gidNumber = (Get-NextGid)}
   }
@@ -140,12 +145,12 @@ If two administrators assign IDs at the same time they can pick the same number.
 
 ```sh
 id jdoe                       # uid=1000000(jdoe) gid=2000000(linux-users) groups=...
-getent group linux-admins     # linux-admins:*:2000002:jdoe
+getent group sg-lab-admins    # sg-lab-admins:*:2000002:jdoe
 ```
 
 ## 4. SSH access by AD group
 
-A user can log in to Rocky 9 hosts when they are in `linux-ssh-users` or `linux-admins` and have a `uidNumber`.
+A user can log in to Rocky 9 hosts when they are in `sg-all-users` or `sg-lab-admins` (lab; `sssd_ad_ssh_groups` / `sssd_ad_admin_groups`) and have a `uidNumber`.
 Both groups need a `gidNumber`. Two settings enforce this, and the Ansible variables keep them in step:
 - sssd `simple_allow_groups`: AD users outside these groups can't log in at all, including at the console
 - sshd `AllowGroups`, set by CIS from `cis_safeguards_ssh_allow_groups`: `sshusers`, `wheel` and the AD groups
@@ -161,16 +166,16 @@ the sssd cache expires (up to about 90 minutes). To apply it immediately on a ho
 Local accounts keep working as before: SSH requires membership of `sshusers` or `wheel`.
 
 **Extra SSH groups for some hosts** (e.g. only Kubernetes users on the bastion): set `sssd_ad_extra_ssh_groups`
-in that group's `group_vars` (e.g. `inventories/<ENV>/group_vars/k8s_bastions.yml: [k8s-users]`). These groups are
+in that group's `group_vars` (e.g. `inventories/<ENV>/group_vars/k8s_bastions.yml: [sg-lab-k8s-users]`). These groups are
 added to sssd's allowed groups and to sshd `AllowGroups` on those hosts only. A separate variable is used because
 a group-level `sssd_ad_ssh_groups` would compete with the one in `linux.yml`.
 
 ## 5. sudo by AD group
 
-Members of `sssd_ad_admin_groups` (default `linux-admins`) get `/etc/sudoers.d/50-ad-admins`:
+Members of `sssd_ad_admin_groups` (lab: `sg-lab-admins`) get `/etc/sudoers.d/50-ad-admins`:
 
 ```
-%linux-admins ALL=(ALL) ALL
+%sg-lab-admins ALL=(ALL) ALL
 ```
 
 sudo asks for the user's **AD password**, as CIS 5.2.4 requires. For narrower rights, add a group to

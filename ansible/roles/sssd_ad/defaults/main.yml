@@ -21,7 +21,7 @@ sssd_ad_realm: "{{ sssd_ad_domain | upper }}"
 #   sssd_ad_servers: [dc1.lab.local, dc2.lab.local]
 sssd_ad_servers: []
 
-# OU the computer object is created in, e.g. OU=Linux,OU=Servers,DC=lab,DC=local.
+# OU the computer object is created in, e.g. OU=Servers,OU=Lab,DC=lab,DC=local.
 # Empty uses the domain's default Computers container.
 sssd_ad_computer_ou: ""
 
@@ -33,7 +33,7 @@ sssd_ad_join_password: "{{ vault_sssd_ad_join_password | default('') }}"
 # sshd AllowGroups through cis_safeguards_ssh_allow_groups (inventories/<ENV>/group_vars/rocky9.yml).
 sssd_ad_ssh_groups: [linux-ssh-users]
 # Extra SSH groups for a subset of hosts, set in that group's group_vars (e.g. k8s_bastions.yml:
-# [k8s-users]). A separate variable avoids clashing with sssd_ad_ssh_groups from linux.yml.
+# [sg-lab-k8s-users]). A separate variable avoids clashing with sssd_ad_ssh_groups from linux.yml.
 sssd_ad_extra_ssh_groups: []
 # AD groups whose members may log in and use sudo (ALL commands, with their AD password).
 sssd_ad_admin_groups: [linux-admins]

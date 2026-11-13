@@ -3,7 +3,7 @@
 Harbor is the registry for container images and Helm charts in each environment. It runs on the
 `registry_servers` host under Docker Compose and was installed from Harbor's **offline installer**.
 Clients reach it at **`https://registry.<domain>`** (lab: `https://registry.lab.local`), a DNS alias for the
-host (lab: `lab-registry.lab.local`).
+host, or the host's own name (lab: the host is `registry.lab.local`).
 
 ```
 docker pull registry.lab.local/library/nginx:1.27          # image: <registry>/<project>/<image>:<tag>
@@ -98,27 +98,31 @@ harbor_installer_checksum: "sha256:<the 64-character hash>"
 
 ## 2. Prerequisites (per environment)
 
-1. **DNS alias.** `registry.<domain>` must point at the Harbor host. In AD DNS:
+1. **DNS.** `registry.<domain>` must resolve to the Harbor host. In lab the host itself is `registry.lab.local`,
+   so an A record is enough. If the Harbor host has another name, add a CNAME instead. In AD DNS:
    ```powershell
-   Add-DnsServerResourceRecordCName -ZoneName "lab.local" -Name "registry" -HostNameAlias "lab-registry.lab.local"
+   Add-DnsServerResourceRecordA -ZoneName "lab.local" -Name "registry" -IPv4Address 192.168.70.71
+   # host with another name:
+   # Add-DnsServerResourceRecordCName -ZoneName "lab.local" -Name "registry" -HostNameAlias "<host>.lab.local"
    ```
    The playbook stops if the name doesn't resolve to the host.
 2. **Certificate.** The host's pre-generated certificate (`/srv/security/certificates/files/<env>/<host>/`, deployed
-   by `playbooks/certificates.yml`) must include **`DNS:registry.<domain>`** as a subjectAltName, in addition to the
-   host's own name. Harbor serves `host.fullchain.crt` / `host.key`. The playbook checks the SAN.
+   by `playbooks/certificates.yml`) must cover **`registry.<domain>`**. In lab that's the host's own name
+   (`lab.local/registry/registry.crt`). If the host has another name, add `DNS:registry.<domain>` as a subjectAltName.
+   Harbor serves `host.fullchain.crt` / `host.key`. The playbook checks the name.
 3. **Data disk** mounted at `/srv/harbor` (Terraform adds a 200 GB disk; `playbooks/filesystems.yml` mounts it).
    Size it for your images: Harbor needs at least 4 CPUs, 8 GB RAM and 160 GB of disk.
 4. **AD (for `harbor_auth_mode: ldap_auth`)**:
    - LDAPS (636) on the DCs, with DC certificates issued by the internal CA (the CA the `certificates` role trusts),
      covering the domain name (`lab.local`) as well as the DC names. Harbor connects to `ldaps://lab.local:636`, so either DC can answer.
-   - A read-only bind account, and the groups:
+   - A read-only bind account, and the groups (lab names; set per environment in `registry_servers.yml`):
      ```powershell
-     $base = "DC=lab,DC=local"; $ou = "OU=Linux,OU=Servers,$base"
-     New-ADUser -Name "svc-harbor-ldap" -SamAccountName "svc-harbor-ldap" -Path "OU=Servers,$base" `
+     $base = "DC=lab,DC=local"; $ou = "OU=Groups,OU=Lab,$base"
+     New-ADUser -Name "svc_harbor" -SamAccountName "svc_harbor" -Path "OU=Service Accounts,OU=Lab,$base" `
        -AccountPassword (Read-Host -AsSecureString "Password") -Enabled $true -PasswordNeverExpires $true `
        -CannotChangePassword $true -Description "Harbor LDAP bind (read-only)"
-     New-ADGroup -Name "harbor-admins"     -GroupScope Global -GroupCategory Security -Path $ou
-     New-ADGroup -Name "harbor-developers" -GroupScope Global -GroupCategory Security -Path $ou
+     New-ADGroup -Name "sg-lab-harbor-admins"     -GroupScope Global -GroupCategory Security -Path $ou
+     New-ADGroup -Name "sg-lab-harbor-developers" -GroupScope Global -GroupCategory Security -Path $ou
      ```
      Domain users can read the directory by default, so the bind account needs no extra rights.
    - Set the DNs in `registry_servers.yml` (`harbor_ldap_base_dn`, `harbor_ldap_bind_dn`, `harbor_ldap_group_admin_dn`),
@@ -164,7 +168,7 @@ What the playbook does:
    - finally runs `docker login` against `registry.<domain>` as a robot, to prove TLS, DNS and the account
 
 **Logins.** In LDAP mode:
-- AD users (members of the groups given roles, or `harbor-admins`) log in to the UI with their AD username and
+- AD users (members of the groups given roles, or the admin group, lab: `sg-lab-harbor-admins`) log in to the UI with their AD username and
   password. The same applies to `docker login` and `helm registry login`.
 - The **local `admin`** account keeps working as break-glass and is what Ansible uses.
 - **Robot accounts** (`robot$k8s-pull`, `robot$ci-push`) are the local credentials for machines.
