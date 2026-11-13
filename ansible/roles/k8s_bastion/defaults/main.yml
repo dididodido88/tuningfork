@@ -5,11 +5,11 @@
 #
 # Set per environment in inventories/<ENV>/group_vars/k8s_bastions.yml.
 
-# Client tools from https://maestro/kubernetes/tools/<name>/<version>/<archive>.
+# Client tools from <env_repo_base_url>/kubernetes/tools/<name>/<version>/<archive>.
 # Each archive is unpacked to /usr/local/lib/k8s-tools/<name>/<version>/ and <member> (the
 # binary inside the archive) is linked as /usr/local/bin/<name>. checksum: "sha256:<hash>"
 # from the upstream checksum file, required.
-k8s_bastion_tools_mirror_url: "{{ env_mirror_base_url | default('https://maestro') }}/kubernetes/tools"
+k8s_bastion_tools_mirror_url: "{{ env_repo_base_url | default('') }}/kubernetes/tools"
 k8s_bastion_tools_dir: /usr/local/lib/k8s-tools
 k8s_bastion_tools:
   - name: helm

@@ -1,11 +1,19 @@
 ---
-# DNF repositories on the internal mirror. Runs first in site.yml, before any play
-# installs packages. Settings: inventories/<ENV>/group_vars/rocky9.yml.
+# DNF repositories on the internal mirror (env_repo_base_url). Runs right after certificates.yml
+# in site.yml, before any play installs packages. Settings: env_repo_base_url in
+# group_vars/all/main.yml, GPG keys in inventories/<ENV>/group_vars/rocky9.yml.
 
 - name: Configure Rocky 9 repositories
   hosts: rocky9
   become: true
   gather_facts: true
+  # The mirror (env_repo_base_url) is HTTPS with a certificate from the internal CA.
+  pre_tasks:
+    - name: Check the internal CA is trusted (playbooks/certificates.yml ran)
+      ansible.builtin.import_role:
+        name: certificates
+        tasks_from: verify_trust
+      tags: [always]
   roles:
     - role: repositories
       tags: [repositories]

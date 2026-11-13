@@ -1,0 +1,53 @@
+---
+# Check the host trusts the internal root CA before a play downloads from the mirror over HTTPS.
+# Used as pre_tasks by playbooks that read from env_repo_base_url:
+#   - name: Check the internal CA is trusted
+#     ansible.builtin.import_role:
+#       name: certificates
+#       tasks_from: verify_trust
+#     tags: [always]
+# site.yml runs playbooks/certificates.yml first, so this only stops standalone runs on new hosts.
+
+- name: Certs | Look for the internal root CA trust anchor
+  ansible.builtin.stat:
+    path: "{{ certificates_ca_anchor_dir }}/{{ certificates_ca_anchor_name }}"
+    get_checksum: false
+  register: certificates_trust_anchor
+
+- name: Certs | Stop if the internal root CA isn't trusted yet
+  ansible.builtin.assert:
+    that:
+      - certificates_env_dir | length > 0
+      - certificates_trust_anchor.stat.exists
+    fail_msg: >-
+      {{ inventory_hostname }} doesn't trust the internal root CA yet
+      ({{ certificates_ca_anchor_dir }}/{{ certificates_ca_anchor_name }} is missing), so HTTPS
+      downloads from {{ env_repo_base_url | default('env_repo_base_url') }} would fail. Run
+      playbooks/certificates.yml first (site.yml does this).
+    quiet: true
+
+# Any HTTP answer proves DNS, the connection and TLS trust work; only those failures matter here.
+- name: Certs | Check the mirror's HTTPS certificate is trusted
+  ansible.builtin.uri:
+    url: "{{ env_repo_base_url }}/"
+    method: HEAD
+    validate_certs: true
+    status_code: [200, 204, 301, 302, 303, 307, 308, 401, 403, 404, 405]
+    timeout: 15
+  register: certificates_mirror_check
+  when:
+    - env_repo_base_url is defined
+    - env_repo_base_url is match('^https://')
+  failed_when: false
+  check_mode: false
+
+- name: Certs | Stop if the mirror can't be reached over HTTPS
+  ansible.builtin.fail:
+    msg: >-
+      {{ env_repo_base_url }} can't be reached over HTTPS from {{ inventory_hostname }}:
+      {{ certificates_mirror_check.msg | default('unknown error') }}. A certificate error means the
+      mirror's certificate isn't issued by the trusted internal CA (or doesn't cover its name); otherwise
+      check DNS and the network path. Run playbooks/certificates.yml if the CA was just added.
+  when:
+    - certificates_mirror_check is not skipped
+    - certificates_mirror_check.status | default(-1) | int <= 0

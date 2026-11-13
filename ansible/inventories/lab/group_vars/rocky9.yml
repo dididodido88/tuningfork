@@ -43,9 +43,8 @@ rhel9cis_auditd_disk_full_action: suspend
 rhel9cis_auditd_disk_error_action: syslog
 
 # --- Package repositories (roles/repositories/defaults/main.yml lists every option) ---
-# Internal mirror for this environment. Paths below it follow repositories_paths
-# (override that dict if the mirror uses a different layout).
-repositories_base_url: http://maestro
+# Mirror: repositories_base_url defaults to env_repo_base_url (group_vars/all/main.yml). Paths
+# below it follow repositories_paths (override that dict if the mirror uses a different layout).
 
 # GPG keys served by the mirror. Uncomment the fingerprints after checking them against
 # the vendor's published values; the import then fails if a key was swapped.

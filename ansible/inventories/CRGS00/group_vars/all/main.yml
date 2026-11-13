@@ -13,14 +13,19 @@ env_ntp_servers:
 env_banner_text: >-
   Authorized users only. All activity may be monitored and reported.
 
-# Internal mirror (e.g. maestro) that serves packages and binaries in this
-# air-gapped environment.
-env_mirror_base_url: https://maestro
+# Base URL of the internal mirror (air-gapped). The single source for every download:
+#   <env_repo_base_url>/rocky/repo/9/...              RPM repositories + GPG keys (roles/repositories)
+#   <env_repo_base_url>/harbor/<version>/             Harbor offline installer (roles/harbor)
+#   <env_repo_base_url>/kubernetes/<version>/         kubectl (roles/kubectl)
+#   <env_repo_base_url>/kubernetes/tools/...          helm, k9s, kubectx/kubens (roles/k8s_bastion)
+# HTTPS with a certificate from the internal CA: playbooks/certificates.yml must run first
+# (site.yml does); the other playbooks check the CA is trusted before downloading.
+env_repo_base_url: https://maestro
 
 # Folder of this environment under /srv/security/certificates/files on the control node
 # (roles/certificates: root CA in ca/, one folder per short hostname).
 certificates_env_dir: crgs00.local
 
 # kubectl version for every host in kubectl_hosts (roles/kubectl). Keep it within one minor
-# version of the clusters; the binary is served from <env_mirror_base_url>/kubernetes/<version>/.
+# version of the clusters; the binary is served from <env_repo_base_url>/kubernetes/<version>/.
 kubectl_version: v1.31.0

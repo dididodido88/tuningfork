@@ -7,8 +7,9 @@
 
 kubectl_version: ""
 
-# https://maestro/kubernetes/<version>/kubectl (same file names as dl.k8s.io).
-kubectl_mirror_url: "{{ env_mirror_base_url | default('https://maestro') }}/kubernetes"
+# <env_repo_base_url>/kubernetes/<version>/kubectl (same file names as dl.k8s.io). env_repo_base_url
+# is set per environment in group_vars/all/main.yml.
+kubectl_mirror_url: "{{ env_repo_base_url | default('') }}/kubernetes"
 kubectl_url: "{{ kubectl_mirror_url }}/{{ kubectl_version }}/kubectl"
 
 # Empty: verify against <kubectl_url>.sha256 on the mirror. Set "sha256:<hash>" to pin the

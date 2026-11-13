@@ -27,7 +27,7 @@ https://maestro/kubernetes/
     └── kubens/v0.9.5/kubens_v0.9.5_linux_x86_64.tar.gz
 ```
 
-`https://maestro` is `env_mirror_base_url` in `inventories/<ENV>/group_vars/all/main.yml`. Keep the checksum and
+`https://maestro` is `env_repo_base_url` in `inventories/<ENV>/group_vars/all/main.yml`. Keep the checksum and
 signature files next to each tool for audit.
 
 ### Sources

@@ -15,7 +15,7 @@
 - name: Harbor | Download the offline installer from the mirror
   ansible.builtin.get_url:
     url: "{{ harbor_installer_url }}"
-    dest: "{{ harbor_install_dir }}/dist/harbor-offline-installer-{{ harbor_version }}.tgz"
+    dest: "{{ harbor_install_dir }}/dist/{{ harbor_installer_file }}"
     checksum: "{{ harbor_installer_checksum }}"
     owner: root
     group: root
@@ -23,7 +23,7 @@
 
 - name: Harbor | Unpack the installer
   ansible.builtin.unarchive:
-    src: "{{ harbor_install_dir }}/dist/harbor-offline-installer-{{ harbor_version }}.tgz"
+    src: "{{ harbor_install_dir }}/dist/{{ harbor_installer_file }}"
     dest: "{{ harbor_install_dir }}/{{ harbor_version }}"
     remote_src: true
     creates: "{{ harbor_app_dir }}/install.sh"

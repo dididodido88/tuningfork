@@ -176,7 +176,7 @@ domain-join vs LDAP-only comparison are in [docs/active-directory.md](docs/activ
 `playbooks/harbor.yml` runs on `registry_servers` and installs **Harbor**, the container image and Helm chart (OCI)
 registry, at `https://registry.<domain>` (lab: the host `registry.lab.local` itself).
 - It uses Docker CE (from the `docker-ce-stable` mirror repo) and Harbor's offline installer from
-  `<env_mirror_base_url>/harbor/<version>/`. The certificate is the host certificate from `certificates`, which must
+  `<env_repo_base_url>/harbor/<version>/`. The certificate is the host certificate from `certificates`, which must
   include the `registry` name.
 - It then initialises Harbor through its API: AD logins (LDAPS; the local `admin` and robot accounts stay usable),
   projects (`library` public, `charts`), AD group roles, robot accounts (`k8s-pull`, `ci-push`) and garbage collection.
@@ -191,7 +191,7 @@ Trivy: [docs/harbor.md](docs/harbor.md).
 ## Kubernetes clients (`kubectl`, `k8s_bastion`)
 
 - `playbooks/kubectl.yml` installs a pinned `kubectl` (`kubectl_version` in `group_vars/all/main.yml`) from
-  `<env_mirror_base_url>/kubernetes/<version>/` on every host in `kubectl_hosts`. Each version gets its own directory,
+  `<env_repo_base_url>/kubernetes/<version>/` on every host in `kubectl_hosts`. Each version gets its own directory,
   and a symlink in `/usr/local/bin` points at the active one.
 - `playbooks/k8s_bastion.yml` builds the Kubernetes bastion (`k8s_bastions`, lab: `mgmt.lab.local`):
   - kubectl, plus helm, k9s and kubectx/kubens from `<mirror>/kubernetes/tools/`
@@ -203,14 +203,23 @@ Files to download, versions and checksums, and using the bastion: [docs/kubernet
 
 ## Package repositories (`repositories`)
 
-`playbooks/repositories.yml` runs first in `site.yml` and points every Rocky 9 host at the internal mirror
-before any play installs packages. It configures six repositories: `baseos`, `appstream`, `crb`, `extras`,
-`epel` and `docker-ce-stable`.
+`playbooks/repositories.yml` runs right after `certificates.yml` in `site.yml` and points every Rocky 9 host at the
+internal mirror before any play installs packages. It configures six repositories: `baseos`, `appstream`, `crb`,
+`extras`, `epel` and `docker-ce-stable`.
 
-Set per environment in `inventories/<ENV>/group_vars/rocky9.yml`:
+The mirror's address is **`env_repo_base_url`** in `inventories/<ENV>/group_vars/all/main.yml`, the single base URL
+for the RPM repositories, the Harbor installer and the Kubernetes client binaries. It's HTTPS, so the internal CA must
+be trusted first: `site.yml` runs `certificates.yml` first, and `repositories.yml`, `harbor.yml`, `kubectl.yml` and
+`k8s_bastion.yml` stop with a clear message if it hasn't run. `repositories_base_url` follows `env_repo_base_url`.
 
 ```yaml
-repositories_base_url: https://maestro
+# inventories/<ENV>/group_vars/all/main.yml
+env_repo_base_url: https://maestro
+```
+
+GPG keys are set per environment in `inventories/<ENV>/group_vars/rocky9.yml`:
+
+```yaml
 repositories_gpg_keys:
   - name: RPM-GPG-KEY-Rocky-9
     url: "{{ repositories_base_url }}/rocky/repo/gpg/RPM-GPG-KEY-Rocky-9"
@@ -220,8 +229,8 @@ repositories_gpg_keys:
 ```
 
 Each repository's URL is `repositories_base_url` + its path in `repositories_paths`. The default layout is
-`rocky/$releasever/<repo>`, so on Rocky 9 the URLs are `https://maestro/rocky/9/baseos`,
-`https://maestro/rocky/9/epel`, and so on. Override
+`rocky/repo/$releasever/<repo>`, so on Rocky 9 the URLs are `<env_repo_base_url>/rocky/repo/9/baseos`,
+`<env_repo_base_url>/rocky/repo/9/epel`, and so on. Override
 `repositories_paths` if the mirror is laid out differently. Use `repositories_url_overrides` for one
 repository on another server. To leave a repository disabled on a group of hosts, remove it from
 `repositories_enabled` (e.g. `docker-ce-stable` on hosts that don't run Docker). All options are in
@@ -349,7 +358,7 @@ Where to put a value, from lowest to highest precedence:
 | Location | Use for |
 |---|---|
 | `roles/<role>/defaults/main.yml` | Org-wide defaults. Every option the role has is listed here. |
-| `inventories/<ENV>/group_vars/all/main.yml` | Values shared across groups in one environment: `env_ntp_servers`, `env_banner_text`, `env_mirror_base_url`. |
+| `inventories/<ENV>/group_vars/all/main.yml` | Values shared across groups in one environment: `env_ntp_servers`, `env_banner_text`, `env_repo_base_url`. |
 | `inventories/<ENV>/group_vars/<group>.yml` | Environment-specific settings for a group. |
 | `inventories/<ENV>/group_vars/all/vault.yml` | Secrets (ansible-vault encrypted). |
 | `inventories/<ENV>/host_vars/<host>.yml` | Per-host exceptions. |

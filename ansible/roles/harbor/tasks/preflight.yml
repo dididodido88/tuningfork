@@ -3,6 +3,7 @@
 - name: Harbor | Check the settings
   ansible.builtin.assert:
     that:
+      - (env_repo_base_url | default('')) is match('^https?://')
       - harbor_installer_checksum is match('^sha256:[0-9a-fA-F]{64}$')
       - harbor_admin_password | length >= 8 and harbor_admin_password != 'CHANGEME'
       - harbor_db_password | length >= 8 and harbor_db_password != 'CHANGEME'
@@ -16,7 +17,8 @@
         harbor_robots | map(attribute='name') | map('extract', harbor_robot_secrets)
         | reject('match', '^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9]).{8,128}$') | list | length == 0
     fail_msg: >-
-      Set harbor_installer_checksum (sha256:<hash>) in inventories/<ENV>/group_vars/registry_servers.yml,
+      Set env_repo_base_url in inventories/<ENV>/group_vars/all/main.yml, harbor_installer_checksum
+      (sha256:<hash>) in inventories/<ENV>/group_vars/registry_servers.yml,
       and vault_harbor_admin_password, vault_harbor_db_password, vault_harbor_ldap_bind_password (ldap_auth)
       and vault_harbor_robot_secrets (one per harbor_robots entry: 8-128 characters with upper case,
       lower case and a digit) in inventories/<ENV>/group_vars/all/vault.yml. For ldap_auth also set

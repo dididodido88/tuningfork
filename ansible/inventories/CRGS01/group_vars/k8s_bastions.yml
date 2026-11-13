@@ -7,7 +7,7 @@
 sssd_ad_extra_ssh_groups:
   - k8s-users
 
-# Tools from {{ env_mirror_base_url }}/kubernetes/tools/<name>/<version>/<archive>.
+# Tools from {{ env_repo_base_url }}/kubernetes/tools/<name>/<version>/<archive>.
 # checksum: sha256 from the upstream checksum file (CHANGEME before the first run).
 k8s_bastion_tools:
   - name: helm

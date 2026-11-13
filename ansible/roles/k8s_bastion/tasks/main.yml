@@ -1,10 +1,12 @@
 ---
-- name: Bastion | Check every tool has a checksum
+- name: Bastion | Check the mirror is set and every tool has a checksum
   ansible.builtin.assert:
     that:
+      - (env_repo_base_url | default('')) is match('^https?://')
       - k8s_bastion_tools | rejectattr('checksum', 'match', '^sha256:[0-9a-fA-F]{64}$') | list | length == 0
     fail_msg: >-
-      Set checksum (sha256:<hash>) for every entry of k8s_bastion_tools in
+      Set env_repo_base_url in inventories/<ENV>/group_vars/all/main.yml, and checksum
+      (sha256:<hash>) for every entry of k8s_bastion_tools in
       inventories/<ENV>/group_vars/k8s_bastions.yml. Missing:
       {{ k8s_bastion_tools | rejectattr('checksum', 'match', '^sha256:[0-9a-fA-F]{64}$') | map(attribute='name') | join(', ') }}
     quiet: true

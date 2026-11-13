@@ -27,16 +27,17 @@ fetches them from the mirror only.
 
 ```
 https://maestro/harbor/
-└── v2.15.2/
-    ├── harbor-offline-installer-v2.15.2.tgz          required (~700 MB, contains every Harbor image)
-    ├── harbor-offline-installer-v2.15.2.tgz.sha256   recorded checksum (you create it)
+└── v2.15.5/
+    ├── harbor-offline-installer-v2.15.5.tgz          required (~700 MB, contains every Harbor image)
+    ├── harbor-offline-installer-v2.15.5.tgz.sha256   recorded checksum (you create it)
     └── *.sigstore.json / *.asc                       signature material, kept for audit
 https://maestro/kubernetes/tools/helm/<version>/      helm client (docs/kubernetes-clients.md)
 https://maestro/rocky/repo/9/docker-ce-stable/       already mirrored (roles/repositories)
 ```
 
-`https://maestro` is `env_mirror_base_url` in `inventories/<ENV>/group_vars/all/main.yml`. The role downloads
-`<env_mirror_base_url>/harbor/<harbor_version>/harbor-offline-installer-<harbor_version>.tgz`.
+`https://maestro` is `env_repo_base_url` in `inventories/<ENV>/group_vars/all/main.yml` (one base URL per environment,
+HTTPS: run `playbooks/certificates.yml` first so hosts trust the internal CA). The role downloads
+`<env_repo_base_url>/harbor/<harbor_version>/harbor-offline-installer-<harbor_version>.tgz`.
 
 ### What to download
 
@@ -53,7 +54,7 @@ Pick the newest **patch** release of a Harbor minor version that you can support
 ### Example: download and verify (internet-connected Linux machine)
 
 ```sh
-VER=v2.15.2
+VER=v2.15.5
 mkdir -p harbor/$VER && cd harbor/$VER
 
 BASE=https://github.com/goharbor/harbor/releases/download/$VER
@@ -77,13 +78,13 @@ Carry the `harbor/` directory into the air-gapped network (approved media transf
 as `/harbor/` so that the layout above is served. On the air-gapped side, check it again:
 
 ```sh
-cd /path/to/mirror/harbor/v2.15.2 && sha256sum -c harbor-offline-installer-v2.15.2.tgz.sha256
+cd /path/to/mirror/harbor/v2.15.5 && sha256sum -c harbor-offline-installer-v2.15.5.tgz.sha256
 ```
 
 Put the hash into `inventories/<ENV>/group_vars/registry_servers.yml`:
 
 ```yaml
-harbor_version: v2.15.2
+harbor_version: v2.15.5
 harbor_installer_checksum: "sha256:<the 64-character hash>"
 ```
 

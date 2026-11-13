@@ -9,7 +9,7 @@
         repositories_repo_gpgkeys.values() | flatten | unique
         | difference(repositories_gpg_keys | map(attribute='name')) | length == 0
     fail_msg: >-
-      Set repositories_base_url and repositories_gpg_keys in inventories/<ENV>/group_vars/rocky9.yml.
+      Set env_repo_base_url in inventories/<ENV>/group_vars/all/main.yml and repositories_gpg_keys in inventories/<ENV>/group_vars/rocky9.yml.
       Every name in repositories_enabled must be in repositories_list, and every key named in
       repositories_repo_gpgkeys must be in repositories_gpg_keys.
     quiet: true

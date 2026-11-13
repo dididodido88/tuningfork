@@ -6,8 +6,8 @@
 # (registry.lab.local, DNS A record); the TLS certificate must cover it.
 harbor_hostname: "registry.{{ env_domain }}"
 
-# Offline installer on the internal mirror: {{ env_mirror_base_url }}/harbor/<version>/
-harbor_version: v2.15.2
+# Offline installer: {{ env_repo_base_url }}/harbor/<harbor_version>/harbor-offline-installer-<harbor_version>.tgz
+harbor_version: v2.15.5
 harbor_installer_checksum: ""   # CHANGEME: sha256:<hash> recorded when downloading
 
 # Images, charts and database live under /srv/harbor (a data disk: Terraform adds one; for a

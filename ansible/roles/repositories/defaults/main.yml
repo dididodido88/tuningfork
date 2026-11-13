@@ -1,21 +1,21 @@
 ---
 # DNF repositories on the internal (air-gapped) mirror.
-# Set per environment in inventories/<ENV>/group_vars/rocky9.yml:
-#   repositories_base_url   required: the mirror's base URL
-#   repositories_gpg_keys   required: where to download each GPG key
+# Set per environment:
+#   env_repo_base_url       required, in group_vars/all/main.yml (repositories_base_url follows it)
+#   repositories_gpg_keys   required, in group_vars/rocky9.yml: where to download each GPG key
 
-# Base URL of the internal mirror, e.g. https://maestro
-repositories_base_url: ""
+# Base URL of the internal mirror: the environment's env_repo_base_url.
+repositories_base_url: "{{ env_repo_base_url | default('') }}"
 
 # GPG keys, downloaded to /etc/pki/rpm-gpg/<name> and imported into the RPM database.
 # 'fingerprint' is optional; when set, the import fails if the key doesn't match.
 #   - name: RPM-GPG-KEY-Rocky-9
-#     url: https://maestro/rocky/repo/gpg/RPM-GPG-KEY-Rocky-9
+#     url: "{{ repositories_base_url }}/rocky/repo/gpg/RPM-GPG-KEY-Rocky-9"
 #     fingerprint: 21CB256AE16FC54C6E652949702D426D350D275D
 repositories_gpg_keys: []
 
 # Path of each repository below repositories_base_url. dnf expands $releasever (9 on
-# Rocky 9), so with base URL https://maestro the baseos URL is https://maestro/rocky/repo/9/baseos.
+# Rocky 9), so the baseos URL is <repositories_base_url>/rocky/repo/9/baseos.
 # Change these if a mirror is laid out differently.
 repositories_paths:
   baseos: rocky/repo/$releasever/baseos

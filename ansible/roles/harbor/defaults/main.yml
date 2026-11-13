@@ -7,9 +7,13 @@
 # (vault_harbor_*) in inventories/<ENV>/group_vars/all/vault.yml.
 
 # --- Installer (served by the internal mirror) -----------------------------------------------
-harbor_version: v2.15.2
-harbor_mirror_url: "{{ env_mirror_base_url | default('https://maestro') }}/harbor"
-harbor_installer_url: "{{ harbor_mirror_url }}/{{ harbor_version }}/harbor-offline-installer-{{ harbor_version }}.tgz"
+# Installer location, built from the version:
+#   <env_repo_base_url>/harbor/v2.15.5/harbor-offline-installer-v2.15.5.tgz
+#   <harbor_mirror_url>/<harbor_version>/<harbor_installer_file>
+harbor_version: v2.15.5
+harbor_mirror_url: "{{ env_repo_base_url | default('') }}/harbor"
+harbor_installer_file: "harbor-offline-installer-{{ harbor_version }}.tgz"
+harbor_installer_url: "{{ harbor_mirror_url }}/{{ harbor_version }}/{{ harbor_installer_file }}"
 # Required: "sha256:<hash>" recorded when the installer was downloaded and verified.
 harbor_installer_checksum: ""
 

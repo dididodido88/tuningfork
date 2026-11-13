@@ -6,8 +6,9 @@
 #
 # Limit with --limit <group|host> or --tags <tag>.
 
-# First: trust the internal root CA and install host certificates, so later plays can reach
-# internal HTTPS services (the mirror, Harbor) signed by that CA.
+# First, and keep it first: trust the internal root CA and install host certificates, so later
+# plays can reach the HTTPS mirror (env_repo_base_url) and other internal services
+# (Harbor) signed by that CA. Plays that download from the mirror check this first.
 - name: Certificates
   ansible.builtin.import_playbook: certificates.yml
 

@@ -6,7 +6,7 @@ harbor_app_dir: "{{ harbor_install_dir }}/{{ harbor_version }}/harbor"
 harbor_version_marker: "{{ harbor_install_dir }}/.installed-version"
 harbor_api: "https://{{ harbor_hostname }}/api/v2.0"
 
-# harbor.yml schema version expected by this release's prepare script (v2.15.2 -> 2.15.0).
+# harbor.yml schema version expected by this release's prepare script (v2.15.5 -> 2.15.0).
 # (No \1 back-reference: Jinja string literals turn it into a control character.)
 harbor_config_version: "{{ harbor_version | regex_search('[0-9]+[.][0-9]+') }}.0"
 

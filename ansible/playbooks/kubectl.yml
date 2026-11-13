@@ -7,6 +7,13 @@
   hosts: kubectl_hosts
   become: true
   gather_facts: false
+  # The mirror (env_repo_base_url) is HTTPS with a certificate from the internal CA.
+  pre_tasks:
+    - name: Check the internal CA is trusted (playbooks/certificates.yml ran)
+      ansible.builtin.import_role:
+        name: certificates
+        tasks_from: verify_trust
+      tags: [always]
   roles:
     - role: kubectl
       tags: [kubectl]
