@@ -49,11 +49,11 @@ sssd_ad_domain: lab.local
 sssd_ad_servers:
   - dc1.lab.local
   - dc2.lab.local
-sssd_ad_join_user: svc-linux-join # CHANGEME: account delegated to create computers in the OU
-sssd_ad_computer_ou: OU=Linux,OU=Servers,DC=lab,DC=local # CHANGEME
+sssd_ad_join_user: svc_sssd # CHANGEME: account delegated to create computers in the OU
+sssd_ad_computer_ou: OU=Servers,OU=Lab,DC=lab,DC=local
 # Members may log in (SSH and console). Also added to sshd AllowGroups (rocky9.yml).
 sssd_ad_ssh_groups:
-  - linux-ssh-users
+  - sg-all-users
 # Members may log in and use sudo (with their AD password).
 sssd_ad_admin_groups:
-  - linux-admins
+  - sg-lab-admins
