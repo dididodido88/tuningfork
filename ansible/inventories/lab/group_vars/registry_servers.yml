@@ -8,7 +8,7 @@ harbor_hostname: "registry.{{ env_domain }}"
 
 # Offline installer: {{ env_repo_base_url }}/harbor/<harbor_version>/harbor-offline-installer-<harbor_version>.tgz
 harbor_version: v2.15.5
-harbor_installer_checksum: ""   # CHANGEME: sha256:<hash> recorded when downloading
+harbor_installer_checksum: "sha256:18f9d4c47ad603743591e814b6c32136532ba7670132a94f4d9661f0fe46882c"   # CHANGEME: sha256:<hash> recorded when downloading
 
 # Images, charts and database live under /srv/harbor (a data disk: Terraform adds one; for a
 # hand-built VM add it to filesystems_volumes, e.g.
@@ -22,22 +22,22 @@ harbor_data_dir: /srv/harbor/data
 harbor_auth_mode: ldap_auth
 harbor_ldap_url: "ldaps://{{ env_domain }}:636"
 harbor_ldap_base_dn: "DC=lab,DC=local"
-harbor_ldap_bind_dn: "CN=svc_harbor,OU=Service Accounts,OU=Lab,DC=lab,DC=local"
+harbor_ldap_bind_dn: "CN=svc_ldap_bind,OU=Service Accounts,OU=Lab,DC=lab,DC=local"
 harbor_ldap_group_base_dn: "DC=lab,DC=local"
 # Members are Harbor system administrators.
-harbor_ldap_group_admin_dn: "CN=sg-lab-harbor-admins,OU=Groups,OU=Lab,DC=lab,DC=local"
+harbor_ldap_group_admin_dn: "CN=ug-its-admins,OU=Groups,OU=Lab,DC=lab,DC=local"
 
 # --- Projects and AD group roles (project_admin, maintainer, developer, guest, limited_guest) ---
 harbor_projects:
   - name: library                 # public: anyone can pull (no login needed)
     public: true
     members:
-      - group: sg-lab-harbor-developers
+      - group: sg-all-users
         role: developer
   - name: charts                  # Helm charts: oci://registry.<domain>/charts
     public: false
     members:
-      - group: sg-lab-harbor-developers
+      - group: sg-all-users
         role: developer
 
 # --- Robot accounts: log in as robot$<name>; secrets in vault_harbor_robot_secrets ---
