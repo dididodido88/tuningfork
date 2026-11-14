@@ -44,14 +44,39 @@
           {%- endfor -%}
           {{ out }}
 
+    # Harbor tests exactly the settings in the request body; it does not fall back to the stored
+    # configuration, so an empty body tests an empty URL. Send the same settings the UI's
+    # "Test LDAP Server" button sends. Harbor reports every connection or TLS failure (unknown
+    # CA, hostname not in the DC certificate) as "ldap server network timeout".
     - name: Harbor | Check Harbor can bind to AD
       ansible.builtin.uri:
         url: "{{ harbor_api }}/ldap/ping"
         method: POST
-        body: {}
+        body:
+          ldap_url: "{{ harbor_ldap_url }}"
+          ldap_verify_cert: "{{ harbor_ldap_verify_cert | bool }}"
+          ldap_search_dn: "{{ harbor_ldap_bind_dn }}"
+          ldap_search_password: "{{ harbor_ldap_bind_password }}"
+          ldap_base_dn: "{{ harbor_ldap_base_dn }}"
+          ldap_filter: "{{ harbor_ldap_filter }}"
+          ldap_uid: "{{ harbor_ldap_uid }}"
+          ldap_scope: 2
       register: harbor_ldap_ping
-      failed_when: >-
-        harbor_ldap_ping.status != 200 or not (harbor_ldap_ping.json.success | default(false))
+      no_log: true
+      when: harbor_auth_mode == 'ldap_auth'
+
+    - name: Harbor | Report the AD bind test result
+      ansible.builtin.assert:
+        that:
+          - harbor_ldap_ping.status == 200
+          - harbor_ldap_ping.json.success | default(false)
+        fail_msg: >-
+          Harbor could not bind to {{ harbor_ldap_url }} as {{ harbor_ldap_bind_dn }}:
+          {{ harbor_ldap_ping.json.message | default(harbor_ldap_ping.status) }}.
+          "network timeout" also covers TLS failures: from {{ inventory_hostname }} run
+          openssl s_client -connect <host>:636 -CAfile /etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem
+          -verify_hostname <host>, and check the bind DN and password (vault_harbor_ldap_bind_password).
+        quiet: true
       when: harbor_auth_mode == 'ldap_auth'
 
     # --- Projects and AD group members ---------------------------------------------------------
