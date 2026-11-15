@@ -1,0 +1,53 @@
+---
+# Print the list of SIEM artifacts to download (from inventories/<ENV>/group_vars/all/siem_versions.yml)
+# and write it to a text file to take to the internet-connected download machine. Downloads nothing.
+#
+#   ansible-playbook -i inventories/lab playbooks/siem_download_list.yml
+#   ansible-playbook -i inventories/lab playbooks/siem_download_list.yml -e siem_download_list_missing_only=true
+#
+# Workflow: docs/siem.md, "Getting the artifacts".
+
+- name: List the SIEM artifacts to download
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    siem_download_list_file: "/tmp/siem-download-list-{{ env_name | default('env') }}.txt"
+    # Only artifacts that have no sha256 in siem_versions.yml yet (new or changed versions).
+    siem_download_list_missing_only: false
+    siem_download_list_items: >-
+      {{ (siem_artifacts | dict2items | rejectattr('value.sha256', 'match', '^[0-9a-fA-F]{64}$') | list)
+         if siem_download_list_missing_only | bool else (siem_artifacts | dict2items) }}
+  tasks:
+    - name: Download list | Write the list
+      ansible.builtin.copy:
+        dest: "{{ siem_download_list_file }}"
+        mode: "0644"
+        content: |
+          SIEM artifacts for {{ env_name | default('?') }}: {{ siem_download_list_items | length }} file(s)
+          Upload each file to the mirror at the path shown (relative to {{ siem_mirror_url }}/),
+          under exactly that file name.
+
+          {% for a in siem_download_list_items %}
+          [{{ loop.index }}] {{ a.key }}
+              upload to: {{ a.value.product }}/{{ a.value.version }}/{{ a.value.file }}
+              download:  {{ a.value.source }}
+          {% if a.value.upstream_sha256 | default('') %}
+              check:     sha256 must match the {{ a.value.file }} line of {{ a.value.upstream_sha256 }}
+          {% endif %}
+          {% if a.value.note | default('') %}
+              note:      {{ a.value.note | wordwrap(100) | indent(15) }}
+          {% endif %}
+          {% if a.value.sha256 | default('') %}
+              pinned:    {{ a.value.sha256 }}
+          {% endif %}
+
+          {% endfor %}
+          When everything is uploaded, list the files on the mirror with their checksums and send
+          the output (docs/siem.md, "Getting the artifacts"):
+            cd <mirror web root>/siem && find . -type f ! -name '*.listing' | sort | xargs sha256sum
+      check_mode: false
+
+    - name: Download list | Show the list
+      ansible.builtin.debug:
+        msg: "{{ lookup('file', siem_download_list_file).splitlines() }}"

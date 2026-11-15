@@ -1,7 +1,7 @@
 ---
-# snmp_exporter generator input for the Dell iDRAC 9 module (bundle/snmp_module.yml runs it on the
-# staging machine). Object names come from the Dell iDRAC-SMIv2 MIB (IDRAC-MIB-SMIv2); the generator
-# stops with an error naming any object the MIB doesn't define.
+# snmp_exporter generator input for the Dell iDRAC 9 module (docs/siem.md, "snmp_exporter iDRAC
+# module"; run on the download machine). Object names come from the Dell iDRAC-SMIv2 MIB
+# (IDRAC-MIB-SMIv2); the generator stops with an error naming any object the MIB doesn't define.
 #
 # Status objects use the Dell ObjectStatusEnum: 1 other, 2 unknown, 3 ok, 4 nonCritical,
 # 5 critical, 6 nonRecoverable. Prometheus alert rules treat anything other than 3 as not OK.

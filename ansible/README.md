@@ -204,8 +204,8 @@ Files to download, versions and checksums, and using the bastion: [docs/kubernet
 ## SIEM and observability stack
 
 Wazuh, Prometheus, Grafana and their collectors on a dedicated SIEM VM per environment, with agents and
-exporters on every monitored system. Every artifact comes from a bundle built on an internet-connected
-staging machine (`bundle/build-bundle.sh <ENV>`), copied to `<env_repo_base_url>/siem/`, and checked
+exporters on every monitored system. Every artifact is downloaded on the internet-connected download machine
+from the list printed by `playbooks/siem_download_list.yml`, uploaded to `<env_repo_base_url>/siem/`, and checked
 against `inventories/<ENV>/group_vars/all/siem_versions.yml` before installation
 (`playbooks/siem_artifacts.yml`). Guide: [docs/siem.md](docs/siem.md).
 
@@ -334,7 +334,6 @@ lost `UUID=`. A disk-based `/tmp` requires `rhel9cis_tmp_svc: false` (the defaul
 ansible.cfg                  roles_path, vendored collections_path, no default inventory
 requirements.yml             record of vendored versions (used only to refresh them)
 docs/                        longer guides (active-directory.md, harbor.md, kubernetes-clients.md, siem.md)
-bundle/                      SIEM artifact bundle builder (runs on the internet-connected staging machine)
 files/                       content shipped by roles (snmp_exporter generator config, dashboards)
 scripts/                     repository checks (check-no-requirement-ids.sh)
 collections/                 VENDORED collections

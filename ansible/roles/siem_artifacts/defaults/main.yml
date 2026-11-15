@@ -17,8 +17,5 @@ siem_artifacts_required: []
 siem_artifacts_cache_dir: /var/cache/tuningfork/siem
 siem_artifacts_windows_cache_dir: 'C:\ProgramData\Tuningfork\siem'
 
-# Also compare the mirror's manifest.yml (written by bundle/build-bundle.sh) with siem_versions.yml.
-siem_artifacts_check_manifest: false
-
 # Windows path separator (a variable, so templates don't need backslash escapes).
 siem_artifacts_win_sep: '\'

@@ -31,8 +31,8 @@
       Unknown artifacts: {{ siem_artifacts_keys | difference((siem_artifacts | default({})).keys() | list) }}
       (not in siem_artifacts, inventories/<ENV>/group_vars/all/siem_versions.yml).
       {%- else -%}
-      No valid sha256 pinned for: {{ siem_artifacts_unpinned }}. Build the bundle
-      (bundle/build-bundle.sh) and paste its siem_checksums.yml values into siem_versions.yml.
+      No valid sha256 pinned for: {{ siem_artifacts_unpinned }}. Upload them to the mirror
+      and copy their sha256 into siem_versions.yml (docs/siem.md, "Getting the artifacts").
       {%- endif %}
     quiet: true
   vars:
@@ -54,9 +54,4 @@
   when:
     - siem_artifacts_keys | length > 0
     - ansible_connection | default('ssh') in ['winrm', 'psrp']
-  tags: [siem_artifacts]
-
-- name: Artifacts | Compare the mirror manifest with siem_versions.yml
-  ansible.builtin.include_tasks: manifest.yml
-  when: siem_artifacts_check_manifest | bool
   tags: [siem_artifacts]

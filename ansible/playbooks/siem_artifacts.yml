@@ -1,6 +1,6 @@
 ---
 # Check every SIEM artifact on the mirror: download each one, verify its sha256 against
-# inventories/<ENV>/group_vars/all/siem_versions.yml, and compare the mirror's manifest.yml.
+# inventories/<ENV>/group_vars/all/siem_versions.yml (acceptance test 1).
 # Roles that install SIEM components run the same checks for the artifacts they need.
 #
 #   ansible-playbook -i inventories/lab playbooks/siem_artifacts.yml
@@ -23,5 +23,4 @@
     - role: siem_artifacts
       vars:
         siem_artifacts_required: all
-        siem_artifacts_check_manifest: true
       tags: [siem_artifacts]
