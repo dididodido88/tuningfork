@@ -66,7 +66,7 @@ Several CIS rules can cut off SSH, sudo or console login. The CIS play
 | `NOPASSWD` sudo changed to `PASSWD`, so `become` fails | 5.2.4 | The Ansible account gets `/etc/sudoers.d/90-<account>`, which is excluded from the change. |
 | Automation account password expires, then is locked by the inactive lock | 5.4.1.x | The pre-check stops if the Ansible account's password can expire. New ageing limits aren't forced on existing accounts. |
 | Firewall started without SSH allowed | 4.1.2 | The SSH port is added to the default zone before CIS starts firewalld. |
-| Strict reverse-path filter drops traffic on multi-homed hosts | 3.3.7 | The pre-check stops on hosts with more than one IPv4 interface unless `cis_safeguards_strict_rp_filter_confirmed: true`. |
+| Strict reverse-path filter drops traffic on multi-homed hosts | 3.3.7 | The pre-check stops on hosts with more than one IPv4 interface unless `cis_safeguards_strict_rp_filter_confirmed: true`. Local container and VM bridges (Docker `docker0`/`br-*`, Podman, libvirt, CNIs) don't count (`cis_safeguards_rp_filter_ignore_interfaces`). |
 | IPv6 disabled on a host managed over IPv6 | linux_common / 3.x | `linux_common` and the pre-check stop if the host is reached over IPv6 or has no IPv4 default route. |
 | SELinux goes from disabled to enforcing without relabelling, and logins fail after reboot | 1.3.1.x | That run sets permissive and schedules `/.autorelabel` instead. Reboot, then run CIS again to set enforcing. |
 | PAM profile replaced, dropping features or overwriting unmanaged PAM | 5.3.2.x | Only runs when `rhel9cis_disruption_high: true` (off in every environment). If you turn it on, the pre-check stops hosts whose profile isn't plain `sssd`/`local`. |

@@ -32,6 +32,11 @@ cis_safeguards_manage_firewall_ssh: true
 # asymmetric routing. Stop on hosts with more than one IPv4 interface unless confirmed.
 cis_safeguards_strict_rp_filter_confirmed: false
 
+# Interfaces that don't count towards that check: local container and VM bridges (Docker,
+# Podman, libvirt, Kubernetes CNIs). Their traffic leaves through the host's own interface
+# with NAT and its replies come back on the same bridge, so strict rp_filter is safe.
+cis_safeguards_rp_filter_ignore_interfaces: "^(docker[0-9]+|br-[0-9a-f]+|veth.*|podman[0-9]+|cni.*|virbr[0-9]+|flannel.*|cali.*|vxlan.*)$"
+
 # Only these authselect base profiles may be replaced by the CIS profile (when
 # rhel9cis_disruption_high is true). Hosts on anything else (winbind, unmanaged PAM) stop.
 cis_safeguards_authselect_allowed_profiles: [sssd, local]

@@ -184,10 +184,12 @@
     - (ansible_facts.services['firewalld.service'].state | default('')) != 'running'
 
 # --- Reverse-path filtering (CIS 3.3.7) ---
+# Container/VM bridges (cis_safeguards_rp_filter_ignore_interfaces) are left out.
 - name: Preflight | Count IPv4 interfaces
   ansible.builtin.set_fact:
     cis_safeguards_ipv4_interfaces: >-
       {{ ansible_facts.interfaces | reject('equalto', 'lo')
+         | reject('match', cis_safeguards_rp_filter_ignore_interfaces)
          | map('regex_replace', '-', '_')
          | map('extract', ansible_facts) | select('defined')
          | selectattr('ipv4', 'defined') | map(attribute='device') | list }}
