@@ -70,8 +70,8 @@
            | map(attribute='ldap_group_dn') | list)
           + (harbor_ldap_group.json | default([]) | map(attribute='ldap_group_dn') | list)
           + ['']) | first }}
+    # A list (empty if the group isn't a member yet): a templated none would come back as text.
     harbor_existing_member: >-
-      {{ (harbor_project_members.json | default([])
-          | selectattr('entity_type', 'equalto', 'g')
-          | selectattr('entity_name', 'equalto', harbor_member.group) | list
-          + [none]) | first }}
+      {{ harbor_project_members.json | default([])
+         | selectattr('entity_type', 'equalto', 'g')
+         | selectattr('entity_name', 'equalto', harbor_member.group) | list }}

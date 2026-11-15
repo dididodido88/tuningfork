@@ -45,11 +45,11 @@
         ldap_group_dn: "{{ harbor_group_dn }}"
     status_code: [201]
   changed_when: true
-  when: harbor_existing_member is none
+  when: harbor_existing_member | length == 0
 
 - name: Harbor | Change the role of {{ harbor_member.group }} in {{ harbor_project.name }}
   ansible.builtin.uri:
-    url: "{{ harbor_api }}/projects/{{ harbor_project.name }}/members/{{ harbor_existing_member.id }}"
+    url: "{{ harbor_api }}/projects/{{ harbor_project.name }}/members/{{ harbor_existing_member[0].id }}"
     method: PUT
     headers:
       X-Is-Resource-Name: "true"
@@ -62,5 +62,5 @@
     status_code: [200]
   changed_when: true
   when:
-    - harbor_existing_member is not none
-    - harbor_existing_member.role_id != harbor_role_ids[harbor_member.role]
+    - harbor_existing_member | length > 0
+    - harbor_existing_member[0].role_id | int != harbor_role_ids[harbor_member.role] | int
