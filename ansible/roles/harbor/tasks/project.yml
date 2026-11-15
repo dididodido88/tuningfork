@@ -1,10 +1,12 @@
 ---
 # One project from harbor_projects (harbor_project). Included from initialise.yml.
 
-# Harbor stores project metadata as the strings "true"/"false"; compare and send it that way.
+# Harbor's project metadata values are strings ("true"/"false") and the API rejects JSON
+# booleans. Ansible turns a template that renders "true" back into a boolean, so the request
+# bodies are built with to_json (the value stays a quoted string) and compared as strings.
 - name: Harbor | Visibility of project {{ harbor_project.name }}
   ansible.builtin.set_fact:
-    harbor_project_public: "{{ (harbor_project.public | default(false) | bool) | string | lower }}"
+    harbor_project_public: "{{ harbor_project.public | default(false) | bool }}"
 
 - name: Harbor | Look up project {{ harbor_project.name }}
   ansible.builtin.uri:
@@ -25,10 +27,9 @@
     url_password: "{{ harbor_admin_password }}"
     force_basic_auth: true
     body_format: json
-    body:
-      project_name: "{{ harbor_project.name }}"
-      metadata:
-        public: "{{ harbor_project_public }}"
+    body: >-
+      {{ {'project_name': harbor_project.name,
+          'metadata': {'public': 'true' if harbor_project_public | bool else 'false'}} | to_json }}
     status_code: [201]
   changed_when: true
   when: harbor_project_current.status == 404
@@ -43,14 +44,15 @@
     url_password: "{{ harbor_admin_password }}"
     force_basic_auth: true
     body_format: json
-    body:
-      metadata:
-        public: "{{ harbor_project_public }}"
+    body: >-
+      {{ {'metadata': {'public': 'true' if harbor_project_public | bool else 'false'}} | to_json }}
     status_code: [200]
   changed_when: true
   when:
     - harbor_project_current.status == 200
-    - (harbor_project_current.json.metadata.public | default('false')) != harbor_project_public
+    - >-
+      (harbor_project_current.json.metadata.public | default('false') | string | lower)
+      != ('true' if harbor_project_public | bool else 'false')
 
 # AD groups can only be members in ldap_auth mode.
 - name: Harbor | Add AD groups to project {{ harbor_project.name }}
