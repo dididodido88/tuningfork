@@ -1,5 +1,11 @@
 ---
 # One project from harbor_projects (harbor_project). Included from initialise.yml.
+
+# Harbor stores project metadata as the strings "true"/"false"; compare and send it that way.
+- name: Harbor | Visibility of project {{ harbor_project.name }}
+  ansible.builtin.set_fact:
+    harbor_project_public: "{{ (harbor_project.public | default(false) | bool) | string | lower }}"
+
 - name: Harbor | Look up project {{ harbor_project.name }}
   ansible.builtin.uri:
     url: "{{ harbor_api }}/projects/{{ harbor_project.name }}"
