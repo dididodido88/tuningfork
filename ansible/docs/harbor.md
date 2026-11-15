@@ -193,13 +193,41 @@ containerd and Helm on Rocky 9 use the system store. On other machines:
     ca = "/etc/pki/ca-trust/source/anchors/lab.local-root-ca.pem"
   ```
 
+Podman, Buildah and Skopeo use the system store, or `/etc/containers/certs.d/registry.lab.local/ca.crt`. Helm on
+other machines takes `--ca-file <root CA>`. If you see `x509: certificate signed by unknown authority`, the client
+doesn't trust the CA yet. Don't work around it with `insecure-registries` or `--insecure-skip-tls-verify`.
+
+### Who can push where (lab defaults, `harbor_projects` in `registry_servers.yml`)
+
+| Project | Visibility | Push | Pull |
+|---|---|---|---|
+| `library` (images) | public | `sg-all-users` (developer), `robot$ci-push` | anyone, no login |
+| `charts` (Helm charts) | private | `sg-all-users` (developer), `robot$ci-push` | members, `robot$k8s-pull`, `robot$ci-push` |
+
+Members of the admin group (`harbor_ldap_group_admin_dn`) are Harbor system administrators and can push anywhere.
+
+**Logging in:**
+- AD users log in with their sAMAccountName and AD password.
+- Robot accounts log in as `robot$<name>`, with the secret from `vault_harbor_robot_secrets`. Quote the name in the shell (`'robot$ci-push'`).
+- Harbor reads AD group membership at login. After someone is added to a group, they must log out and log in again.
+
 ### Images
 
+Names follow `registry.lab.local/<project>/<repository>:<tag>`. The repository is created on first push and may
+have several levels (`library/team-a/myapp`).
+
 ```sh
-docker login registry.lab.local                     # AD user, or robot$ci-push
-docker tag myapp:1.0 registry.lab.local/library/myapp:1.0
+docker login registry.lab.local                     # AD user
+echo "$CI_PUSH_SECRET" | docker login registry.lab.local -u 'robot$ci-push' --password-stdin   # CI
+
+docker build -t registry.lab.local/library/myapp:1.0 .
 docker push registry.lab.local/library/myapp:1.0
+
+docker tag myapp:1.0 registry.lab.local/library/myapp:1.0        # an image that already exists locally
+docker push registry.lab.local/library/myapp:1.0
+
 docker pull registry.lab.local/library/myapp:1.0    # library is public: no login needed to pull
+curl -s https://registry.lab.local/v2/library/myapp/tags/list
 ```
 
 ### Kubernetes
@@ -216,17 +244,96 @@ Images in manifests are written as `registry.lab.local/<project>/<image>:<tag>`.
 
 ### Helm charts (OCI)
 
-Harbor 2.8+ stores charts as OCI artifacts. `helm repo add` and `index.yaml` aren't supported.
+Harbor 2.8+ stores charts as OCI artifacts (Helm 3.8+ required). `helm repo add`, `helm search` and `index.yaml`
+aren't supported. A chart `web` version `1.2.0` is stored as `registry.lab.local/charts/web:1.2.0`. Helm takes
+the repository name from the chart name and the tag from the chart version, so give `helm push` only the project path.
 
 ```sh
-helm registry login registry.lab.local               # AD user or robot$ci-push
+helm registry login registry.lab.local               # AD user
+echo "$CI_PUSH_SECRET" | helm registry login registry.lab.local -u 'robot$ci-push' --password-stdin   # CI
+
 helm package ./web                                   # -> web-1.2.0.tgz
 helm push web-1.2.0.tgz oci://registry.lab.local/charts
 helm show chart oci://registry.lab.local/charts/web --version 1.2.0
 helm install web oci://registry.lab.local/charts/web --version 1.2.0
 ```
 
-Argo CD / Flux: add `registry.lab.local/charts` as an OCI Helm repository with the `k8s-pull` robot.
+Argo CD: add a Helm repository of type OCI, URL `registry.lab.local/charts`, user `robot$k8s-pull`. Flux: a
+`HelmRepository` with `type: oci`, `url: oci://registry.lab.local/charts` and a `secretRef` holding the
+`robot$k8s-pull` credentials.
+
+### Bringing images and charts in from the internet
+
+The registry has no internet access. Download on an internet-connected machine, transfer the files through
+your approved media and process, then push from a host that trusts the internal CA (e.g. the bastion).
+
+**Images.** Prefer `skopeo copy --all`. It keeps every architecture and the image digest, so manifests that
+refer to `image@sha256:…` still work. `docker save` / `docker load` keep only one architecture and change the digest.
+
+```sh
+# Internet side
+skopeo copy --all docker://docker.io/library/nginx:1.27.3 oci-archive:nginx-1.27.3.tar
+sha256sum nginx-1.27.3.tar > SHA256SUMS
+
+# Inside
+sha256sum -c SHA256SUMS
+skopeo login registry.lab.local
+skopeo copy --all oci-archive:nginx-1.27.3.tar docker://registry.lab.local/library/nginx:1.27.3
+
+# Without skopeo (single architecture, new digest)
+#   internet side: docker pull … && docker save … -o nginx-1.27.3.tar
+#   inside:        docker load -i nginx-1.27.3.tar && docker tag … registry.lab.local/library/nginx:1.27.3 && docker push …
+```
+
+Keep the upstream path below `library` (`registry.k8s.io/ingress-nginx/controller` →
+`registry.lab.local/library/ingress-nginx/controller`). Then a chart or manifest only needs its registry changed.
+
+**Charts, with the images they deploy:**
+
+```sh
+# Internet side
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm pull ingress-nginx/ingress-nginx --version 4.11.3                     # classic repository
+helm pull oci://registry-1.docker.io/bitnamicharts/redis --version 20.2.1  # OCI registry
+
+# List the images the chart deploys with your values (options you enable may add more)
+helm template x ingress-nginx-4.11.3.tgz -f my-values.yaml \
+  | grep -oE 'image: *"?[^" ]+' | awk '{print $2}' | tr -d '"' | sort -u
+# …then skopeo copy --all each image to an oci-archive as above
+
+sha256sum *.tgz *.tar > SHA256SUMS
+
+# Inside
+sha256sum -c SHA256SUMS
+helm registry login registry.lab.local
+helm push ingress-nginx-4.11.3.tgz oci://registry.lab.local/charts
+skopeo copy --all oci-archive:controller-v1.11.3.tar \
+  docker://registry.lab.local/library/ingress-nginx/controller:v1.11.3
+```
+
+Install, pointing the chart's images at Harbor. Value names differ between charts, so check
+`helm show values`. Many charts have a global setting (`global.imageRegistry`, `global.image.registry`).
+
+```sh
+helm show values oci://registry.lab.local/charts/ingress-nginx --version 4.11.3
+helm install ingress oci://registry.lab.local/charts/ingress-nginx --version 4.11.3 \
+  -n ingress-nginx --create-namespace \
+  --set controller.image.registry=registry.lab.local \
+  --set controller.image.image=library/ingress-nginx/controller
+```
+
+If an image is pinned by digest in the chart (ingress-nginx does this), the copy must keep the digest
+(`skopeo copy --all`). Otherwise, clear the digest in the values (e.g. `controller.image.digest=""`).
+
+### Troubleshooting pushes and pulls
+
+| Error | Cause |
+|---|---|
+| `unauthorized` / `401` / `failed to authorize` | Not logged in, or the account has no push role in the project. Check the user's AD groups (`id <user>` on a joined host) and log in again. |
+| `denied: requested access to the resource is denied` | The project doesn't exist, or the name has no project (`registry.lab.local/myapp`). |
+| `x509: certificate signed by unknown authority` | The client doesn't trust the internal CA (see *Trust the CA*). |
+| `helm repo add` fails | Expected: charts are served over OCI only. |
+| Pods in `ErrImagePull` after `helm install` | An image is missing from Harbor, or the values still point upstream. Compare `kubectl get pods -o yaml \| grep image:` with **Projects → library**. |
 
 ### Projects, groups, robots
 
