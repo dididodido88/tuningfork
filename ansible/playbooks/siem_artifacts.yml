@@ -1,0 +1,27 @@
+---
+# Check every SIEM artifact on the mirror: download each one, verify its sha256 against
+# inventories/<ENV>/group_vars/all/siem_versions.yml, and compare the mirror's manifest.yml.
+# Roles that install SIEM components run the same checks for the artifacts they need.
+#
+#   ansible-playbook -i inventories/lab playbooks/siem_artifacts.yml
+# Before the SIEM VM exists, run it on the control node instead (checked copies go to a temp dir):
+#   ansible-playbook -i inventories/lab playbooks/siem_artifacts.yml -e siem_artifacts_hosts=localhost \
+#     -e siem_artifacts_cache_dir=/var/tmp/siem-artifacts-check -K
+
+- name: Check the SIEM artifacts on the mirror
+  hosts: "{{ siem_artifacts_hosts | default('siem_servers') }}"
+  become: true
+  gather_facts: false
+  pre_tasks:
+    - name: Check the internal CA is trusted (playbooks/certificates.yml ran)
+      ansible.builtin.import_role:
+        name: certificates
+        tasks_from: verify_trust
+      when: inventory_hostname != 'localhost'
+      tags: [always]
+  roles:
+    - role: siem_artifacts
+      vars:
+        siem_artifacts_required: all
+        siem_artifacts_check_manifest: true
+      tags: [siem_artifacts]

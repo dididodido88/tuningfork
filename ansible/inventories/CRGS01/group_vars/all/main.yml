@@ -18,6 +18,7 @@ env_banner_text: >-
 #   <env_repo_base_url>/harbor/<version>/             Harbor offline installer (roles/harbor)
 #   <env_repo_base_url>/kubernetes/<version>/         kubectl (roles/kubectl)
 #   <env_repo_base_url>/kubernetes/tools/...          helm, k9s, kubectx/kubens (roles/k8s_bastion)
+#   <env_repo_base_url>/siem/<product>/<version>/     SIEM stack artifacts (siem_versions.yml, bundle/)
 # HTTPS with a certificate from the internal CA: playbooks/certificates.yml must run first
 # (site.yml does); the other playbooks check the CA is trusted before downloading.
 env_repo_base_url: https://maestro

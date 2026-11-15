@@ -201,6 +201,14 @@ Trivy: [docs/harbor.md](docs/harbor.md).
 
 Files to download, versions and checksums, and using the bastion: [docs/kubernetes-clients.md](docs/kubernetes-clients.md).
 
+## SIEM and observability stack
+
+Wazuh, Prometheus, Grafana and their collectors on a dedicated SIEM VM per environment, with agents and
+exporters on every monitored system. Every artifact comes from a bundle built on an internet-connected
+staging machine (`bundle/build-bundle.sh <ENV>`), copied to `<env_repo_base_url>/siem/`, and checked
+against `inventories/<ENV>/group_vars/all/siem_versions.yml` before installation
+(`playbooks/siem_artifacts.yml`). Guide: [docs/siem.md](docs/siem.md).
+
 ## Package repositories (`repositories`)
 
 `playbooks/repositories.yml` runs right after `certificates.yml` in `site.yml` and points every Rocky 9 host at the
@@ -325,7 +333,10 @@ lost `UUID=`. A disk-based `/tmp` requires `rhel9cis_tmp_svc: false` (the defaul
 ```
 ansible.cfg                  roles_path, vendored collections_path, no default inventory
 requirements.yml             record of vendored versions (used only to refresh them)
-docs/                        longer guides (active-directory.md, harbor.md, kubernetes-clients.md)
+docs/                        longer guides (active-directory.md, harbor.md, kubernetes-clients.md, siem.md)
+bundle/                      SIEM artifact bundle builder (runs on the internet-connected staging machine)
+files/                       content shipped by roles (snmp_exporter generator config, dashboards)
+scripts/                     repository checks (check-no-requirement-ids.sh)
 collections/                 VENDORED collections
 roles/
   RHEL9-CIS/                 VENDORED ansible-lockdown role (see VENDORED.md)
@@ -343,6 +354,7 @@ roles/
   harbor/                    Harbor registry: Docker CE, offline installer, API initialisation (docs/harbor.md)
   kubectl/                   pinned kubectl from the mirror (any host in kubectl_hosts)
   k8s_bastion/               Kubernetes bastion: helm, k9s, kubectx/kubens, shared cluster contexts
+  siem_artifacts/            download SIEM artifacts from the mirror and check their SHA-256 (docs/siem.md)
 playbooks/
   site.yml                   runs everything in layer order
   group_vars/                settings that apply to every environment (see below)
@@ -410,7 +422,7 @@ ansible-vault encrypt --vault-id CRGS00@prompt inventories/CRGS00/group_vars/all
 
 These checks haven't been run yet. Run them on the control node:
 
-1. `ansible-lint` and `yamllint .` (vendored content is excluded).
+1. `ansible-lint`, `yamllint .` and `scripts/check-no-requirement-ids.sh` (vendored content is excluded).
 2. `ansible-inventory -i inventories/CRGS00 --graph` for each environment: check the group tree.
    `ansible-inventory -i inventories/CRGS00 --host <host>` shows the resolved variables.
 3. `ansible-playbook -i inventories/CRGS00 playbooks/site.yml --syntax-check`

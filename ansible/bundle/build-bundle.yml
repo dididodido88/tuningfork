@@ -1,0 +1,289 @@
+---
+# Builds the SIEM artifact bundle on an internet-connected staging machine. Run it through
+# bundle/build-bundle.sh <ENV>, which checks the prerequisites first.
+#
+# Reads inventories/<ENV>/group_vars/all/siem_versions.yml and writes
+#   bundle/out/siem-bundle-<ENV>-<date>/
+#     siem/<product>/<version>/<file>   copy this tree to the mirror (served as siem_mirror_url)
+#     siem/manifest.yml                 artifact, version, sha256, source for every file
+#     siem_checksums.yml                sha256 values to paste into siem_versions.yml
+#     SHA256SUMS                        for checking the copy after transfer (sha256sum -c)
+# Nothing here runs on a target host.
+
+- name: Build the SIEM artifact bundle
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - "../inventories/{{ bundle_env }}/group_vars/all/main.yml"
+    - "../inventories/{{ bundle_env }}/group_vars/all/siem_versions.yml"
+  vars:
+    bundle_date: "{{ lookup('pipe', 'date +%Y%m%d') }}"
+    bundle_dir: "{{ playbook_dir }}/out/siem-bundle-{{ bundle_env }}-{{ bundle_date }}"
+    bundle_work_dir: "{{ playbook_dir }}/out/.work-{{ bundle_env }}"
+    bundle_manual_dir: "{{ playbook_dir }}/manual"
+    # Container runtime for the snmp_exporter generator (only if the stock snmp.yml has no iDRAC module).
+    bundle_container_runtime: "{{ lookup('env', 'BUNDLE_CONTAINER_RUNTIME') | default('podman', true) }}"
+    bundle_artifact_list: "{{ siem_artifacts | dict2items }}"
+  tasks:
+    - name: Bundle | Check every version is pinned
+      ansible.builtin.assert:
+        that:
+          - item.value.version | string | length > 0
+          - item.value.version is not search('latest')
+          - item.value.file | length > 0
+        fail_msg: "Artifact {{ item.key }} has no pinned version or file name in siem_versions.yml."
+        quiet: true
+      loop: "{{ bundle_artifact_list }}"
+      loop_control:
+        label: "{{ item.key }}"
+
+    - name: Bundle | Create the output and work directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop: "{{ [bundle_dir ~ '/siem', bundle_work_dir] + bundle_artifact_dirs }}"
+      vars:
+        bundle_artifact_dirs: >-
+          {%- set out = [] -%}
+          {%- for a in bundle_artifact_list -%}
+          {%-   set d = bundle_dir ~ '/siem/' ~ a.value.product ~ '/' ~ a.value.version -%}
+          {%-   if d not in out -%}{%- set _ = out.append(d) -%}{%- endif -%}
+          {%- endfor -%}
+          {{ out }}
+
+    # --- Downloaded artifacts --------------------------------------------------------------------
+    - name: Bundle | Download artifacts
+      ansible.builtin.include_tasks: fetch_artifact.yml
+      loop: "{{ bundle_artifact_list | selectattr('value.source', 'match', '^https://') | list }}"
+      loop_control:
+        loop_var: artifact
+        label: "{{ artifact.key }}"
+      when: artifact.key != 'wazuh_vd_feed'
+
+    # --- Wazuh offline package set -------------------------------------------------------------
+    - name: Bundle | Check wazuh-install.sh installs Wazuh {{ wazuh_version }}
+      ansible.builtin.command:
+        argv: [grep, -c, "{{ wazuh_version }}", "{{ bundle_dir }}/siem/wazuh/{{ wazuh_version }}/wazuh-install.sh"]
+      register: bundle_wazuh_script_version
+      changed_when: false
+      failed_when: bundle_wazuh_script_version.rc != 0
+      # The 4.x branch script is updated in place; if it now names a newer patch, update
+      # wazuh_version (and every agent) instead of mixing versions.
+
+    - name: Bundle | Download the Wazuh offline packages (RPM)
+      ansible.builtin.command:
+        argv: [bash, "{{ bundle_dir }}/siem/wazuh/{{ wazuh_version }}/wazuh-install.sh", --download-wazuh, rpm]
+        chdir: "{{ bundle_work_dir }}"
+        creates: "{{ bundle_work_dir }}/wazuh-offline.tar.gz"
+
+    - name: Bundle | List the Wazuh offline packages
+      ansible.builtin.command:
+        argv: [tar, -tzf, "{{ bundle_work_dir }}/wazuh-offline.tar.gz"]
+      register: bundle_wazuh_offline_list
+      changed_when: false
+
+    - name: Bundle | Check the offline packages are Wazuh {{ wazuh_version }}
+      ansible.builtin.assert:
+        that:
+          - bundle_wazuh_offline_list.stdout_lines | select('search', 'wazuh-manager-' ~ wazuh_version) | list | length > 0
+          - bundle_wazuh_offline_list.stdout_lines | select('search', 'wazuh-indexer-' ~ wazuh_version) | list | length > 0
+          - bundle_wazuh_offline_list.stdout_lines | select('search', 'wazuh-dashboard-' ~ wazuh_version) | list | length > 0
+        fail_msg: >-
+          wazuh-offline.tar.gz doesn't contain manager, indexer and dashboard {{ wazuh_version }}.
+          Contents: {{ bundle_wazuh_offline_list.stdout_lines | select('search', '[.]rpm$') | list }}
+        quiet: true
+
+    - name: Bundle | Place wazuh-offline.tar.gz
+      ansible.builtin.copy:
+        src: "{{ bundle_work_dir }}/wazuh-offline.tar.gz"
+        dest: "{{ bundle_dir }}/siem/wazuh/{{ wazuh_version }}/wazuh-offline.tar.gz"
+        mode: "0644"
+
+    # --- Wazuh vulnerability detection feed snapshot ------------------------------------------------
+    - name: Bundle | Read the vulnerability feed catalog
+      ansible.builtin.uri:
+        url: "{{ siem_artifacts.wazuh_vd_feed.source }}"
+        return_content: true
+      register: bundle_vd_catalog
+
+    - name: Bundle | Find the latest feed snapshot link
+      ansible.builtin.set_fact:
+        bundle_vd_link: "{{ bundle_vd_catalog.json.data.last_snapshot_link | default('') }}"
+
+    - name: Bundle | Check a snapshot link was found
+      ansible.builtin.assert:
+        that: bundle_vd_link is match('^https://')
+        fail_msg: >-
+          The catalog response has no data.last_snapshot_link. Keys returned:
+          {{ (bundle_vd_catalog.json.data | default({})).keys() | list }}. Check the offline update steps in the
+          Wazuh {{ wazuh_minor }} vulnerability detection documentation and update this task.
+        quiet: true
+
+    - name: Bundle | Download the feed snapshot
+      ansible.builtin.get_url:
+        url: "{{ bundle_vd_link }}"
+        dest: "{{ bundle_dir }}/siem/{{ siem_artifacts.wazuh_vd_feed.product }}/{{ siem_artifacts.wazuh_vd_feed.version }}/{{ siem_artifacts.wazuh_vd_feed.file }}"
+        mode: "0644"
+        timeout: 600
+      register: bundle_vd_download
+
+    # --- Dell iDRAC MIB (manual drop or direct link) -----------------------------------------------
+    - name: Bundle | Check the Dell iDRAC MIB is in bundle/manual/
+      ansible.builtin.stat:
+        path: "{{ bundle_manual_dir }}/{{ siem_artifacts.dell_idrac_mib.file }}"
+      register: bundle_mib
+
+    - name: Bundle | Stop if the Dell iDRAC MIB is missing
+      ansible.builtin.assert:
+        that: bundle_mib.stat.exists
+        fail_msg: >-
+          Download the iDRAC9 SNMP MIBs from dell.com (iDRAC9 drivers & downloads, "SNMP MIB") and put
+          {{ siem_artifacts.dell_idrac_mib.file }} into {{ bundle_manual_dir }}/.
+        quiet: true
+
+    - name: Bundle | Place the Dell iDRAC MIB
+      ansible.builtin.copy:
+        src: "{{ bundle_manual_dir }}/{{ siem_artifacts.dell_idrac_mib.file }}"
+        dest: "{{ bundle_dir }}/siem/{{ siem_artifacts.dell_idrac_mib.product }}/{{ siem_artifacts.dell_idrac_mib.version }}/"
+        mode: "0644"
+
+    # --- snmp_exporter iDRAC module ----------------------------------------------------------------
+    - name: Bundle | Generate the snmp_exporter iDRAC module
+      ansible.builtin.include_tasks: snmp_module.yml
+
+    # --- prometheus-pve-exporter wheels -----------------------------------------------------------
+    - name: Bundle | Download prometheus-pve-exporter wheels for Python {{ pve_exporter_python_version }}
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -m
+          - pip
+          - download
+          - --only-binary=:all:
+          - --platform=manylinux2014_x86_64
+          - --platform=manylinux_2_28_x86_64
+          - --python-version={{ pve_exporter_python_version }}
+          - --implementation=cp
+          - --dest={{ bundle_work_dir }}/pve-wheels
+          - prometheus-pve-exporter=={{ pve_exporter_version }}
+          - pip
+          - setuptools
+          - wheel
+        creates: "{{ bundle_work_dir }}/pve-wheels"
+
+    - name: Bundle | Pack the wheels
+      ansible.builtin.command:
+        argv:
+          - tar
+          - --sort=name
+          - --mtime=@0
+          - --owner=0
+          - --group=0
+          - -czf
+          - "{{ bundle_dir }}/siem/{{ siem_artifacts.pve_exporter_wheels.product }}/{{ siem_artifacts.pve_exporter_wheels.version }}/{{ siem_artifacts.pve_exporter_wheels.file }}"
+          - -C
+          - "{{ bundle_work_dir }}"
+          - pve-wheels
+        creates: "{{ bundle_dir }}/siem/{{ siem_artifacts.pve_exporter_wheels.product }}/{{ siem_artifacts.pve_exporter_wheels.version }}/{{ siem_artifacts.pve_exporter_wheels.file }}"
+      environment:
+        GZIP: -n
+
+    # --- ClamAV signature databases --------------------------------------------------------------
+    - name: Bundle | Download ClamAV signatures with cvdupdate
+      ansible.builtin.shell:
+        cmd: |
+          set -euo pipefail
+          python3 -m venv "{{ bundle_work_dir }}/cvd-venv"
+          "{{ bundle_work_dir }}/cvd-venv/bin/pip" install --quiet cvdupdate
+          export HOME="{{ bundle_work_dir }}/cvd-home"
+          mkdir -p "$HOME"
+          "{{ bundle_work_dir }}/cvd-venv/bin/cvd" config set --dbdir "{{ bundle_work_dir }}/cvd-db"
+          "{{ bundle_work_dir }}/cvd-venv/bin/cvd" update
+        executable: /bin/bash
+        creates: "{{ bundle_work_dir }}/cvd-db/daily.cvd"
+
+    - name: Bundle | Place the ClamAV signatures
+      ansible.builtin.copy:
+        src: "{{ bundle_work_dir }}/cvd-db/{{ siem_artifacts[item].file }}"
+        dest: "{{ bundle_dir }}/siem/{{ siem_artifacts[item].product }}/{{ siem_artifacts[item].version }}/"
+        mode: "0644"
+      loop: [clamav_main, clamav_daily, clamav_bytecode]
+
+    # --- Checksums, manifest ------------------------------------------------------------------------
+    - name: Bundle | Checksum every artifact
+      ansible.builtin.stat:
+        path: "{{ bundle_dir }}/siem/{{ item.value.product }}/{{ item.value.version }}/{{ item.value.file }}"
+        checksum_algorithm: sha256
+      register: bundle_stats
+      loop: "{{ bundle_artifact_list }}"
+      loop_control:
+        label: "{{ item.key }}"
+
+    - name: Bundle | Stop if an artifact is missing
+      ansible.builtin.assert:
+        that: item.stat.exists
+        fail_msg: "{{ item.item.key }} wasn't produced: {{ item.item.value.file }}"
+        quiet: true
+      loop: "{{ bundle_stats.results }}"
+      loop_control:
+        label: "{{ item.item.key }}"
+
+    - name: Bundle | Stop if a pinned checksum doesn't match
+      ansible.builtin.assert:
+        that: >-
+          (item.item.value.sha256 | default('') | length == 0)
+          or (item.item.value.sha256 | lower == item.stat.checksum)
+        fail_msg: >-
+          {{ item.item.key }}: siem_versions.yml pins {{ item.item.value.sha256 }} but the download is
+          {{ item.stat.checksum }}. Upstream changed the file, or the version changed without the checksum.
+        quiet: true
+      loop: "{{ bundle_stats.results }}"
+      loop_control:
+        label: "{{ item.item.key }}"
+
+    - name: Bundle | Write manifest.yml
+      ansible.builtin.copy:
+        dest: "{{ bundle_dir }}/siem/manifest.yml"
+        mode: "0644"
+        content: |
+          # SIEM artifact bundle for {{ bundle_env }}, built {{ bundle_date }} by bundle/build-bundle.sh.
+          # Mirror path: <siem_mirror_url>/<product>/<version>/<file>
+          {{ {'environment': bundle_env, 'built': bundle_date, 'artifacts': bundle_manifest} | to_nice_yaml(indent=2, sort_keys=false) }}
+      vars:
+        bundle_manifest: >-
+          {%- set out = [] -%}
+          {%- for r in bundle_stats.results -%}
+          {%-   set src = bundle_vd_link if r.item.key == 'wazuh_vd_feed' else r.item.value.source -%}
+          {%-   set _ = out.append({'artifact': r.item.key, 'product': r.item.value.product,
+                                    'version': r.item.value.version | string, 'file': r.item.value.file,
+                                    'sha256': r.stat.checksum, 'source': src}) -%}
+          {%- endfor -%}
+          {{ out }}
+
+    - name: Bundle | Write siem_checksums.yml (paste into siem_versions.yml)
+      ansible.builtin.copy:
+        dest: "{{ bundle_dir }}/siem_checksums.yml"
+        mode: "0644"
+        content: |
+          # sha256 of each artifact in this bundle. Copy each value into the matching entry's sha256
+          # in inventories/<ENV>/group_vars/all/siem_versions.yml (every environment using this bundle).
+          {% for r in bundle_stats.results %}
+          {{ r.item.key }}: "{{ r.stat.checksum }}"   # {{ r.item.value.file }}
+          {% endfor %}
+
+    - name: Bundle | Write SHA256SUMS
+      ansible.builtin.shell:
+        cmd: find siem -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+        chdir: "{{ bundle_dir }}"
+        executable: /bin/bash
+      changed_when: true
+
+    - name: Bundle | Done
+      ansible.builtin.debug:
+        msg:
+          - "Bundle: {{ bundle_dir }}"
+          - "1. Paste {{ bundle_dir }}/siem_checksums.yml into siem_versions.yml and commit."
+          - "2. Carry {{ bundle_dir }} across; check it with: sha256sum -c SHA256SUMS"
+          - "3. Copy its siem/ directory to the mirror so it is served as {{ siem_mirror_url }}/"

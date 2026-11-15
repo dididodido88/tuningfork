@@ -24,3 +24,8 @@ terraform/state/
 terraform/providers/*
 !terraform/providers/.gitkeep
 # Keep .terraform.lock.hcl files: commit them.
+
+# SIEM artifact bundle (built on the staging machine; carried across, never committed)
+ansible/bundle/out/
+ansible/bundle/manual/*
+!ansible/bundle/manual/README.md

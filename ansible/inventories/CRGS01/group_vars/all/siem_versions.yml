@@ -1,0 +1,183 @@
+---
+# SIEM and observability stack: every pinned version and SHA-256 checksum, for this environment.
+#
+# bundle/build-bundle.sh <ENV> reads this file on the internet-connected staging machine, downloads
+# each artifact below, checks it against the upstream checksum where one is published, and writes
+# the bundle (laid out like the mirror) plus manifest.yml. On the inside, copy the bundle's siem/
+# directory to the mirror so that it is served as <siem_mirror_url>/. roles/siem_artifacts then
+# downloads and checks every artifact a host needs before anything is installed.
+#
+# Updating a version: change it here, run build-bundle.sh, and paste the sha256 values it prints
+# (bundle/out/<bundle>/siem_checksums.yml) into the entries below. An artifact with an empty
+# sha256 is never installed. Docs: docs/siem.md.
+
+# <env_repo_base_url>/siem/<product>/<version>/<file>
+siem_mirror_url: "{{ env_repo_base_url | default('') }}/siem"
+
+# Wazuh: manager, indexer, dashboard and every agent use this one version (agents may never be
+# newer than the manager). Do not move to 5.x without a plan: ports, paths and install differ.
+wazuh_version: 4.14.10
+wazuh_minor: "4.14"
+
+prometheus_version: 3.15.1
+alertmanager_version: 0.35.0
+node_exporter_version: 1.12.1
+snmp_exporter_version: 0.31.0
+grafana_version: 13.3.1
+windows_exporter_version: 0.32.1
+pve_exporter_version: 3.11.0
+# Python the pve-exporter virtualenv runs on (Rocky 9 AppStream). Wheels are built for it.
+pve_exporter_python_version: "3.12"
+# ClamAV signature snapshot: the date build-bundle.sh downloaded it (YYYY-MM-DD). Set the date
+# before each bundle build; each snapshot gets its own mirror directory.
+clamav_signatures_version: "2026-11-15"
+
+# Each entry: product + version + file give the mirror path; source is where build-bundle.sh
+# gets it ("generated:" entries are produced by the script); upstream_sha256_url, if set, is the
+# published checksum list the download must match.
+siem_artifacts:
+  # --- Wazuh central components (offline installation method) ---------------------------------
+  wazuh_install_script:
+    product: wazuh
+    version: "{{ wazuh_version }}"
+    file: wazuh-install.sh
+    source: "https://packages.wazuh.com/{{ wazuh_minor }}/wazuh-install.sh"
+    sha256: ""
+  wazuh_passwords_tool:
+    product: wazuh
+    version: "{{ wazuh_version }}"
+    file: wazuh-passwords-tool.sh
+    source: "https://packages.wazuh.com/{{ wazuh_minor }}/wazuh-passwords-tool.sh"
+    sha256: ""
+  wazuh_install_config:
+    product: wazuh
+    version: "{{ wazuh_version }}"
+    file: config.yml
+    source: "https://packages.wazuh.com/{{ wazuh_minor }}/config.yml"
+    sha256: ""
+  wazuh_offline:
+    product: wazuh
+    version: "{{ wazuh_version }}"
+    file: wazuh-offline.tar.gz
+    source: "generated: wazuh-install.sh --download-wazuh rpm"
+    sha256: ""
+  # Vulnerability detection content snapshot (offline update). The catalog URL returns JSON with
+  # the link of the latest snapshot; the bundle records the snapshot it downloaded.
+  wazuh_vd_feed:
+    product: wazuh-vd-feed
+    version: "{{ wazuh_version }}"
+    file: vd-feed-snapshot.zip
+    source: "https://cti.wazuh.com/api/v1/catalog/contexts/vd_1.0.0/consumers/vd_4.8.0"
+    sha256: ""
+
+  # --- Wazuh agents (same version as the manager) ----------------------------------------------
+  wazuh_agent_rpm:
+    product: wazuh-agent
+    version: "{{ wazuh_version }}"
+    file: "wazuh-agent-{{ wazuh_version }}-1.x86_64.rpm"
+    source: "https://packages.wazuh.com/4.x/yum/wazuh-agent-{{ wazuh_version }}-1.x86_64.rpm"
+    sha256: ""
+  wazuh_agent_deb:
+    product: wazuh-agent
+    version: "{{ wazuh_version }}"
+    file: "wazuh-agent_{{ wazuh_version }}-1_amd64.deb"
+    source: "https://packages.wazuh.com/4.x/apt/pool/main/w/wazuh-agent/wazuh-agent_{{ wazuh_version }}-1_amd64.deb"
+    sha256: ""
+  wazuh_agent_msi:
+    product: wazuh-agent
+    version: "{{ wazuh_version }}"
+    file: "wazuh-agent-{{ wazuh_version }}-1.msi"
+    source: "https://packages.wazuh.com/4.x/windows/wazuh-agent-{{ wazuh_version }}-1.msi"
+    sha256: ""
+
+  # --- Prometheus stack (upstream Linux amd64 release tarballs) --------------------------------
+  prometheus:
+    product: prometheus
+    version: "{{ prometheus_version }}"
+    file: "prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+    source: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+    upstream_sha256_url: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/sha256sums.txt"
+    sha256: ""
+  alertmanager:
+    product: alertmanager
+    version: "{{ alertmanager_version }}"
+    file: "alertmanager-{{ alertmanager_version }}.linux-amd64.tar.gz"
+    source: "https://github.com/prometheus/alertmanager/releases/download/v{{ alertmanager_version }}/alertmanager-{{ alertmanager_version }}.linux-amd64.tar.gz"
+    upstream_sha256_url: "https://github.com/prometheus/alertmanager/releases/download/v{{ alertmanager_version }}/sha256sums.txt"
+    sha256: ""
+  node_exporter:
+    product: node_exporter
+    version: "{{ node_exporter_version }}"
+    file: "node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+    source: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+    upstream_sha256_url: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/sha256sums.txt"
+    sha256: ""
+  snmp_exporter:
+    product: snmp_exporter
+    version: "{{ snmp_exporter_version }}"
+    file: "snmp_exporter-{{ snmp_exporter_version }}.linux-amd64.tar.gz"
+    source: "https://github.com/prometheus/snmp_exporter/releases/download/v{{ snmp_exporter_version }}/snmp_exporter-{{ snmp_exporter_version }}.linux-amd64.tar.gz"
+    upstream_sha256_url: "https://github.com/prometheus/snmp_exporter/releases/download/v{{ snmp_exporter_version }}/sha256sums.txt"
+    sha256: ""
+  # Dell iDRAC module for snmp_exporter, generated from the iDRAC-SMIv2 MIB with the pinned
+  # generator (files/snmp_exporter/generator.yml). Only the modules section; auths are templated.
+  snmp_exporter_idrac_module:
+    product: snmp_exporter
+    version: "{{ snmp_exporter_version }}"
+    file: snmp-idrac.yml
+    source: "generated: snmp_exporter generator {{ snmp_exporter_version }} + iDRAC-SMIv2.mib"
+    sha256: ""
+  windows_exporter:
+    product: windows_exporter
+    version: "{{ windows_exporter_version }}"
+    file: "windows_exporter-{{ windows_exporter_version }}-amd64.msi"
+    source: "https://github.com/prometheus-community/windows_exporter/releases/download/v{{ windows_exporter_version }}/windows_exporter-{{ windows_exporter_version }}-amd64.msi"
+    upstream_sha256_url: "https://github.com/prometheus-community/windows_exporter/releases/download/v{{ windows_exporter_version }}/sha256sums.txt"
+    sha256: ""
+  # Wheels of prometheus-pve-exporter and all its dependencies, for pve_exporter_python_version.
+  pve_exporter_wheels:
+    product: pve_exporter
+    version: "{{ pve_exporter_version }}"
+    file: "prometheus-pve-exporter-{{ pve_exporter_version }}-py{{ pve_exporter_python_version }}-wheels.tar.gz"
+    source: "generated: pip download prometheus-pve-exporter=={{ pve_exporter_version }}"
+    sha256: ""
+
+  # --- Grafana OSS (RPM). Copy the exact RPM link and its .sha256 from grafana.com/grafana/download
+  # (Linux, Red Hat/CentOS, OSS edition) if this pattern no longer matches.
+  grafana_rpm:
+    product: grafana
+    version: "{{ grafana_version }}"
+    file: "grafana-{{ grafana_version }}-1.x86_64.rpm"
+    source: "https://dl.grafana.com/oss/release/grafana-{{ grafana_version }}-1.x86_64.rpm"
+    upstream_sha256_file_url: "https://dl.grafana.com/oss/release/grafana-{{ grafana_version }}-1.x86_64.rpm.sha256"
+    sha256: ""
+
+  # --- Dell iDRAC MIB (snmptrapd and the snmp_exporter generator) -------------------------------
+  # Dell's download links change: leave source empty and drop the file into bundle/manual/
+  # (from the iDRAC9 "SNMP MIBs" download on dell.com), or paste the current direct link.
+  dell_idrac_mib:
+    product: mibs
+    version: idrac9
+    file: iDRAC-SMIv2.mib
+    source: "manual: bundle/manual/iDRAC-SMIv2.mib"
+    sha256: ""
+
+  # --- ClamAV signature databases (dated snapshot; ClamAV itself comes from EPEL / Debian) ------
+  clamav_main:
+    product: clamav
+    version: "{{ clamav_signatures_version }}"
+    file: main.cvd
+    source: "generated: cvdupdate"
+    sha256: ""
+  clamav_daily:
+    product: clamav
+    version: "{{ clamav_signatures_version }}"
+    file: daily.cvd
+    source: "generated: cvdupdate"
+    sha256: ""
+  clamav_bytecode:
+    product: clamav
+    version: "{{ clamav_signatures_version }}"
+    file: bytecode.cvd
+    source: "generated: cvdupdate"
+    sha256: ""

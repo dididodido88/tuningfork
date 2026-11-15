@@ -1,0 +1,59 @@
+---
+# One downloaded artifact (artifact = {key, value}). Included from build-bundle.yml.
+# The download must match, in this order of preference: the upstream checksum list
+# (upstream_sha256_url), the upstream .sha256 file (upstream_sha256_file_url), and the
+# sha256 pinned in siem_versions.yml. Artifacts without either upstream source are recorded
+# on first download (trust on first use) and must be pinned in siem_versions.yml afterwards.
+
+- name: Bundle | Read the upstream checksum list for {{ artifact.key }}
+  ansible.builtin.uri:
+    url: "{{ artifact.value.upstream_sha256_url | default(artifact.value.upstream_sha256_file_url) }}"
+    return_content: true
+  register: bundle_upstream_sums
+  when: (artifact.value.upstream_sha256_url | default('')) or (artifact.value.upstream_sha256_file_url | default(''))
+
+- name: Bundle | Pick the upstream checksum of {{ artifact.value.file }}
+  ansible.builtin.set_fact:
+    bundle_upstream_sha256: >-
+      {%- set ns = namespace(v='') -%}
+      {%- if bundle_upstream_sums is not skipped -%}
+      {%-   for line in bundle_upstream_sums.content.splitlines() -%}
+      {%-     set f = line.split() -%}
+      {%-     if (artifact.value.upstream_sha256_file_url | default('')) and f | length >= 1 and ns.v == '' -%}
+      {%-       set ns.v = f[0] -%}
+      {%-     elif f | length == 2 and f[1] | replace('*', '') == artifact.value.file -%}
+      {%-       set ns.v = f[0] -%}
+      {%-     endif -%}
+      {%-   endfor -%}
+      {%- endif -%}
+      {{ ns.v | lower }}
+
+- name: Bundle | Stop if the upstream list doesn't name {{ artifact.value.file }}
+  ansible.builtin.assert:
+    that: bundle_upstream_sha256 is match('^[0-9a-f]{64}$')
+    fail_msg: >-
+      {{ artifact.key }}: no checksum for {{ artifact.value.file }} in
+      {{ artifact.value.upstream_sha256_url | default(artifact.value.upstream_sha256_file_url) }}.
+      Check the version and file name in siem_versions.yml.
+    quiet: true
+  when: bundle_upstream_sums is not skipped
+
+- name: Bundle | Stop if the pinned checksum differs from upstream for {{ artifact.key }}
+  ansible.builtin.assert:
+    that: >-
+      (artifact.value.sha256 | default('') | length == 0) or bundle_upstream_sha256 == ''
+      or (artifact.value.sha256 | lower == bundle_upstream_sha256)
+    fail_msg: >-
+      {{ artifact.key }}: siem_versions.yml pins {{ artifact.value.sha256 }}, upstream publishes
+      {{ bundle_upstream_sha256 }}.
+    quiet: true
+
+- name: Bundle | Download {{ artifact.value.file }}
+  ansible.builtin.get_url:
+    url: "{{ artifact.value.source }}"
+    dest: "{{ bundle_dir }}/siem/{{ artifact.value.product }}/{{ artifact.value.version }}/{{ artifact.value.file }}"
+    checksum: >-
+      {{ ('sha256:' ~ bundle_upstream_sha256) if bundle_upstream_sha256
+         else (('sha256:' ~ artifact.value.sha256) if artifact.value.sha256 | default('') else '') }}
+    mode: "0644"
+    timeout: 600

@@ -1,0 +1,26 @@
+---
+- name: Artifacts | Create the cache directories
+  ansible.windows.win_file:
+    path: "{{ siem_artifacts_windows_cache_dir ~ siem_artifacts_win_sep ~ (item | replace('/', siem_artifacts_win_sep)) }}"
+    state: directory
+  loop: "{{ siem_artifacts_rel_paths.values() | map('dirname') | unique | list }}"
+
+- name: Artifacts | Download and check each artifact
+  ansible.windows.win_get_url:
+    url: "{{ siem_mirror_url }}/{{ siem_artifacts_rel_paths[item] }}"
+    dest: "{{ siem_artifacts_windows_cache_dir ~ siem_artifacts_win_sep ~ (siem_artifacts_rel_paths[item] | replace('/', siem_artifacts_win_sep)) }}"
+    checksum: "{{ siem_artifacts[item].sha256 | lower }}"
+    checksum_algorithm: sha256
+    force: false
+    timeout: 600
+  loop: "{{ siem_artifacts_keys }}"
+
+- name: Artifacts | Record the checked local paths
+  ansible.builtin.set_fact:
+    siem_artifact_paths: >-
+      {%- set ns = namespace(d=siem_artifact_paths | default({})) -%}
+      {%- for k in siem_artifacts_keys -%}
+      {%-   set ns.d = ns.d | combine({k: siem_artifacts_windows_cache_dir ~ siem_artifacts_win_sep
+                                          ~ (siem_artifacts_rel_paths[k] | replace('/', siem_artifacts_win_sep))}) -%}
+      {%- endfor -%}
+      {{ ns.d }}

@@ -1,0 +1,17 @@
+---
+galaxy_info:
+  author: tuningfork
+  description: Download SIEM artifacts from the internal mirror and check each SHA-256 before installation
+  license: proprietary
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+    - name: Debian
+      versions:
+        - trixie
+    - name: Windows
+      versions:
+        - "2022"
+dependencies: []

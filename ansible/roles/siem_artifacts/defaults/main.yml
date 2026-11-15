@@ -1,0 +1,24 @@
+---
+# Download and check SIEM artifacts from the mirror before anything is installed.
+# Artifacts, versions and sha256 values: siem_artifacts in inventories/<ENV>/group_vars/all/siem_versions.yml.
+# Mirror path: <siem_mirror_url>/<product>/<version>/<file>.
+#
+# Roles include this role with the keys they need, e.g.
+#   - ansible.builtin.include_role:
+#       name: siem_artifacts
+#     vars:
+#       siem_artifacts_required: [prometheus]
+# and then install from siem_artifact_paths[<key>] (the checked local copy).
+
+# Keys of siem_artifacts this host needs. "all" checks every artifact (playbooks/siem_artifacts.yml).
+siem_artifacts_required: []
+
+# Checked local copies (kept: get_url skips the download when the file and its checksum match).
+siem_artifacts_cache_dir: /var/cache/tuningfork/siem
+siem_artifacts_windows_cache_dir: 'C:\ProgramData\Tuningfork\siem'
+
+# Also compare the mirror's manifest.yml (written by bundle/build-bundle.sh) with siem_versions.yml.
+siem_artifacts_check_manifest: false
+
+# Windows path separator (a variable, so templates don't need backslash escapes).
+siem_artifacts_win_sep: '\'

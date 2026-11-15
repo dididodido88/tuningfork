@@ -1,0 +1,62 @@
+---
+- name: Artifacts | Resolve the artifact list
+  ansible.builtin.set_fact:
+    siem_artifacts_keys: >-
+      {{ (siem_artifacts | default({})).keys() | list
+         if siem_artifacts_required == 'all' else siem_artifacts_required }}
+  tags: [siem_artifacts]
+
+# <product>/<version>/<file> of each requested artifact (path below siem_mirror_url and the cache).
+- name: Artifacts | Work out the mirror paths
+  ansible.builtin.set_fact:
+    siem_artifacts_rel_paths: >-
+      {%- set ns = namespace(d={}) -%}
+      {%- for k in siem_artifacts_keys if k in (siem_artifacts | default({})) -%}
+      {%-   set a = siem_artifacts[k] -%}
+      {%-   set ns.d = ns.d | combine({k: a.product ~ '/' ~ (a.version | string) ~ '/' ~ a.file}) -%}
+      {%- endfor -%}
+      {{ ns.d }}
+  tags: [siem_artifacts]
+
+- name: Artifacts | Check the mirror URL, the artifact names and their checksums
+  ansible.builtin.assert:
+    that:
+      - (siem_mirror_url | default('')) is match('^https://')
+      - siem_artifacts_keys | difference((siem_artifacts | default({})).keys() | list) | length == 0
+      - siem_artifacts_unpinned | length == 0
+    fail_msg: >-
+      {% if (siem_mirror_url | default('')) is not match('^https://') -%}
+      siem_mirror_url must be an https URL (env_repo_base_url in inventories/<ENV>/group_vars/all/main.yml).
+      {%- elif siem_artifacts_keys | difference((siem_artifacts | default({})).keys() | list) | length > 0 -%}
+      Unknown artifacts: {{ siem_artifacts_keys | difference((siem_artifacts | default({})).keys() | list) }}
+      (not in siem_artifacts, inventories/<ENV>/group_vars/all/siem_versions.yml).
+      {%- else -%}
+      No valid sha256 pinned for: {{ siem_artifacts_unpinned }}. Build the bundle
+      (bundle/build-bundle.sh) and paste its siem_checksums.yml values into siem_versions.yml.
+      {%- endif %}
+    quiet: true
+  vars:
+    siem_artifacts_unpinned: >-
+      {{ siem_artifacts_keys | select('in', (siem_artifacts | default({})).keys() | list)
+         | map('extract', siem_artifacts) | rejectattr('sha256', 'match', '^[0-9a-fA-F]{64}$')
+         | map(attribute='file') | list }}
+  tags: [siem_artifacts]
+
+- name: Artifacts | Download and check (Linux)
+  ansible.builtin.include_tasks: linux.yml
+  when:
+    - siem_artifacts_keys | length > 0
+    - ansible_connection | default('ssh') not in ['winrm', 'psrp']
+  tags: [siem_artifacts]
+
+- name: Artifacts | Download and check (Windows)
+  ansible.builtin.include_tasks: windows.yml
+  when:
+    - siem_artifacts_keys | length > 0
+    - ansible_connection | default('ssh') in ['winrm', 'psrp']
+  tags: [siem_artifacts]
+
+- name: Artifacts | Compare the mirror manifest with siem_versions.yml
+  ansible.builtin.include_tasks: manifest.yml
+  when: siem_artifacts_check_manifest | bool
+  tags: [siem_artifacts]
