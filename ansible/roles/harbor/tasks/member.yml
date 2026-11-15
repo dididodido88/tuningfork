@@ -37,12 +37,12 @@
     url_password: "{{ harbor_admin_password }}"
     force_basic_auth: true
     body_format: json
-    body:
-      role_id: "{{ harbor_role_ids[harbor_member.role] }}"
-      member_group:
-        group_name: "{{ harbor_member.group }}"
-        group_type: 1
-        ldap_group_dn: "{{ harbor_group_dn }}"
+    # to_json keeps the JSON types exact (role_id must be a number, not "2").
+    body: >-
+      {{ {'role_id': harbor_role_ids[harbor_member.role] | int,
+          'member_group': {'group_name': harbor_member.group,
+                           'group_type': 1,
+                           'ldap_group_dn': harbor_group_dn | trim}} | to_json }}
     status_code: [201]
   changed_when: true
   when: harbor_existing_member | length == 0
@@ -57,8 +57,7 @@
     url_password: "{{ harbor_admin_password }}"
     force_basic_auth: true
     body_format: json
-    body:
-      role_id: "{{ harbor_role_ids[harbor_member.role] }}"
+    body: "{{ {'role_id': harbor_role_ids[harbor_member.role] | int} | to_json }}"
     status_code: [200]
   changed_when: true
   when:

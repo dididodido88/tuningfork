@@ -10,13 +10,15 @@
     url_password: "{{ harbor_admin_password }}"
     force_basic_auth: true
     body_format: json
-    body:
-      name: "{{ harbor_robot.name }}"
-      description: "{{ harbor_robot.description | default('Managed by Ansible (roles/harbor)') }}"
-      duration: -1
-      level: system
-      disable: false
-      permissions: "{{ harbor_robot_permissions }}"
+    # to_json keeps the JSON types exact (permissions must be a list, not its text).
+    body: >-
+      {{ {'name': harbor_robot.name,
+          'description': harbor_robot.description | default('Managed by Ansible (roles/harbor)'),
+          'duration': -1,
+          'level': 'system',
+          'disable': false,
+          'permissions': harbor_robot_permissions if harbor_robot_permissions is not string
+                         else harbor_robot_permissions | from_yaml} | to_json }}
     status_code: [201]
   register: harbor_robot_created
   changed_when: true
