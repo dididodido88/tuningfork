@@ -84,6 +84,8 @@ siem_artifacts:
     source: "https://packages.wazuh.com/4.x/windows/wazuh-agent-{{ wazuh_version }}-1.msi"
     sha256: "446bd5434a463f64c498f31240caabbb654091ea461131a31e71821a0261e823"
 
+  # Release download URLs cannot be wrapped.
+  # yamllint disable rule:line-length
   # --- Prometheus stack (upstream Linux amd64 release tarballs) --------------------------------
   prometheus:
     path: "prometheus/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
@@ -122,6 +124,8 @@ siem_artifacts:
       prometheus-pve-exporter=={{ pve_exporter_version }} pip setuptools wheel ;
       tar -czf prometheus-pve-exporter-{{ pve_exporter_version }}-py{{ pve_exporter_python_version }}-wheels.tar.gz pve-wheels
     sha256: "1631610c8b603b87a1ffb5366f18486244949a211545d92dd467f3356faaa667"
+
+  # yamllint enable rule:line-length
 
   # --- Grafana OSS (RPM) ------------------------------------------------------------------------
   grafana_rpm:

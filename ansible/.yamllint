@@ -4,6 +4,8 @@ ignore: |
   collections/
   roles/RHEL9-CIS/
   .ansible/
+  # Ansible Vault files are encrypted, not YAML.
+  inventories/*/group_vars/all/vault.yml
 rules:
   line-length:
     max: 160
