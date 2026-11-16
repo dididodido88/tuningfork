@@ -115,7 +115,7 @@
         body: >-
           {{ {'schedule': {'type': 'Custom', 'cron': harbor_gc_schedule},
               'parameters': {'delete_untagged': harbor_gc_delete_untagged | bool,
-                             'workers': 1}} | to_json }}
+                             'workers': 1} } | to_json }}
         status_code: [200, 201]
       changed_when: true
       when: harbor_gc_current_cron != harbor_gc_schedule

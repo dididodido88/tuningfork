@@ -108,7 +108,8 @@
                 fstype: "{{ filesystems_volume.fstype }}"
                 state: ephemeral
 
-            - name: "Volume {{ filesystems_volume.mount }} | Copy data (permissions, ACLs, xattrs, SELinux labels)"
+            # rsync, not synchronize: a copy within the host that keeps ACLs, xattrs and SELinux labels.
+            - name: "Volume {{ filesystems_volume.mount }} | Copy data (permissions, ACLs, xattrs, SELinux labels)"  # noqa: command-instead-of-module
               ansible.builtin.command: >-
                 rsync -aAXHx --numeric-ids --delete
                 {{ filesystems_volume.mount }}/ {{ filesystems_volume.tmp }}/

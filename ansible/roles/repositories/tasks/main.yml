@@ -91,7 +91,8 @@
   when: repositories_disable_unmanaged | bool
   tags: [repositories]
 
-- name: Repos | Clear cached metadata after changes
+# Inline, not a handler: must run before the reachability check below.
+- name: Repos | Clear cached metadata after changes  # noqa: no-handler
   ansible.builtin.command: dnf clean metadata
   changed_when: true
   when: repositories_changed is changed or repositories_disabled is changed

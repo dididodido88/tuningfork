@@ -39,8 +39,9 @@
       {%- endfor -%}
       {{ out }}
 
-# Set the secret from vault so clients can be configured before the robot exists.
-- name: Harbor | Set the secret of robot account {{ harbor_robot.name }}
+# Set the secret from vault so clients can be configured before the robot exists. Inline, not a
+# handler: the robot must have its secret as soon as it is created.
+- name: Harbor | Set the secret of robot account {{ harbor_robot.name }}  # noqa: no-handler
   ansible.builtin.uri:
     url: "{{ harbor_api }}/robots/{{ harbor_robot_created.json.id }}"
     method: PATCH

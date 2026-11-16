@@ -155,7 +155,8 @@
     - rhel9cis_firewall == 'firewalld'
   register: cis_safeguards_firewalld_pkg
 
-- name: Preflight | Refresh service facts after installing firewalld
+# Inline, not a handler: the next tasks need the facts now.
+- name: Preflight | Refresh service facts after installing firewalld  # noqa: no-handler
   ansible.builtin.service_facts:
   when: cis_safeguards_firewalld_pkg is changed
 

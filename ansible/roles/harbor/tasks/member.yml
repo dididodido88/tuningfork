@@ -42,7 +42,7 @@
       {{ {'role_id': harbor_role_ids[harbor_member.role] | int,
           'member_group': {'group_name': harbor_member.group,
                            'group_type': 1,
-                           'ldap_group_dn': harbor_group_dn | trim}} | to_json }}
+                           'ldap_group_dn': harbor_group_dn | trim} } | to_json }}
     status_code: [201]
   changed_when: true
   when: harbor_existing_member | length == 0

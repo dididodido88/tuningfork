@@ -29,7 +29,7 @@
     body_format: json
     body: >-
       {{ {'project_name': harbor_project.name,
-          'metadata': {'public': 'true' if harbor_project_public | bool else 'false'}} | to_json }}
+          'metadata': {'public': 'true' if harbor_project_public | bool else 'false'} } | to_json }}
     status_code: [201]
   changed_when: true
   when: harbor_project_current.status == 404
@@ -45,7 +45,7 @@
     force_basic_auth: true
     body_format: json
     body: >-
-      {{ {'metadata': {'public': 'true' if harbor_project_public | bool else 'false'}} | to_json }}
+      {{ {'metadata': {'public': 'true' if harbor_project_public | bool else 'false'} } | to_json }}
     status_code: [200]
   changed_when: true
   when:
