@@ -5,3 +5,5 @@ exclude_paths:
   - roles/RHEL9-CIS/
   - .ansible/
 profile: moderate
+# Air gap: don't install requirements.yml from the internet before linting (RHEL9-CIS is vendored).
+offline: true
