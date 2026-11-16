@@ -86,13 +86,17 @@ curl -sL https://github.com/prometheus/prometheus/releases/download/v3.15.1/sha2
 | `prometheus-pve-exporter-3.11.0-py3.12-wheels.tar.gz` | The `pip download` and `tar` commands in the list's note (wheels for Python 3.12, x86_64, with every dependency). |
 | `main.cvd`, `daily.cvd`, `bytecode.cvd` | `python3 -m venv cvd && cvd/bin/pip install cvdupdate && cvd/bin/cvd config set --dbdir ./cvd-db && cvd/bin/cvd update`. The ClamAV CDN refuses plain downloads. First set `clamav_signatures_version` to the download date. |
 
-### 2.3 snmp_exporter iDRAC module (`snmp-idrac.yml`)
 ### 2.3 snmp_exporter iDRAC module
 
-snmp_exporter needs a module describing the iDRAC's SNMP objects. The release's own `snmp.yml` has Dell
-modules (`dell`, `dell_rac`). If they cover the hardware checks, the stack uses them as shipped and nothing
-more is downloaded. `files/snmp_exporter/generator.yml` is the fallback, for generating a module with the
-same generator version if something is missing.
+The iDRAC is read with the **`dell` module that ships in the snmp_exporter release's own `snmp.yml`**, used
+unmodified. Nothing extra is downloaded or generated. It walks the iDRAC-SMIv2 status, system and storage
+subtrees: global, storage and LCD status, power state, and the power supply, cooling, temperature, voltage,
+memory, processor, battery, intrusion, controller, physical disk and virtual disk tables. The release's
+`dell_rac` module is for older remote access controllers and isn't used. The SNMPv3 credentials are added from
+the vault in a separate file on the SIEM VM.
+
+The module also walks the System Event Log and Lifecycle log tables, which can make a scrape slow. Phase 3 checks
+`snmp_scrape_duration_seconds` against the scrape timeout.
 
 ### 2.4 Upload to the mirror
 

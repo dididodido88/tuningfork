@@ -334,7 +334,6 @@ lost `UUID=`. A disk-based `/tmp` requires `rhel9cis_tmp_svc: false` (the defaul
 ansible.cfg                  roles_path, vendored collections_path, no default inventory
 requirements.yml             record of vendored versions (used only to refresh them)
 docs/                        longer guides (active-directory.md, harbor.md, kubernetes-clients.md, siem.md)
-files/                       content shipped by roles (snmp_exporter generator config, dashboards)
 scripts/                     repository checks (check-no-requirement-ids.sh)
 collections/                 VENDORED collections
 roles/
