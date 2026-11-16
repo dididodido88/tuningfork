@@ -1,0 +1,10 @@
+---
+# jvm.options.d is read after jvm.options, so these values win over the installer's.
+- name: Wazuh | Set the indexer heap
+  ansible.builtin.template:
+    src: heap.options.j2
+    dest: /etc/wazuh-indexer/jvm.options.d/tuningfork-heap.options
+    owner: root
+    group: wazuh-indexer
+    mode: "0640"
+  notify: Wazuh | Restart the indexer

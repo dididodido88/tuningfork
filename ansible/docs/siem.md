@@ -8,7 +8,7 @@ Nothing is downloaded from the internet inside the air gap. Every artifact is do
 internet-connected download machine, uploaded to the mirror, and checked against its pinned SHA-256 before
 installation.
 
-This document grows with each deployment phase. Sections still to come: first deployment, adding a VM,
+This document grows with each deployment phase. Sections still to come: adding a VM,
 adding a log file, restoring the SIEM VM.
 
 ---
@@ -147,7 +147,71 @@ on Windows).
 
 ---
 
-## 3. Writing rules
+## 3. First deployment of the SIEM VM
+
+### 3.1 Prerequisites
+
+| What | Where |
+|---|---|
+| The VM: Rocky 9, 8 cores, 16 GB RAM, five data disks on scsi1–scsi5 | **Terraform** (CRGS): `terraform/live/<ENV>/rocky9`, entry `<env>-siem01`. **By hand** (lab): clone the Rocky 9 template as `sentinel`, then add the disks below in this order. |
+| DNS A record for `siem_server_name` | AD DNS, e.g. `sentinel.lab.local` → 192.168.70.74 |
+| Host certificate covering `siem_server_name` | `/srv/security/certificates/files/<certificates_env_dir>/<short name>/` on the control node (roles/certificates) |
+| Inventory | `hosts.yml`: the host in `rocky9` and `siem_servers`. A hand-built VM also needs its disks in `host_vars/<host>.yml` (lab: `host_vars/sentinel.lab.local.yml`). |
+| Settings | `group_vars/all/siem.yml` (name, address, networks, email) and `group_vars/siem_servers.yml` |
+| Secrets | `ansible-vault edit inventories/<ENV>/group_vars/all/vault.yml`, see 3.2 |
+
+Data disks, in order (lab is smaller):
+
+| Disk | Mount | CRGS | lab |
+|---|---|---|---|
+| scsi1 | `/var/lib/wazuh-indexer` | 300 GB | 100 GB |
+| scsi2 | `/var/ossec` | 100 GB | 40 GB |
+| scsi3 | `/var/lib/prometheus` | 100 GB | 40 GB |
+| scsi4 | `/var/log/remote` | 50 GB | 20 GB |
+| scsi5 | `/var/log/audit` | 20 GB | 10 GB |
+
+The SIEM VM gets no Wazuh agent: the manager package and the agent package can't be installed
+together, and the manager already monitors its own host.
+
+### 3.2 Vault keys
+
+| Key | Used for |
+|---|---|
+| `vault_wazuh_indexer_admin_password` | `admin`: Wazuh dashboard and indexer login (break-glass administrator) |
+| `vault_wazuh_api_password` | `wazuh`: Wazuh server API administrator |
+| `vault_postfix_relay_password` | only if `siem_mail_relay_username` is set |
+
+Wazuh passwords: 8 to 64 characters, only `A-Z a-z 0-9 . * + ? -`, with at least one upper-case letter, one
+lower-case letter, one digit and one symbol. The role replaces the generated passwords with these right after
+installation.
+
+### 3.3 Run
+
+From `ansible/`, on the control node:
+
+```sh
+# New SIEM VM: every layer in order (CA trust and host certificate, mirror repositories, data disks,
+# CIS, common Linux config), then the SIEM plays (siem.yml)
+ansible-playbook -i inventories/lab playbooks/site.yml --limit sentinel.lab.local
+# Later, the SIEM plays only
+ansible-playbook -i inventories/lab playbooks/siem.yml
+```
+
+`siem.yml` runs `postfix_relay.yml` and `wazuh_server.yml`. The Wazuh installation runs once and takes several
+minutes; its full log is `/var/log/wazuh-install.log` on the SIEM VM (root only). A second run must report
+`changed=0`.
+
+### 3.4 Check
+
+- Dashboard: `https://<siem_server_name>/`, log in as `admin` with `vault_wazuh_indexer_admin_password`. The
+  browser must show the internal CA's certificate.
+- On the SIEM VM: `systemctl is-active wazuh-indexer wazuh-manager filebeat wazuh-dashboard` (all `active`).
+- Mail: `echo test | mail -s "SIEM mail test" <recipient>`, then `postqueue -p`. While no relay is set, or the
+  relay is down, the message waits in the queue; nothing else is affected.
+
+---
+
+## 4. Writing rules
 
 Audit requirements are referred to by **title only**, everywhere: code, comments, rule descriptions,
 documents and output. `scripts/check-no-requirement-ids.sh` fails if a requirement identifier in square

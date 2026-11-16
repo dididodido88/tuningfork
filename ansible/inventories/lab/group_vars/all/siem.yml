@@ -1,0 +1,30 @@
+---
+# SIEM and observability stack: settings every host needs (agents and exporters report to the
+# SIEM VM). Versions and checksums: siem_versions.yml. Guide: docs/siem.md.
+
+# The SIEM VM (also listed in hosts.yml under siem_servers).
+siem_server_name: sentinel.lab.local
+siem_server_ip: 192.168.70.74
+
+# Networks allowed to reach the SIEM VM (firewalld on the SIEM VM).
+#   siem_agent_networks: Wazuh agents (1514/tcp, 1515/tcp)
+#   siem_admin_networks: browsers for the Wazuh dashboard (and Grafana, later)
+siem_agent_networks:
+  - 192.168.70.0/24
+siem_admin_networks:
+  - 192.168.70.0/24
+
+# --- Email (best effort) ---------------------------------------------------------------------
+# Services on the SIEM VM send mail to the local Postfix relay (roles/postfix_relay), which
+# forwards it to this SMTP server. While the relay is unset or unreachable, mail waits in the
+# Postfix queue (up to postfix_relay_queue_lifetime); nothing else is held up.
+siem_mail_relay_host: ""                # CHANGEME: SMTP server, e.g. smtp.lab.local
+siem_mail_relay_port: 25
+# none: plain SMTP; may: STARTTLS when offered; encrypt: STARTTLS required (certificate checked
+# against the system trust store, which holds the internal CA).
+siem_mail_relay_tls: may
+# Leave empty if the SMTP server accepts the SIEM VM without a login. Password:
+# vault_postfix_relay_password.
+siem_mail_relay_username: ""
+siem_mail_from: "siem@{{ env_domain }}"
+siem_mail_to: []                        # CHANGEME: alert recipients, e.g. [soc@lab.local]

@@ -1,0 +1,83 @@
+---
+- name: Postfix | Check the settings
+  ansible.builtin.assert:
+    that:
+      - postfix_relay_tls in ['none', 'may', 'encrypt']
+      - postfix_relay_port | int > 0
+      - postfix_relay_username | length == 0 or postfix_relay_password | length > 0
+    fail_msg: >-
+      postfix_relay_tls must be none, may or encrypt; postfix_relay_port a port number; and a
+      relay username needs vault_postfix_relay_password.
+    quiet: true
+  tags: [postfix_relay]
+
+- name: Postfix | Report that mail stays queued while no relay is set
+  ansible.builtin.debug:
+    msg: >-
+      siem_mail_relay_host is empty: mail is accepted and queued on this host but not forwarded.
+      Set it in group_vars/all/siem.yml and run this playbook again.
+  when: postfix_relay_host | length == 0
+  tags: [postfix_relay]
+
+- name: Postfix | Install the packages
+  ansible.builtin.package:
+    name: "{{ postfix_relay_packages }}"
+    state: present
+  tags: [postfix_relay]
+
+# Relay login. postmap builds the .db file Postfix reads.
+- name: Postfix | Write the relay login
+  ansible.builtin.copy:
+    dest: /etc/postfix/sasl_passwd
+    content: "[{{ postfix_relay_host }}]:{{ postfix_relay_port }} {{ postfix_relay_username }}:{{ postfix_relay_password }}\n"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Postfix | Rebuild the relay login map
+  when: postfix_relay_username | length > 0
+  tags: [postfix_relay]
+
+- name: Postfix | Remove the relay login when none is set
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop: [/etc/postfix/sasl_passwd, /etc/postfix/sasl_passwd.db]
+  when: postfix_relay_username | length == 0
+  notify: Postfix | Restart
+  tags: [postfix_relay]
+
+- name: Postfix | Read the current settings
+  ansible.builtin.command:
+    argv: "{{ ['postconf'] + (postfix_relay_settings.keys() | list) }}"
+  register: postfix_relay_current
+  changed_when: false
+  check_mode: false
+  tags: [postfix_relay]
+
+# postconf prints "name = value" for each setting, defaults included.
+- name: Postfix | Apply the settings that differ
+  ansible.builtin.command:
+    argv: [postconf, -e, "{{ item.key }}={{ item.value }}"]
+  loop: "{{ postfix_relay_settings | dict2items }}"
+  loop_control:
+    label: "{{ item.key }} = {{ item.value }}"
+  when: (postfix_relay_current_values[item.key] | default(None)) != (item.value | string)
+  changed_when: true
+  notify: Postfix | Restart
+  vars:
+    postfix_relay_current_values: >-
+      {%- set ns = namespace(d={}) -%}
+      {%- for line in postfix_relay_current.stdout_lines if ' = ' in line or line is match('^\S+ =$') -%}
+      {%-   set kv = line.split(' =', 1) -%}
+      {%-   set ns.d = ns.d | combine({kv[0]: kv[1] | trim}) -%}
+      {%- endfor -%}
+      {{ ns.d }}
+  tags: [postfix_relay]
+
+- name: Postfix | Start and enable
+  ansible.builtin.systemd:
+    name: postfix
+    enabled: true
+    state: started
+  tags: [postfix_relay]

@@ -1,0 +1,8 @@
+---
+# CRGS01: the SIEM VM (roles/wazuh_server and roles/postfix_relay; every option is in their
+# defaults/main.yml). Shared settings: group_vars/all/siem.yml. Secrets: vault_wazuh_* and
+# vault_postfix_relay_password in group_vars/all/vault.yml. Guide: docs/siem.md.
+
+# Wazuh indexer JVM heap. The SIEM VM has 16 GB, shared with the manager, the dashboard,
+# Prometheus and Grafana.
+wazuh_server_indexer_heap: 4g

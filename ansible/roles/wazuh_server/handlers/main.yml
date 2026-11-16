@@ -1,0 +1,15 @@
+---
+- name: Wazuh | Restart the indexer
+  ansible.builtin.systemd:
+    name: wazuh-indexer
+    state: restarted
+
+- name: Wazuh | Restart the manager
+  ansible.builtin.systemd:
+    name: wazuh-manager
+    state: restarted
+
+- name: Wazuh | Restart the dashboard
+  ansible.builtin.systemd:
+    name: wazuh-dashboard
+    state: restarted

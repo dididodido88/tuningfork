@@ -1,0 +1,54 @@
+---
+# Wazuh central components on the SIEM VM: indexer, manager (with Filebeat) and dashboard,
+# installed with Wazuh's offline all-in-one method (wazuh-install.sh -a -of) from the checked
+# artifacts (roles/siem_artifacts). Guide: docs/siem.md.
+#
+# Set per environment in inventories/<ENV>/group_vars/siem_servers.yml; secrets (vault_wazuh_*)
+# in inventories/<ENV>/group_vars/all/vault.yml.
+#
+# Installation runs once. A host where the components are already installed at wazuh_version
+# is left alone; a partial installation or another version stops the play (an upgrade is a
+# separate procedure: docs/siem.md, "Updating a version"). This role never passes the
+# installer's -o (overwrite), which erases all Wazuh data.
+
+# Artifacts this role needs (keys of siem_artifacts in siem_versions.yml).
+wazuh_server_artifacts: [wazuh_install_script, wazuh_offline, wazuh_passwords_tool]
+
+# The installer runs here and leaves wazuh-install-files.tar (Wazuh's internal certificates and
+# the generated passwords). root only.
+wazuh_server_work_dir: /var/lib/tuningfork/wazuh
+
+# Seconds the installation may take before the play gives up on it.
+wazuh_server_install_timeout: 3600
+
+# Packages the offline installer expects to find already installed (from the mirrored Rocky repos).
+wazuh_server_prerequisites: [tar, coreutils, curl, libcap, openssl, lsof, procps-ng, gnupg2]
+
+# Wazuh indexer JVM heap (-Xms and -Xmx), e.g. 4g. At most half the RAM, as the manager, the
+# dashboard and the monitoring stack share the VM.
+wazuh_server_indexer_heap: 4g
+
+# --- Passwords --------------------------------------------------------------------------------
+# Set from the vault right after installation, replacing the generated ones:
+#   admin  Wazuh dashboard and indexer login (break-glass administrator; Filebeat uses it too)
+#   wazuh  Wazuh server API administrator
+# Wazuh accepts 8 to 64 characters from A-Z a-z 0-9 . * + ? - with at least one upper-case
+# letter, one lower-case letter, one digit and one symbol.
+wazuh_server_admin_password: "{{ vault_wazuh_indexer_admin_password | default('') }}"
+wazuh_server_api_password: "{{ vault_wazuh_api_password | default('') }}"
+
+# --- Dashboard --------------------------------------------------------------------------------
+# https://<siem_server_name>/ with the host certificate from roles/certificates, so browsers
+# that trust the internal CA trust the dashboard. The certificate must cover siem_server_name.
+wazuh_server_dashboard_port: 443
+wazuh_server_dashboard_certificate: /etc/pki/tls/certs/host.fullchain.crt
+wazuh_server_dashboard_key: /etc/pki/tls/private/host.key
+
+# --- Firewall (firewalld) ---------------------------------------------------------------------
+# The indexer (9200) and the API (55000) stay closed: they are used from this host only.
+wazuh_server_manage_firewall: true
+wazuh_server_firewall_zone: "{{ rhel9cis_default_zone | default('public') }}"
+# Dashboard (wazuh_server_dashboard_port/tcp).
+wazuh_server_admin_networks: "{{ siem_admin_networks | default([]) }}"
+# Agent connection (1514/tcp) and enrollment (1515/tcp).
+wazuh_server_agent_networks: "{{ siem_agent_networks | default([]) }}"

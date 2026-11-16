@@ -1,0 +1,87 @@
+---
+- name: Wazuh | Check which central components are installed
+  ansible.builtin.command:
+    argv: [rpm, -q, --qf, '%{NAME} %{VERSION}\n', wazuh-manager, wazuh-indexer, wazuh-dashboard]
+  register: wazuh_server_rpm
+  changed_when: false
+  failed_when: false
+  check_mode: false
+
+# name -> version of the components that are installed ("package ... is not installed" lines are skipped).
+- name: Wazuh | Record the installed versions
+  ansible.builtin.set_fact:
+    wazuh_server_installed: >-
+      {%- set ns = namespace(d={}) -%}
+      {%- for line in wazuh_server_rpm.stdout_lines if line is match('^wazuh-(manager|indexer|dashboard) \S+$') -%}
+      {%-   set ns.d = ns.d | combine({line.split(' ')[0]: line.split(' ')[1]}) -%}
+      {%- endfor -%}
+      {{ ns.d }}
+
+- name: Wazuh | Stop on a partial installation or another version
+  ansible.builtin.assert:
+    that: >-
+      wazuh_server_installed | length == 0 or
+      (wazuh_server_installed | length == wazuh_server_packages | length and
+       wazuh_server_installed.values() | unique | list == [wazuh_version | string])
+    fail_msg: >-
+      Found {{ wazuh_server_installed }}, expected none or all of {{ wazuh_server_packages }} at
+      {{ wazuh_version }}. This role installs once and never overwrites (that erases all Wazuh data).
+      For an upgrade see docs/siem.md, "Updating a version".
+    quiet: true
+
+- name: Wazuh | Create the working directory
+  ansible.builtin.file:
+    path: "{{ wazuh_server_work_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+# The installer looks for wazuh-offline.tar.gz next to itself.
+- name: Wazuh | Link the checked artifacts into the working directory
+  ansible.builtin.file:
+    src: "{{ siem_artifact_paths[item.key] }}"
+    dest: "{{ wazuh_server_work_dir }}/{{ item.name }}"
+    state: link
+  loop:
+    - {key: wazuh_install_script, name: wazuh-install.sh}
+    - {key: wazuh_offline, name: wazuh-offline.tar.gz}
+    - {key: wazuh_passwords_tool, name: wazuh-passwords-tool.sh}
+  loop_control:
+    label: "{{ item.name }}"
+
+# The installer's summary prints the generated admin password, so the output is hidden; on failure
+# the next task shows its last lines without any password line. Full log: /var/log/wazuh-install.log.
+- name: Wazuh | Run the offline all-in-one installation (takes several minutes)
+  ansible.builtin.command:
+    argv: [bash, wazuh-install.sh, --offline-installation, --all-in-one]
+    chdir: "{{ wazuh_server_work_dir }}"
+  async: "{{ wazuh_server_install_timeout }}"
+  poll: 30
+  register: wazuh_server_install
+  failed_when: false
+  changed_when: true
+  no_log: true
+  when: wazuh_server_installed | length == 0
+
+- name: Wazuh | Stop if the installation failed
+  ansible.builtin.fail:
+    msg: >-
+      wazuh-install.sh failed (rc {{ wazuh_server_install.rc | default('?') }}). Last lines:
+      {{ (wazuh_server_install.stdout_lines | default([]) | reject('search', '(?i)passw') | list)[-25:] }}
+      Full log on the host: /var/log/wazuh-install.log
+  when:
+    - wazuh_server_install is not skipped
+    - wazuh_server_install.rc | default(1) != 0
+
+# Both hold generated passwords.
+- name: Wazuh | Restrict the installer's log and files
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: root
+    group: root
+    mode: "0600"
+  loop:
+    - /var/log/wazuh-install.log
+    - "{{ wazuh_server_install_files_tar }}"
+  failed_when: false

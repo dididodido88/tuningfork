@@ -1,0 +1,39 @@
+---
+- name: Wazuh | Check the services are running
+  ansible.builtin.command:
+    argv: "{{ ['systemctl', 'is-active'] + wazuh_server_services }}"
+  register: wazuh_server_active
+  changed_when: false
+  failed_when: wazuh_server_active.rc != 0
+  check_mode: false
+
+- name: Wazuh | Check the indexer cluster health
+  ansible.builtin.uri:
+    url: https://127.0.0.1:9200/_cluster/health
+    user: admin
+    password: "{{ wazuh_server_admin_password }}"
+    force_basic_auth: true
+    validate_certs: false
+  register: wazuh_server_health
+  until: wazuh_server_health.json.status | default('') in ['green', 'yellow']
+  retries: 30
+  delay: 10
+  no_log: true
+
+# Through the name browsers use, checked against the system trust store (internal CA).
+- name: Wazuh | Check the dashboard answers with the host certificate
+  ansible.builtin.uri:
+    url: "https://{{ siem_server_name }}{{ '' if wazuh_server_dashboard_port | int == 443 else ':' ~ wazuh_server_dashboard_port }}/"
+    status_code: [200, 302]
+    follow_redirects: none
+  register: wazuh_server_dashboard_check
+  until: wazuh_server_dashboard_check.status in [200, 302]
+  retries: 30
+  delay: 10
+
+- name: Wazuh | Report
+  ansible.builtin.debug:
+    msg: >-
+      Wazuh {{ wazuh_version }} running: indexer cluster {{ wazuh_server_health.json.status }},
+      dashboard https://{{ siem_server_name }}{{ '' if wazuh_server_dashboard_port | int == 443 else ':' ~ wazuh_server_dashboard_port }}/
+      (log in as admin with vault_wazuh_indexer_admin_password).

@@ -1,0 +1,12 @@
+---
+# Wazuh's password rule: 8 to 64 characters from A-Z a-z 0-9 . * + ? - with at least one of each class.
+wazuh_server_password_pattern: '^(?=.*[A-Z])(?=.*[a-z])(?=.*[0-9])(?=.*[.*+?-])[A-Za-z0-9.*+?-]{8,64}$'
+
+# Files written by the installer.
+wazuh_server_dashboard_config: /etc/wazuh-dashboard/opensearch_dashboards.yml
+wazuh_server_dashboard_certs_dir: /etc/wazuh-dashboard/certs
+wazuh_server_install_files_tar: "{{ wazuh_server_work_dir }}/wazuh-install-files.tar"
+
+# The central components and their systemd units.
+wazuh_server_packages: [wazuh-manager, wazuh-indexer, wazuh-dashboard]
+wazuh_server_services: [wazuh-indexer, wazuh-manager, filebeat, wazuh-dashboard]

@@ -1,0 +1,11 @@
+---
+# Loopback-only Postfix relay on the SIEM VM (best-effort email for Wazuh, Alertmanager and
+# Grafana). Settings: siem_mail_* in inventories/<ENV>/group_vars/all/siem.yml. Guide: docs/siem.md.
+
+- name: Postfix relay on the SIEM VM
+  hosts: siem_servers
+  become: true
+  gather_facts: true
+  roles:
+    - role: postfix_relay
+      tags: [postfix_relay]

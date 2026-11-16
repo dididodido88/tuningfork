@@ -1,0 +1,25 @@
+---
+# Local Postfix relay on the SIEM VM. Wazuh, Alertmanager and Grafana hand their mail to
+# localhost:25; Postfix forwards it to the environment's SMTP server.
+#
+# Best effort: if the SMTP server is down, unset or refuses the mail, the mail waits in the
+# Postfix queue and is retried until postfix_relay_queue_lifetime. The services sending it are
+# never held up. Postfix listens on loopback only (the same setting CIS applies).
+#
+# Set per environment in inventories/<ENV>/group_vars/all/siem.yml (siem_mail_*); the
+# password in vault_postfix_relay_password.
+
+# SMTP server mail is forwarded to. Empty: no relay, mail stays queued.
+postfix_relay_host: "{{ siem_mail_relay_host | default('') }}"
+postfix_relay_port: "{{ siem_mail_relay_port | default(25) }}"
+# none | may | encrypt (STARTTLS; certificate checked against postfix_relay_ca_file)
+postfix_relay_tls: "{{ siem_mail_relay_tls | default('may') }}"
+postfix_relay_ca_file: /etc/pki/tls/certs/ca-bundle.crt
+# SMTP login. Empty username: no login.
+postfix_relay_username: "{{ siem_mail_relay_username | default('') }}"
+postfix_relay_password: "{{ vault_postfix_relay_password | default('') }}"
+
+# How long undeliverable mail is kept and retried.
+postfix_relay_queue_lifetime: 30d
+
+postfix_relay_packages: [postfix, cyrus-sasl-plain, s-nail]

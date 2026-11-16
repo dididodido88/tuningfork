@@ -1,0 +1,50 @@
+---
+- name: Wazuh | Check the passwords and settings
+  ansible.builtin.assert:
+    that:
+      - wazuh_server_admin_password is match(wazuh_server_password_pattern)
+      - wazuh_server_api_password is match(wazuh_server_password_pattern)
+      - wazuh_server_indexer_heap is match('^[0-9]+[mg]$')
+      - siem_server_name | default('') | length > 0
+    fail_msg: >-
+      Set vault_wazuh_indexer_admin_password and vault_wazuh_api_password in group_vars/all/vault.yml
+      (8 to 64 characters from A-Z a-z 0-9 . * + ? - with at least one upper-case letter, one
+      lower-case letter, one digit and one symbol), wazuh_server_indexer_heap like 4g, and
+      siem_server_name in group_vars/all/siem.yml.
+    quiet: true
+  no_log: true
+  tags: [wazuh_server]
+
+- name: Wazuh | Check the firewall networks
+  ansible.builtin.assert:
+    that:
+      - wazuh_server_admin_networks | length > 0
+      - wazuh_server_agent_networks | length > 0
+    fail_msg: Set siem_admin_networks and siem_agent_networks in group_vars/all/siem.yml.
+    quiet: true
+  when: wazuh_server_manage_firewall | bool
+  tags: [wazuh_server]
+
+- name: Wazuh | Check the dashboard certificate and key are in place (playbooks/certificates.yml)
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ wazuh_server_dashboard_certificate }}"
+    - "{{ wazuh_server_dashboard_key }}"
+  register: wazuh_server_tls_files
+  tags: [wazuh_server]
+
+- name: Wazuh | Stop if the certificate or key is missing
+  ansible.builtin.assert:
+    that: wazuh_server_tls_files.results | rejectattr('stat.exists') | list | length == 0
+    fail_msg: >-
+      Missing {{ wazuh_server_tls_files.results | rejectattr('stat.exists') | map(attribute='item') | list }}.
+      Run playbooks/certificates.yml for this host first (its certificate must cover {{ siem_server_name }}).
+    quiet: true
+  tags: [wazuh_server]
+
+- name: Wazuh | Install the installer's prerequisites
+  ansible.builtin.package:
+    name: "{{ wazuh_server_prerequisites }}"
+    state: present
+  tags: [wazuh_server]

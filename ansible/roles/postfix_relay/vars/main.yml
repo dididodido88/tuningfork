@@ -1,0 +1,15 @@
+---
+# main.cf settings this role manages (applied with postconf -e when they differ).
+postfix_relay_settings:
+  # Only local services submit mail (CIS applies the same value).
+  inet_interfaces: loopback-only
+  inet_protocols: "{{ 'all' if linux_common_ipv6_enabled | default(false) | bool else 'ipv4' }}"
+  relayhost: "{{ ('[' ~ postfix_relay_host ~ ']:' ~ postfix_relay_port) if postfix_relay_host | length > 0 else '' }}"
+  smtp_tls_security_level: "{{ postfix_relay_tls }}"
+  smtp_tls_CAfile: "{{ postfix_relay_ca_file }}"
+  smtp_sasl_auth_enable: "{{ 'yes' if postfix_relay_username | length > 0 else 'no' }}"
+  smtp_sasl_password_maps: "{{ 'hash:/etc/postfix/sasl_passwd' if postfix_relay_username | length > 0 else '' }}"
+  smtp_sasl_security_options: noanonymous
+  smtp_sasl_tls_security_options: noanonymous
+  maximal_queue_lifetime: "{{ postfix_relay_queue_lifetime }}"
+  bounce_queue_lifetime: "{{ postfix_relay_queue_lifetime }}"

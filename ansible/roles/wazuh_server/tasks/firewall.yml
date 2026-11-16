@@ -1,0 +1,20 @@
+---
+- name: Wazuh | Allow the dashboard from the admin networks
+  ansible.posix.firewalld:
+    zone: "{{ wazuh_server_firewall_zone }}"
+    rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="{{ wazuh_server_dashboard_port }}" protocol="tcp" accept'
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ wazuh_server_admin_networks }}"
+
+- name: Wazuh | Allow agent connection and enrollment from the agent networks
+  ansible.posix.firewalld:
+    zone: "{{ wazuh_server_firewall_zone }}"
+    rich_rule: 'rule family="ipv4" source address="{{ item.0 }}" port port="{{ item.1 }}" protocol="tcp" accept'
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ wazuh_server_agent_networks | product([1514, 1515]) | list }}"
+  loop_control:
+    label: "{{ item.0 }} -> {{ item.1 }}/tcp"

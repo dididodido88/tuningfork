@@ -1,0 +1,20 @@
+---
+# sentinel: the lab SIEM VM, built by hand from the Rocky 9 template (docs/siem.md, "Building the
+# SIEM VM"). Its five data disks are attached in this order on scsi1-scsi5, the same layout as the
+# Terraform unit (terraform/live/lab/rocky9). roles/filesystems formats and mounts them.
+filesystems_volumes__host:
+  - mount: /var/lib/wazuh-indexer        # 100 GB: Wazuh indexer (alerts and archives)
+    disk: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi1
+    fstype: xfs
+  - mount: /var/ossec                    # 40 GB: Wazuh manager (logs, queues, archives)
+    disk: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi2
+    fstype: xfs
+  - mount: /var/lib/prometheus           # 40 GB: Prometheus time series
+    disk: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi3
+    fstype: xfs
+  - mount: /var/log/remote               # 20 GB: syslog and SNMP traps received from other systems
+    disk: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi4
+    fstype: xfs
+  - mount: /var/log/audit                # 10 GB: this host's own audit log
+    disk: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi5
+    fstype: xfs

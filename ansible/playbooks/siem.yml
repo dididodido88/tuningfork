@@ -1,0 +1,13 @@
+---
+# SIEM VM: every SIEM and observability component, in order. Guide: docs/siem.md.
+#
+#   ansible-playbook -i inventories/lab playbooks/siem.yml
+#
+# The SIEM VM also gets the common layers (certificates, repositories, data disks, CIS, common
+# Linux config) from site.yml; run site.yml --limit siem_servers on a new SIEM VM.
+
+- name: Postfix relay
+  ansible.builtin.import_playbook: postfix_relay.yml
+
+- name: Wazuh central components
+  ansible.builtin.import_playbook: wazuh_server.yml

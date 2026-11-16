@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  author: tuningfork
+  description: Wazuh indexer, manager and dashboard on the SIEM VM, offline all-in-one installation from checked artifacts
+  license: proprietary
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+dependencies: []

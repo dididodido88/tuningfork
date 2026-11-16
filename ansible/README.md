@@ -353,6 +353,8 @@ roles/
   kubectl/                   pinned kubectl from the mirror (any host in kubectl_hosts)
   k8s_bastion/               Kubernetes bastion: helm, k9s, kubectx/kubens, shared cluster contexts
   siem_artifacts/            download SIEM artifacts from the mirror and check their SHA-256 (docs/siem.md)
+  postfix_relay/             SIEM VM: loopback-only Postfix relay, best-effort email (docs/siem.md)
+  wazuh_server/              SIEM VM: Wazuh indexer, manager and dashboard, offline all-in-one (docs/siem.md)
 playbooks/
   site.yml                   runs everything in layer order
   group_vars/                settings that apply to every environment (see below)

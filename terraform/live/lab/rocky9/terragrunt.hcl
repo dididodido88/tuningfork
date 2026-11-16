@@ -31,5 +31,21 @@ inputs = {
       ipv4_cidr      = "192.168.70.72/24"
       ansible_groups = ["k8s_bastions"]
     }
+
+    # SIEM VM: Wazuh, Prometheus, Grafana and the log collectors (docs/siem.md).
+    "sentinel" = {
+      ipv4_cidr      = "192.168.70.74/24"
+      cores          = 8
+      memory_mb      = 16384
+      ansible_groups = ["siem_servers"]
+      # Same order (scsi1-scsi5) as a hand-built SIEM VM's host_vars.
+      data_disks = [
+        { size_gb = 100, mount = "/var/lib/wazuh-indexer", fstype = "xfs" },
+        { size_gb = 40, mount = "/var/ossec", fstype = "xfs" },
+        { size_gb = 40, mount = "/var/lib/prometheus", fstype = "xfs" },
+        { size_gb = 20, mount = "/var/log/remote", fstype = "xfs" },
+        { size_gb = 10, mount = "/var/log/audit", fstype = "xfs" },
+      ]
+    }
   }
 }

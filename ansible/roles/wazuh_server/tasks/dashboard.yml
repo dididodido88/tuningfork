@@ -1,0 +1,31 @@
+---
+# The installer gives the dashboard a certificate from Wazuh's internal CA, which browsers don't
+# trust. Serve the host certificate (internal CA) instead. Copies under certs/ so the dashboard
+# user can read them; the installer's own files are left in place.
+- name: Wazuh | Install the host certificate for the dashboard
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "{{ wazuh_server_dashboard_certs_dir }}/{{ item.dest }}"
+    remote_src: true
+    owner: wazuh-dashboard
+    group: wazuh-dashboard
+    mode: "0400"
+  loop:
+    - {src: "{{ wazuh_server_dashboard_certificate }}", dest: tuningfork-dashboard.pem}
+    - {src: "{{ wazuh_server_dashboard_key }}", dest: tuningfork-dashboard-key.pem}
+  loop_control:
+    label: "{{ item.dest }}"
+  notify: Wazuh | Restart the dashboard
+
+- name: Wazuh | Point the dashboard at the host certificate
+  ansible.builtin.lineinfile:
+    path: "{{ wazuh_server_dashboard_config }}"
+    regexp: "^{{ item.key | regex_escape }}:"
+    line: "{{ item.key }}: {{ item.value }}"
+  loop:
+    - {key: server.port, value: "{{ wazuh_server_dashboard_port }}"}
+    - {key: server.ssl.certificate, value: "\"{{ wazuh_server_dashboard_certs_dir }}/tuningfork-dashboard.pem\""}
+    - {key: server.ssl.key, value: "\"{{ wazuh_server_dashboard_certs_dir }}/tuningfork-dashboard-key.pem\""}
+  loop_control:
+    label: "{{ item.key }}"
+  notify: Wazuh | Restart the dashboard

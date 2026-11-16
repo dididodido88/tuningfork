@@ -1,0 +1,10 @@
+---
+- name: Postfix | Rebuild the relay login map
+  ansible.builtin.command: postmap /etc/postfix/sasl_passwd
+  changed_when: true
+  notify: Postfix | Restart
+
+- name: Postfix | Restart
+  ansible.builtin.systemd:
+    name: postfix
+    state: restarted

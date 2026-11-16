@@ -1,0 +1,21 @@
+---
+# Wazuh indexer, manager and dashboard on the SIEM VM (offline all-in-one installation).
+# Needs certificates.yml (host certificate covering siem_server_name, CA trust),
+# repositories.yml and filesystems.yml (the SIEM data disks) first; site.yml runs them in that
+# order. Settings: inventories/<ENV>/group_vars/siem_servers.yml and group_vars/all/siem.yml.
+# Guide: docs/siem.md.
+
+- name: Wazuh central components
+  hosts: siem_servers
+  become: true
+  gather_facts: true
+  # Artifacts come from the mirror (env_repo_base_url), HTTPS with a certificate from the internal CA.
+  pre_tasks:
+    - name: Check the internal CA is trusted (playbooks/certificates.yml ran)
+      ansible.builtin.import_role:
+        name: certificates
+        tasks_from: verify_trust
+      tags: [always]
+  roles:
+    - role: wazuh_server
+      tags: [wazuh_server]
