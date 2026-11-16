@@ -205,7 +205,7 @@ Files to download, versions and checksums, and using the bastion: [docs/kubernet
 
 Wazuh, Prometheus, Grafana and their collectors on a dedicated SIEM VM per environment, with agents and
 exporters on every monitored system. Every artifact is downloaded on the internet-connected download machine
-from the list printed by `playbooks/siem_download_list.yml`, uploaded to `<env_repo_base_url>/siem/`, and checked
+from the list printed by `playbooks/siem_download_list.yml`, uploaded to the mirror (`env_repo_base_url`), and checked
 against `inventories/<ENV>/group_vars/all/siem_versions.yml` before installation
 (`playbooks/siem_artifacts.yml`). Guide: [docs/siem.md](docs/siem.md).
 

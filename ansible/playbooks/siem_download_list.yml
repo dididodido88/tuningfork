@@ -13,6 +13,8 @@
   gather_facts: false
   vars:
     siem_download_list_file: "/tmp/siem-download-list-{{ env_name | default('env') }}.txt"
+    # Directory the mirror web server serves siem_mirror_url from (used in the sha256sum command).
+    siem_download_list_web_root: /repo
     # Only artifacts that have no sha256 in siem_versions.yml yet (new or changed versions).
     siem_download_list_missing_only: false
     siem_download_list_items: >-
@@ -25,15 +27,15 @@
         mode: "0644"
         content: |
           SIEM artifacts for {{ env_name | default('?') }}: {{ siem_download_list_items | length }} file(s)
-          Upload each file to the mirror at the path shown (relative to {{ siem_mirror_url }}/),
-          under exactly that file name.
+          Upload each file to the mirror at the path shown, relative to {{ siem_mirror_url }}/
+          ({{ siem_download_list_web_root }}/ on the mirror), under exactly that file name.
 
           {% for a in siem_download_list_items %}
           [{{ loop.index }}] {{ a.key }}
-              upload to: {{ a.value.product }}/{{ a.value.version }}/{{ a.value.file }}
+              upload to: {{ a.value.path }}
               download:  {{ a.value.source }}
           {% if a.value.upstream_sha256 | default('') %}
-              check:     sha256 must match the {{ a.value.file }} line of {{ a.value.upstream_sha256 }}
+              check:     sha256 must match the {{ a.value.path | basename }} line of {{ a.value.upstream_sha256 }}
           {% endif %}
           {% if a.value.note | default('') %}
               note:      {{ a.value.note | wordwrap(100) | indent(15) }}
@@ -43,9 +45,8 @@
           {% endif %}
 
           {% endfor %}
-          When everything is uploaded, list the files on the mirror with their checksums and send
-          the output (docs/siem.md, "Getting the artifacts"):
-            cd <mirror web root>/siem && find . -type f ! -name '*.listing' | sort | xargs sha256sum
+          When everything is uploaded, run this on the mirror and send the output:
+          cd {{ siem_download_list_web_root }} && sha256sum {{ siem_download_list_items | map(attribute='value.path') | join(' ') }}
       check_mode: false
 
     - name: Download list | Show the list

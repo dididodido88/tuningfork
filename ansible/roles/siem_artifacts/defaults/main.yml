@@ -1,7 +1,7 @@
 ---
 # Download and check SIEM artifacts from the mirror before anything is installed.
 # Artifacts, versions and sha256 values: siem_artifacts in inventories/<ENV>/group_vars/all/siem_versions.yml.
-# Mirror path: <siem_mirror_url>/<product>/<version>/<file>.
+# Mirror path: <siem_mirror_url>/<path of the artifact in siem_versions.yml>.
 #
 # Roles include this role with the keys they need, e.g.
 #   - ansible.builtin.include_role:

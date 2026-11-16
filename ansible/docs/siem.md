@@ -17,7 +17,7 @@ adding a log file, restoring the SIEM VM.
 
 All versions and SHA-256 checksums are in **`inventories/<ENV>/group_vars/all/siem_versions.yml`**, one file
 per environment. It is also the artifact manifest: each entry of `siem_artifacts` records the artifact, its
-version, its checksum and its source URL.
+mirror path, its checksum and its source URL.
 
 | Variable | Pinned |
 |---|---|
@@ -35,7 +35,7 @@ Each `siem_artifacts` entry has:
 
 | Field | Meaning |
 |---|---|
-| `product`, `version`, `file` | where the file goes on the mirror: `<siem_mirror_url>/<product>/<version>/<file>`, with `siem_mirror_url` = `<env_repo_base_url>/siem` (e.g. `https://maestro/siem/prometheus/3.15.1/prometheus-3.15.1.linux-amd64.tar.gz`) |
+| `path` | where the file is on the mirror, relative to `siem_mirror_url` (= `env_repo_base_url`; maestro serves it from `/repo`), e.g. `prometheus/prometheus-3.15.1.linux-amd64.tar.gz` is `https://maestro/prometheus/prometheus-3.15.1.linux-amd64.tar.gz`, file `/repo/prometheus/prometheus-3.15.1.linux-amd64.tar.gz` |
 | `source` | where to download it |
 | `upstream_sha256` | the published checksum list to check the download against (where one exists) |
 | `note` | extra steps (only for files that aren't a plain download) |
@@ -66,7 +66,7 @@ It prints the list and writes it to `/tmp/siem-download-list-<env>.txt`. For eac
 
 ### 2.2 Download (internet-connected download machine)
 
-**Plain downloads:** the Wazuh scripts and `config.yml`, the three Wazuh agent packages, the Prometheus
+**Plain downloads:** the two Wazuh scripts, the three Wazuh agent packages, the Prometheus
 stack tarballs and the windows_exporter MSI. Check each file against its `upstream_sha256` list where one
 is given:
 
@@ -80,54 +80,37 @@ curl -sL https://github.com/prometheus/prometheus/releases/download/v3.15.1/sha2
 | File | How |
 |---|---|
 | `wazuh-offline.tar.gz` | Wazuh's documented offline method: `curl -sO https://packages.wazuh.com/4.14/wazuh-install.sh && bash wazuh-install.sh --download-wazuh rpm`. Check it contains 4.14.10: `tar -tzf wazuh-offline.tar.gz \| grep -E 'wazuh-(manager\|indexer\|dashboard)-4.14.10'` must list all three. |
-| `vd-feed-snapshot.zip` | `curl -s https://cti.wazuh.com/api/v1/catalog/contexts/vd_1.0.0/consumers/vd_4.8.0` returns JSON. Download the URL in `data.last_snapshot_link` and save it as `vd-feed-snapshot.zip`. |
-| `grafana-13.3.1-1.x86_64.rpm` | grafana.com → Download → version 13.3.1, OSS edition, Linux, "Red Hat, CentOS, RHEL, and Fedora (64 Bit)". Check the SHA256 shown there, and rename the file to the name in the list if it differs. |
+| vulnerability feed snapshot | `curl -s https://cti.wazuh.com/api/v1/catalog/contexts/vd_1.0.0/consumers/vd_4.8.0` returns JSON. Download the URL in `data.last_snapshot_link` and set `wazuh_vd_feed_file` to its file name (e.g. `4363150_1794228133.zip`). |
+| Grafana RPM | grafana.com → Download → version 13.3.1, OSS edition, Linux, "Red Hat, CentOS, RHEL, and Fedora (64 Bit)". Check the SHA256 shown there. Set `grafana_build` to the build number in its name (`grafana_13.3.1_<build>_linux_amd64.rpm`). |
 | `iDRAC-SMIv2.mib` | dell.com support → the server model → drivers & downloads → iDRAC9 "SNMP MIB". |
 | `prometheus-pve-exporter-3.11.0-py3.12-wheels.tar.gz` | The `pip download` and `tar` commands in the list's note (wheels for Python 3.12, x86_64, with every dependency). |
 | `main.cvd`, `daily.cvd`, `bytecode.cvd` | `python3 -m venv cvd && cvd/bin/pip install cvdupdate && cvd/bin/cvd config set --dbdir ./cvd-db && cvd/bin/cvd update`. The ClamAV CDN refuses plain downloads. First set `clamav_signatures_version` to the download date. |
-| `snmp-idrac.yml` | see 2.3 |
 
 ### 2.3 snmp_exporter iDRAC module (`snmp-idrac.yml`)
+### 2.3 snmp_exporter iDRAC module
 
-snmp_exporter needs a module describing the iDRAC's SNMP objects. Only the `modules:` section is uploaded;
-the SNMPv3 credentials are added from the vault on the SIEM VM.
-
-1. Look for a stock module in the release:
-   ```sh
-   tar -xzf snmp_exporter-0.31.0.linux-amd64.tar.gz
-   grep -nE '^  [a-z_]*(dell|idrac)[a-z_]*:' snmp_exporter-0.31.0.linux-amd64/snmp.yml
-   ```
-2. If there is none, which is the usual case, generate it. Use the same generator version, with
-   `files/snmp_exporter/generator.yml` from this repository, the Dell MIB and the standard MIBs from net-snmp:
-   ```sh
-   mkdir -p gen/mibs
-   cp <repo>/ansible/files/snmp_exporter/generator.yml gen/
-   cp /usr/share/snmp/mibs/* iDRAC-SMIv2.mib gen/mibs/
-   podman run --rm -v "$PWD/gen:/opt:Z" docker.io/prom/snmp-generator:v0.31.0 generate   # or docker run
-   ```
-   The generator stops and names any object the MIB doesn't define. In that case, send me the message.
-3. Keep only the `modules:` section of `gen/snmp.yml`, which holds the `dell_idrac` module, and save it as
-   `snmp-idrac.yml`:
-   ```sh
-   sed -n '/^modules:/,$p' gen/snmp.yml > snmp-idrac.yml
-   ```
+snmp_exporter needs a module describing the iDRAC's SNMP objects. The release's own `snmp.yml` has Dell
+modules (`dell`, `dell_rac`). If they cover the hardware checks, the stack uses them as shipped and nothing
+more is downloaded. `files/snmp_exporter/generator.yml` is the fallback, for generating a module with the
+same generator version if something is missing.
 
 ### 2.4 Upload to the mirror
 
-Upload every file to `<mirror web root>/siem/<product>/<version>/<file>`, exactly as the list shows, e.g.
-`siem/prometheus/3.15.1/prometheus-3.15.1.linux-amd64.tar.gz`.
-
-### 2.5 Send the file listing
-
-On the mirror:
+Upload every file to `/repo/<path>` on maestro, exactly as the list shows, e.g.
+`/repo/prometheus/prometheus-3.15.1.linux-amd64.tar.gz`. The web server must be able to read it:
 
 ```sh
-cd <mirror web root>/siem && find . -type f | sort | xargs sha256sum
+chmod 0644 /repo/<path>
+restorecon -v /repo/<path>     # a file moved (not copied) in keeps its old SELinux label
 ```
 
-Each line is `<sha256>  ./<product>/<version>/<file>`. Each value goes into the `sha256` of the matching entry
-in `siem_versions.yml`, in every environment that uses these files. Send me the listing and I'll fill them in,
-or copy them yourself.
+Extracted copies and the upstream checksum files can stay next to them; only the listed paths are used.
+
+### 2.5 Send the checksums
+
+The end of the download list has a `cd /repo && sha256sum <every listed path>` command. Run it on the mirror
+and send the output; each value goes into the `sha256` of the matching entry in `siem_versions.yml`, in every
+environment that uses these files.
 
 ### 2.6 Check on the inside
 
@@ -151,8 +134,9 @@ on Windows).
 
 1. Change the version in `siem_versions.yml`, and empty the `sha256` of the entries that change.
 2. Run `playbooks/siem_download_list.yml -e siem_download_list_missing_only=true`, then download and upload
-   those files and send the listing.
-3. Older versions can stay on the mirror for rollback.
+   those files and send the checksums.
+3. Files with the version in their name can stay on the mirror for rollback. `wazuh-install.sh`,
+   `wazuh-passwords-tool.sh` and `wazuh-offline.tar.gz` have fixed names: the new ones replace the old.
 4. Run the playbook of that component.
 
 **Wazuh:** upgrade the manager first, then the agents. Agents must never be newer than the manager.

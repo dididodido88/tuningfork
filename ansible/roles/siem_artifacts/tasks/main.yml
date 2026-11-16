@@ -6,14 +6,13 @@
          if siem_artifacts_required == 'all' else siem_artifacts_required }}
   tags: [siem_artifacts]
 
-# <product>/<version>/<file> of each requested artifact (path below siem_mirror_url and the cache).
+# Path of each requested artifact below siem_mirror_url (and below the local cache).
 - name: Artifacts | Work out the mirror paths
   ansible.builtin.set_fact:
     siem_artifacts_rel_paths: >-
       {%- set ns = namespace(d={}) -%}
       {%- for k in siem_artifacts_keys if k in (siem_artifacts | default({})) -%}
-      {%-   set a = siem_artifacts[k] -%}
-      {%-   set ns.d = ns.d | combine({k: a.product ~ '/' ~ (a.version | string) ~ '/' ~ a.file}) -%}
+      {%-   set ns.d = ns.d | combine({k: siem_artifacts[k].path | regex_replace('^/+', '')}) -%}
       {%- endfor -%}
       {{ ns.d }}
   tags: [siem_artifacts]
@@ -39,7 +38,7 @@
     siem_artifacts_unpinned: >-
       {{ siem_artifacts_keys | select('in', (siem_artifacts | default({})).keys() | list)
          | map('extract', siem_artifacts) | rejectattr('sha256', 'match', '^[0-9a-fA-F]{64}$')
-         | map(attribute='file') | list }}
+         | map(attribute='path') | list }}
   tags: [siem_artifacts]
 
 - name: Artifacts | Download and check (Linux)
