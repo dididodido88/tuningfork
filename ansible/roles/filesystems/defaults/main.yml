@@ -21,6 +21,11 @@
 #     mode: "0755"                                else root:root 0755, or 1777 for /tmp and /var/tmp)
 #     migrate: true                            optional; copy existing content onto the new disk
 #     min_size_gb: 20                          optional; refuse disks smaller than this
+#
+# Volumes of VMs built by Terraform are written by Terraform as filesystems_volumes__terraform
+# in ansible/inventories/<ENV>/terraform_<unit>.yml: don't repeat them by hand.
+#
+# How the role protects data is described in README.md, "How existing data is protected".
 
 filesystems_default_fstype: ext4
 # Filesystems whose mkfs tools are installed below. Add more (and their packages) as needed.
@@ -30,7 +35,19 @@ filesystems_packages: [parted, e2fsprogs, xfsprogs, rsync, util-linux]
 filesystems_default_mount_opts: [defaults]
 
 # Copy what is already in the directory onto the new filesystem before mounting over it.
+# The copy only happens onto an EMPTY filesystem. If the filesystem already holds data and the
+# directory has content too, the play stops and changes nothing.
 filesystems_migrate: true
+
+# Allow the copy onto a filesystem that already holds data: the filesystem is made identical
+# to the directory, so everything else on it is DELETED. Never set this in the inventory.
+# Pass it for one run, after checking which copy you want: -e filesystems_migrate_overwrite=true
+filesystems_migrate_overwrite: false
+
+# Accept an existing partition only if it is named after its volume (the name this role gives
+# it: the label, or the mount path with "/" replaced by "-"). This is what catches a disk that
+# sits in another volume's slot. Turn it off only for disks partitioned outside this role.
+filesystems_check_partition_name: true
 
 # Add the CIS 1.1.2.x options (nodev, nosuid, noexec) for the mount points CIS checks,
 # so CIS finds nothing to change and leaves the UUID-based fstab entry alone.

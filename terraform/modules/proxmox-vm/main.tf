@@ -45,6 +45,7 @@ locals {
       cpu_type     = coalesce(vm.cpu_type, var.cpu_type)
       memory_mb    = coalesce(vm.memory_mb, var.default_memory_mb)
       os_disk_gb   = coalesce(vm.os_disk_gb, var.default_os_disk_gb)
+      protection   = coalesce(vm.protection, var.protection)
       fqdn         = "${name}.${var.dns_domain}"
       ipv4         = split("/", vm.ipv4_cidr)[0]
     })
@@ -81,6 +82,14 @@ resource "proxmox_virtual_environment_vm" "this" {
   started = true
   # Power off instead of waiting for a guest shutdown that never comes if the agent is down.
   stop_on_destroy = true
+
+  # Data safety.
+  # migrate: a changed node_name moves the VM to the other node. Without it the provider
+  # destroys the VM and creates a new one, with new, empty disks.
+  migrate = true
+  # protection: Proxmox itself refuses to remove the VM or any of its disks while this is on,
+  # whoever asks (Terraform, the web interface, the API). See README.md, "Protection".
+  protection = each.value.protection
 
   clone {
     vm_id        = local.template_vm_id
@@ -120,7 +129,9 @@ resource "proxmox_virtual_environment_vm" "this" {
     discard      = "on"
   }
 
-  # Blank data disks on scsi1..N for the Ansible filesystems role.
+  # Data disks on scsi1..N, in list order. They are created EMPTY: only a size, a storage volume
+  # and an image format are given (raw is the image format, not a filesystem), and nothing is
+  # imported onto them. The Ansible filesystems role partitions and formats them.
   dynamic "disk" {
     for_each = { for i, d in each.value.data_disks : i => d }
     content {
@@ -201,6 +212,10 @@ resource "terraform_data" "bootstrap" {
 locals {
   # Per-host variables. filesystems_volumes__terraform is added only when a data disk has a
   # mount; it merges with the other filesystems_volumes__* variables (roles/filesystems).
+  #
+  # This is where a disk's identity is handed to Ansible. The disk at position i of data_disks
+  # is attached as scsi<i+1>, and Proxmox gives that slot a fixed device name in the guest.
+  # min_size_gb repeats the size, so Ansible refuses a smaller disk found in that slot.
   inventory_hostvars = {
     for name, vm in local.vms : vm.fqdn => merge(
       vm.host_vars,
@@ -215,8 +230,9 @@ locals {
             for i, d in vm.data_disks : merge(
               {
                 # by-id is stable on Proxmox virtio-scsi: the name includes the drive slot (scsiN).
-                mount = d.mount
-                disk  = "/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi${i + 1}"
+                mount       = d.mount
+                disk        = "/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi${i + 1}"
+                min_size_gb = d.size_gb
               },
               { for ok, ov in { fstype = d.fstype, label = d.label } : ok => ov if ov != null },
             ) if d.mount != null

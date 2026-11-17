@@ -122,8 +122,9 @@ The template is found by name: `rocky9_template_name` in `env.hcl`
 4. **Inventory**: the host is written to `ansible/inventories/<ENV>/terraform_<unit>.yml` with
    its groups and its data disks.
 
-The data disks are attached **blank**. The Ansible `filesystems` role partitions, formats and
+The data disks are attached **empty**. The Ansible `filesystems` role partitions, formats and
 mounts them by UUID, and copies existing content across (for example the current `/var/log`).
+How the two sides keep track of each disk is in "Data disks".
 
 The bootstrap runs once per VM, and again only if the VM is replaced. After the CIS play has run,
 root can no longer log in over SSH, and Terraform no longer needs it. Rotate the Ansible keys on
@@ -175,7 +176,8 @@ server_ipv4_cidrs = [             # one address per node, in order
 ```
 
 Lab starts with one node per cluster, the CRGS environments with three. Going from 1 to 3 adds
-nodes 02 and 03 and leaves node 01 alone. Going from 3 to 1 destroys nodes 02 and 03.
+nodes 02 and 03 and leaves node 01 alone. Going from 3 to 1 destroys nodes 02 and 03; the nodes
+are protected, so that fails until `protection` is turned off (see "Protection").
 
 Every node is an RKE2 server (control plane, etcd and workload). The Rancher nodes are sized at
 2 cores and 4 GB as specified; that is the RKE2 minimum, and Rancher's own guidance for a small
@@ -199,7 +201,7 @@ inputs = {
     "registry" = merge(local.role, {
       ipv4_cidr      = "192.168.70.71/24"   # required
       memory_mb      = 16384                # more memory than the role profile
-      node_name      = "pve-lab2"           # another Proxmox node
+      node_name      = "pve-lab2"           # another Proxmox node (an existing VM is migrated there)
       datastore_id   = "uxt-san-vol2"       # all of this VM's disks on another storage volume
       network_bridge = "vmbr3"              # another bridge
       vlan_id        = 120                  # a VLAN tag
@@ -226,16 +228,89 @@ Changing the `datastore_id` of an existing disk moves that disk to the other sto
 
 ## Data disks
 
-- Data disks become `scsi1`, `scsi2`, ... in list order. A disk with a `mount` is written into
-  the inventory as `filesystems_volumes__terraform`, using
-  `/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsiN`, and the Ansible `filesystems` role
-  does the rest. A disk without a `mount` is attached and left alone.
-- **Append new disks at the end of the list.** Removing or reordering disks changes the slot
-  numbers of the disks after it.
-- Growing a disk: raise `size_gb` and apply, then grow the partition and the filesystem on the
-  host (`growpart <disk> 1`, then `xfs_growfs` or `resize2fs`). The role doesn't resize.
-- `fstype` is `xfs` or `ext4`. It only takes effect when the disk is first formatted.
-- Removing a VM from a unit destroys it and its disks on the next apply.
+### Design
+
+Terraform and Ansible split the work, and one identifier connects them:
+
+```
+Terraform                               Ansible (roles/filesystems)
+---------                               ---------------------------
+data_disks list, position 0, 1, 2 ...
+  -> Proxmox slot scsi1, scsi2, scsi3 ...
+  -> inventory: mount + /dev/disk/by-id/...drive-scsiN + size
+                                        -> finds the disk by that path
+                                        -> partitions and formats it (only if blank)
+                                        -> mounts it by filesystem UUID in /etc/fstab
+```
+
+- **Terraform creates the disks empty.** It gives each disk a size, a storage volume and an image
+  format. `raw` is the image format, not a filesystem, and nothing is imported onto the disk.
+  Terraform never looks inside a disk.
+- **A disk's identity is its place in the `data_disks` list.** Position 0 is `scsi1`, position 1
+  is `scsi2`, and so on. Proxmox gives each slot a fixed device name in the guest,
+  `/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsiN`, which doesn't change across reboots
+  or when disks are added.
+- **Terraform tells Ansible which slot holds which mount point.** A disk with a `mount` is
+  written into the generated inventory with its device name, its size and its filesystem type.
+  A disk without a `mount` is attached and left alone.
+- **Ansible does everything inside the guest**, and only on a disk that is blank or that it set
+  up itself for that mount point. See [the filesystems role](../ansible/roles/filesystems/README.md).
+
+### The one rule
+
+**Never reorder `data_disks`, and never remove a disk from the middle of the list.** Either one
+moves every later disk to another slot, so each mount point would point at another disk.
+
+If it happens anyway, nothing is overwritten: Ansible recognises each disk by the partition name
+it gave it, sees another volume's disk in the slot, and stops. Terraform would also try to
+resize the shifted disks, and a disk can't be made smaller, so the plan or the apply fails.
+Restore the list order to recover.
+
+### Managing disks
+
+| Task | How |
+|---|---|
+| Add a disk to a role in every environment | Append it at the **end** of `data_disks` in `_envcommon/roles/<role>.hcl`. Apply, then run `playbooks/filesystems.yml`. |
+| Add a disk to one VM only | In the unit: `data_disks = concat(local.role.data_disks, [{ size_gb = 50, mount = "/data", fstype = "xfs" }])`. Apply, then run the playbook. |
+| Grow a disk | Raise `size_gb` and apply. On the host: `growpart <disk> 1`, then `xfs_growfs <mount>` or `resize2fs <partition>`. Ansible doesn't resize. |
+| Shrink a disk | Not possible. Add a new disk, copy the data, and retire the old one. |
+| Put a new disk on another storage volume | Set `datastore_id` on that disk (see "Overrides"). |
+| Move an existing disk to another storage volume | Change its `datastore_id` and apply. The disk is moved; its slot and its content stay the same. |
+| Change a mount point or a filesystem type | Not on an existing disk: `fstype` only applies when a disk is first formatted, and Ansible stops if the disk no longer matches. Add a new disk and copy the data. |
+| Retire a disk | Only the **last** disk in the list can be removed without shifting others. For any other disk, leave it in the list and stop using it. Turn `protection` off first (below). Test a removal on a lab VM before relying on it: the provider's documentation doesn't say what it does with the removed disk. |
+
+### Protection
+
+Two settings guard against losing a VM's disks by accident.
+
+**`protection`** is the Proxmox protection flag. While it is on, Proxmox itself refuses to remove
+the VM or any of its disks, whoever asks: Terraform, the web interface or the API. It is on in the
+role profiles of the VMs that hold data (`registry`, `nfs`, `siem`, `database`, `support` and both
+RKE2 node types) and off for the bastion and the load balancers, which hold none.
+
+To destroy a protected VM on purpose, turn the flag off first:
+
+```hcl
+# live/<ENV>/<unit>/terragrunt.hcl
+"nfs" = merge(local.role, {
+  ipv4_cidr  = "192.168.70.73/24"
+  protection = false        # 1. add this line and apply
+})                          # 2. then remove the VM, or run terragrunt destroy
+```
+
+The same applies to shrinking a cluster from 3 nodes to 1, and to removing a disk.
+
+**`migrate`** is always on. Changing a VM's `node_name` moves the VM to the other node with its
+disks. Without it the provider would destroy the VM and build a new one with empty disks.
+
+What still destroys data, by design:
+
+- Removing a VM from a unit, or `terragrunt destroy`, once protection is off.
+- Changing a VM's name (the key in `vms`): to Terraform that is one VM removed and another added.
+- Changing `vm_id` on an existing VM.
+
+Read the plan before every apply. A line that says a VM "must be replaced" or "will be destroyed"
+means its disks go with it.
 
 ## Generated inventory
 
@@ -255,9 +330,11 @@ all:
               filesystems_volumes__terraform:
                 - mount: /var/log
                   disk: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi1
+                  min_size_gb: 10
                   fstype: ext4
                 - mount: /export/pvcdata
                   disk: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi3
+                  min_size_gb: 50
                   fstype: xfs
     nfs_servers:
       hosts:
@@ -320,4 +397,7 @@ local state has no locking between machines. Losing it means importing the VMs a
 | `This unit defines N VM(s), but only [1,3] are allowed` | `server_count` in a cluster unit isn't 1 or 3. |
 | The apply waits, then fails on the bootstrap with an SSH timeout | The VM didn't get its address (cloud-init missing or not run), port 22 isn't reachable from this machine, or `bootstrap_private_key_file` doesn't match the key in the template. |
 | `Invalid index` on `server_ipv4_cidrs` | Fewer addresses than `server_count`. |
+| A destroy, or removing a VM or a disk, fails with a Proxmox error about protection | The VM is protected. Set `protection = false` for it in the unit, apply, then repeat. See "Protection". |
+| The plan wants to resize several data disks you didn't touch | The `data_disks` list was reordered, or a disk was removed from the middle. Restore the order. |
+| Ansible stops with `is neither blank nor the disk this role set up` | The disk in that slot isn't the one expected, or holds something else. See the filesystems role README, "When the play stops". |
 | Terraform waits a long time after creating a VM | The guest agent isn't running in the template. |

@@ -68,6 +68,12 @@ variable "default_os_disk_gb" {
   default     = 40
 }
 
+variable "protection" {
+  description = "Proxmox protection flag for VMs that don't set protection. While it is on, Proxmox refuses to remove the VM or any of its disks, so a destroy fails until it is turned off and applied."
+  type        = bool
+  default     = false
+}
+
 variable "os_disk_interface" {
   description = "Interface of the template's OS disk. Data disks are added as scsi1, scsi2, ..., so the template must not have other scsi disks."
   type        = string
@@ -181,8 +187,12 @@ variable "vms" {
       cpu_type        optional; overrides var.cpu_type
       memory_mb       optional; overrides var.default_memory_mb
       os_disk_gb      optional; overrides var.default_os_disk_gb
-      data_disks      optional; blank disks attached as scsi1, scsi2, ... in list order.
-                        size_gb       required
+      protection      optional; overrides var.protection (Proxmox refuses to remove the VM or
+                      its disks while it is true)
+      data_disks      optional; empty disks attached as scsi1, scsi2, ... in list order. A disk's
+                      place in the list is its identity: append new disks at the end, and never
+                      reorder the list or remove a disk from the middle.
+                        size_gb       required; can be raised later, never lowered
                         mount         optional; with it, the Ansible filesystems role partitions,
                                       formats and mounts the disk there
                         fstype        optional; xfs or ext4 (the role's default is ext4)
@@ -206,6 +216,7 @@ variable "vms" {
     cpu_type       = optional(string)
     memory_mb      = optional(number)
     os_disk_gb     = optional(number)
+    protection     = optional(bool)
     data_disks = optional(list(object({
       size_gb      = number
       mount        = optional(string)

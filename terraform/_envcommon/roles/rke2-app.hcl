@@ -10,6 +10,10 @@ locals {
     ansible_groups = ["rke2_servers", "rke2_app"]
     tags           = ["rke2", "app"]
 
+    # Holds data: Proxmox refuses to remove this VM or its disks until protection is turned off
+    # (terraform/README.md, "Protection").
+    protection = true
+
     data_disks = [
       # Also holds the pod logs (/var/log/pods, /var/log/containers).
       { size_gb = 10, mount = "/var/log", fstype = "ext4" },

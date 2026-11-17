@@ -1,6 +1,8 @@
 ---
 # Checks every volume before any disk is touched. A disk is used only if it is
-# blank, or already carries exactly the partition this role creates (re-runs).
+# blank, or already carries exactly the partition this role created for this mount
+# point (re-runs): one GPT partition, named after the volume, with the volume's
+# filesystem type, not mounted anywhere else.
 
 - name: Validate | No mount point or disk is listed twice
   ansible.builtin.assert:
@@ -57,7 +59,7 @@
     d=$(readlink -e "{{ item.disk }}") || { echo "missing"; exit 3; }
     sigs=$(wipefs -n --noheadings -o TYPE "$d" | tr '\n' ' ')
     printf '{"real": "%s", "sigs": "%s", "lsblk": %s}\n' "$d" "$sigs" \
-      "$(lsblk -J -b -p -o NAME,TYPE,SIZE,PTTYPE,FSTYPE,MOUNTPOINT "$d")"
+      "$(lsblk -J -b -p -o NAME,TYPE,SIZE,PTTYPE,FSTYPE,MOUNTPOINT,PARTLABEL "$d")"
   register: filesystems_disk_info
   changed_when: false
   check_mode: false
@@ -86,7 +88,11 @@
   loop_control:
     label: "{{ item.item.mount }}"
 
-- name: Validate | Disk is blank, or already set up by this role
+# The partition name is how a disk is recognised as belonging to a mount point: the role
+# names the partition after the volume when it creates it (main.yml: partname). A disk that
+# carries another volume's name is in the wrong slot (disks reordered or removed), and is
+# refused even when it is not mounted.
+- name: Validate | Disk is blank, or already set up by this role for this mount point
   vars:
     vol: "{{ item.item }}"
     info: "{{ item.stdout | from_json }}"
@@ -97,14 +103,21 @@
     ours: >-
       {{ dev.pttype == 'gpt' and children | length == 1
          and children[0].fstype in [none, vol.fstype]
-         and children[0].mountpoint in [none, vol.mount, vol.tmp] }}
+         and children[0].mountpoint in [none, vol.mount, vol.tmp]
+         and (not (filesystems_check_partition_name | bool)
+              or (children[0].partlabel | default(none)) == vol.partname) }}
   ansible.builtin.assert:
     that: blank | bool or ours | bool
     fail_msg: >-
-      {{ vol.mount }}: {{ vol.disk }} ({{ info.real }}) already has data (partition table
-      '{{ dev.pttype }}', filesystem '{{ dev.fstype }}', {{ children | length }} partition(s),
-      signatures '{{ info.sigs | trim }}'). It won't be touched. Wipe it deliberately
-      (wipefs -a) if it really is the right disk.
+      {{ vol.mount }}: {{ vol.disk }} ({{ info.real }}) is neither blank nor the disk this role set up
+      for {{ vol.mount }}, so it won't be touched. Found: partition table '{{ dev.pttype }}',
+      {{ children | length }} partition(s){% if children | length > 0 %}, the first one named
+      '{{ children[0].partlabel | default('', true) }}' (expected '{{ vol.partname }}') with filesystem
+      '{{ children[0].fstype }}' (expected '{{ vol.fstype }}'), mounted on
+      '{{ children[0].mountpoint }}'{% endif %}; signatures '{{ info.sigs | trim }}'.
+      Another partition name or mount point means another volume's disk is in this slot: check the
+      order of the disks (Terraform: data_disks is a list, and a disk's place in it is its slot).
+      Wipe the disk (wipefs -a) only if it really is the right one and holds nothing you need.
     quiet: true
   loop: "{{ filesystems_disk_info.results }}"
   loop_control:

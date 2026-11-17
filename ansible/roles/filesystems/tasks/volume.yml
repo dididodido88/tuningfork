@@ -108,6 +108,44 @@
                 fstype: "{{ filesystems_volume.fstype }}"
                 state: ephemeral
 
+            # The copy below makes the filesystem identical to the directory: it deletes whatever
+            # the filesystem holds that the directory doesn't. That is right for a new filesystem,
+            # and data loss for one that was already in use (a data disk that got unmounted, with
+            # new files written to the directory underneath since). So copy only onto an empty one.
+            - name: "Volume {{ filesystems_volume.mount }} | Look at what the filesystem already holds"
+              ansible.builtin.find:
+                paths: "{{ filesystems_volume.tmp }}"
+                file_type: any
+                hidden: true
+                recurse: false
+                excludes: ["lost+found"]
+              register: filesystems_target_content
+
+            - name: "Volume {{ filesystems_volume.mount }} | Unmount the temporary mount (the filesystem already holds data)"
+              ansible.posix.mount:
+                path: "{{ filesystems_volume.tmp }}"
+                state: unmounted
+              when:
+                - filesystems_target_content.matched > 0
+                - not (filesystems_migrate_overwrite | bool)
+
+            - name: "Volume {{ filesystems_volume.mount }} | Stop if both the directory and the filesystem hold data"
+              ansible.builtin.fail:
+                msg: >-
+                  {{ filesystems_volume.mount }} is not mounted, the directory has content, and the
+                  filesystem on {{ filesystems_volume.part }} already holds data
+                  ({{ filesystems_target_content.files | map(attribute='path') | map('basename') | list | join(', ') | truncate(200) }}).
+                  Copying the directory onto it would delete that data, so nothing was changed.
+                  Choose which copy to keep.
+                  To keep the data on the disk: run once with -e filesystems_migrate=false, which mounts
+                  the disk over the directory (the directory's content stays underneath, hidden), or
+                  move the directory's content away first.
+                  To keep the directory's content and overwrite the disk: run once with
+                  -e filesystems_migrate_overwrite=true.
+              when:
+                - filesystems_target_content.matched > 0
+                - not (filesystems_migrate_overwrite | bool)
+
             # rsync, not synchronize: a copy within the host that keeps ACLs, xattrs and SELinux labels.
             - name: "Volume {{ filesystems_volume.mount }} | Copy data (permissions, ACLs, xattrs, SELinux labels)"  # noqa: command-instead-of-module
               ansible.builtin.command: >-

@@ -12,6 +12,10 @@ locals {
     ansible_groups = ["registry_servers"]
     tags           = ["registry"]
 
+    # Holds data: Proxmox refuses to remove this VM or its disks until protection is turned off
+    # (terraform/README.md, "Protection").
+    protection = true
+
     data_disks = [
       { size_gb = 10, mount = "/var/log", fstype = "ext4" },
       # 30 days of audit records.
