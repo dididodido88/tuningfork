@@ -1,0 +1,41 @@
+# Bootstrap, run once as root on a new VM (terraform_data.bootstrap in main.tf).
+# Makes the host reachable for Ansible and does nothing else. Safe to run again.
+# Terraform template: only the user name and the keys are filled in.
+set -eu
+
+# cloud-init sets the hostname and the network on first boot; let it finish.
+if command -v cloud-init >/dev/null 2>&1; then
+  cloud-init status --wait >/dev/null 2>&1 || true
+fi
+
+# The Ansible account: key-only login (locked password) that never expires. The CIS pre-checks
+# (ansible/roles/cis_safeguards) stop a host whose automation account can expire.
+if ! id -u "${user}" >/dev/null 2>&1; then
+  useradd --create-home --shell /bin/bash "${user}"
+fi
+usermod --lock "${user}"
+chage --mindays 0 --maxdays -1 --inactive -1 --expiredate -1 "${user}"
+
+home_dir=$(getent passwd "${user}" | cut -d: -f6)
+user_group=$(id -gn "${user}")
+install -d -m 0700 -o "${user}" -g "$user_group" "$home_dir/.ssh"
+cat > "$home_dir/.ssh/authorized_keys" <<'TERRAFORM_KEYS'
+%{ for key in keys ~}
+${key}
+%{ endfor ~}
+TERRAFORM_KEYS
+chown "${user}:$user_group" "$home_dir/.ssh/authorized_keys"
+chmod 0600 "$home_dir/.ssh/authorized_keys"
+if command -v restorecon >/dev/null 2>&1; then
+  restorecon -R "$home_dir/.ssh" || true
+fi
+
+# sudo without a password. Same file the cis_safeguards role manages, so CIS leaves it alone.
+# A file name with a dot is ignored by sudo, so the half-written file is never read.
+sudoers_tmp=$(mktemp /etc/sudoers.d/.terraform.XXXXXX)
+printf '%s ALL=(ALL) NOPASSWD: ALL\n' "${user}" > "$sudoers_tmp"
+chmod 0440 "$sudoers_tmp"
+/usr/sbin/visudo -cf "$sudoers_tmp" >/dev/null
+mv -f "$sudoers_tmp" "/etc/sudoers.d/90-${user}"
+
+echo "bootstrap complete: ${user} can log in with its SSH key and use sudo"

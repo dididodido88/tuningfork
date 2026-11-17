@@ -5,18 +5,19 @@ networks. Terraform creates the VMs on Proxmox. Ansible then hardens and configu
 
 | Directory | Tool | What it does | Docs |
 |---|---|---|---|
-| [`terraform/`](terraform/) | Terraform + Terragrunt (bpg/proxmox) | Clones VMs from prepared templates, sets network/SSH keys through cloud-init, writes the Ansible inventory | [terraform/README.md](terraform/README.md) |
+| [`terraform/`](terraform/) | Terraform + Terragrunt (bpg/proxmox) | Clones the VMs of each role from the Rocky 9 template, sets their hardware, disks and network, creates the Ansible account, writes the Ansible inventory | [terraform/README.md](terraform/README.md) |
 | [`ansible/`](ansible/) | Ansible | Repositories, data disks, CIS hardening, common OS config, server roles | [ansible/README.md](ansible/README.md) |
 
 ## End to end
 
 ```sh
-# 1. Provision (writes ansible/inventories/CRGS00/terraform_rocky9.yml)
-cd terraform/live/CRGS00/rocky9
-terragrunt apply
+# 1. Provision every unit of the environment (each writes
+#    ansible/inventories/CRGS00/terraform_<unit>.yml)
+cd terraform/live/CRGS00
+terragrunt run --all apply
 
 # 2. Configure: always run Ansible from the ansible/ directory so ansible.cfg is used
-cd ../../../../ansible
+cd ../../../ansible
 ansible-playbook -i inventories/CRGS00 playbooks/site.yml --vault-id CRGS00@prompt
 ```
 

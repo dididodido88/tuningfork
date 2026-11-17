@@ -153,14 +153,14 @@ on Windows).
 
 | What | Where |
 |---|---|
-| The VM: Rocky 9, 8 cores, 16 GB RAM, five data disks on scsi1–scsi5 | **Terraform** (CRGS): `terraform/live/<ENV>/rocky9`, entry `<env>-siem01`. **By hand** (lab): clone the Rocky 9 template as `sentinel`, then add the disks below in this order. |
+| The VM: Rocky 9, 8 cores, 16 GB RAM, five data disks on scsi1–scsi5 | **Terraform**: the unit `terraform/live/<ENV>/siem`, which also attaches the data disks and writes them into the inventory (`terraform/README.md`). **By hand** (lab): clone the Rocky 9 template as `sentinel`, then add the disks below in this order. |
 | DNS A record for `siem_server_name` | AD DNS, e.g. `sentinel.lab.local` → 192.168.70.74 |
 | Host certificate covering `siem_server_name` | `/srv/security/certificates/files/<certificates_env_dir>/<short name>/` on the control node (roles/certificates) |
 | Inventory | `hosts.yml`: the host in `rocky9` and `siem_servers`. A hand-built VM also needs its disks in `host_vars/<host>.yml` (lab: `host_vars/sentinel.lab.local.yml`). |
 | Settings | `group_vars/all/siem.yml` (name, address, networks, email) and `group_vars/siem_servers.yml` |
 | Secrets | `ansible-vault edit inventories/<ENV>/group_vars/all/vault.yml`, see 3.2 |
 
-Data disks, in order (lab is smaller):
+Data disks of a hand-built VM, in order (lab is smaller):
 
 | Disk | Mount | CRGS | lab |
 |---|---|---|---|
@@ -169,6 +169,9 @@ Data disks, in order (lab is smaller):
 | scsi3 | `/var/lib/prometheus` | 100 GB | 40 GB |
 | scsi4 | `/var/log/remote` | 50 GB | 20 GB |
 | scsi5 | `/var/log/audit` | 20 GB | 10 GB |
+
+A VM built by Terraform has the same volumes, plus `/var/log` and `/var/cache/tuningfork`, in the
+order of `terraform/_envcommon/roles/siem.hcl`. It needs no `host_vars` file for its disks.
 
 The SIEM VM gets no Wazuh agent: the manager package and the agent package can't be installed
 together, and the manager already monitors its own host.
