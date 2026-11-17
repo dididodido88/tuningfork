@@ -18,7 +18,7 @@
       data: "{{ windows_common_ntp_servers | map('regex_replace', '$', ',' ~ windows_common_ntp_flags) | join(' ') }}"
   loop_control:
     label: "{{ item.name }}"
-  notify: Restart W32Time
+  notify: NTP | Restart W32Time
 
 - name: NTP | Enable and start W32Time
   ansible.windows.win_service:

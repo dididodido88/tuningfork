@@ -66,14 +66,7 @@
     # --- Packages and Kerberos --------------------------------------------------------------
     - name: AD | Install sssd, adcli and Kerberos tools
       ansible.builtin.dnf:
-        name:
-          - sssd
-          - sssd-ad
-          - sssd-tools
-          - adcli
-          - krb5-workstation
-          - oddjob-mkhomedir
-          - authselect
+        name: "{{ sssd_ad_packages }}"
         state: present
 
     - name: AD | Configure Kerberos for the realm
@@ -208,7 +201,7 @@
         owner: root
         group: root
         mode: "0440"
-        validate: visudo -cf %s
+        validate: /usr/sbin/visudo -cf %s
       when: sssd_ad_admin_groups | length > 0
 
     - name: AD | Remove the sudo drop-in when there are no admin groups

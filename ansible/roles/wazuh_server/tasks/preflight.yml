@@ -13,7 +13,6 @@
       siem_server_name in group_vars/all/siem.yml.
     quiet: true
   no_log: true
-  tags: [wazuh_server]
 
 - name: Wazuh | Check the firewall networks
   ansible.builtin.assert:
@@ -23,7 +22,6 @@
     fail_msg: Set siem_admin_networks and siem_agent_networks in group_vars/all/siem.yml.
     quiet: true
   when: wazuh_server_manage_firewall | bool
-  tags: [wazuh_server]
 
 - name: Wazuh | Check the dashboard certificate and key are in place (playbooks/certificates.yml)
   ansible.builtin.stat:
@@ -32,7 +30,6 @@
     - "{{ wazuh_server_dashboard_certificate }}"
     - "{{ wazuh_server_dashboard_key }}"
   register: wazuh_server_tls_files
-  tags: [wazuh_server]
 
 - name: Wazuh | Stop if the certificate or key is missing
   ansible.builtin.assert:
@@ -41,10 +38,8 @@
       Missing {{ wazuh_server_tls_files.results | rejectattr('stat.exists') | map(attribute='item') | list }}.
       Run playbooks/certificates.yml for this host first (its certificate must cover {{ siem_server_name }}).
     quiet: true
-  tags: [wazuh_server]
 
 - name: Wazuh | Install the installer's prerequisites
-  ansible.builtin.package:
+  ansible.builtin.dnf:
     name: "{{ wazuh_server_prerequisites }}"
     state: present
-  tags: [wazuh_server]

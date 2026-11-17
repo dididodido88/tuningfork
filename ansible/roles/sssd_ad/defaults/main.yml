@@ -63,6 +63,8 @@ sssd_ad_ssh_password_auth: true
 # chrony reports a larger offset than this (seconds).
 sssd_ad_max_clock_offset: 60
 
+sssd_ad_packages: [sssd, sssd-ad, sssd-tools, adcli, krb5-workstation, oddjob-mkhomedir, authselect]
+
 # Optional end-to-end check: an AD user (short name) that must resolve with a uid of at least
 # sssd_ad_min_id and pass the PAM account phase for sshd (group access, no password needed).
 sssd_ad_test_user: ""

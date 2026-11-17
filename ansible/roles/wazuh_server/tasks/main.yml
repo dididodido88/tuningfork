@@ -31,7 +31,7 @@
 - name: Wazuh | Firewall
   ansible.builtin.import_tasks: firewall.yml
   when: wazuh_server_manage_firewall | bool
-  tags: [wazuh_server]
+  tags: [wazuh_server, firewall]
 
 - name: Wazuh | Apply pending restarts
   ansible.builtin.meta: flush_handlers

@@ -10,10 +10,10 @@
     creates: "{{ database_server_postgresql_data_dir }}/PG_VERSION"
 
 - name: PostgreSQL | Enable and start postgresql
-  ansible.builtin.service:
+  ansible.builtin.systemd:
     name: postgresql
-    state: started
     enabled: true
+    state: started
 
 - name: PostgreSQL | Open firewall port
   ansible.posix.firewalld:

@@ -1,4 +1,9 @@
 ---
+# Common configuration for every Linux host: NTP (chrony), login banners, IPv6 and journald.
+# Runs after CIS in site.yml; the CIS rules for these areas are handed over to this role
+# (playbooks/group_vars/rocky9.yml). Each area has its own tag: ntp, banner, ipv6, journald.
+# Settings: inventories/<ENV>/group_vars/linux.yml. Role: roles/linux_common/README.md.
+
 - name: Common configuration for all Linux hosts
   hosts: linux
   become: true

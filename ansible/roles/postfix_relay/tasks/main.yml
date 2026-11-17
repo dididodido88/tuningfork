@@ -20,7 +20,7 @@
   tags: [postfix_relay]
 
 - name: Postfix | Install the packages
-  ansible.builtin.package:
+  ansible.builtin.dnf:
     name: "{{ postfix_relay_packages }}"
     state: present
   tags: [postfix_relay]

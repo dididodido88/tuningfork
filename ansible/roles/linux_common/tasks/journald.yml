@@ -15,7 +15,7 @@
     group: systemd-journal
     mode: "2755"
   when: linux_common_journald_storage == 'persistent'
-  notify: Flush journal to disk
+  notify: Journald | Flush journal to disk
 
 - name: Journald | Write retention and storage settings
   ansible.builtin.template:
@@ -24,4 +24,4 @@
     owner: root
     group: root
     mode: "0644"
-  notify: Restart journald
+  notify: Journald | Restart journald

@@ -43,6 +43,8 @@
     immediate: true
     state: enabled
   loop: "{{ harbor_firewall_services }}"
+  when: harbor_manage_firewall | bool
+  tags: [firewall]
 
 - name: Harbor | Apply Docker changes before installing Harbor
   ansible.builtin.meta: flush_handlers

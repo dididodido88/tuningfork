@@ -1,4 +1,8 @@
 ---
+# Database servers: PostgreSQL from the AppStream module stream on the internal mirror.
+# Needs repositories.yml first; put /var/lib/pgsql on a data disk with filesystems.yml.
+# Settings: inventories/<ENV>/group_vars/db_servers.yml. Role: roles/database_server/README.md.
+
 - name: Configure database servers
   hosts: db_servers
   become: true

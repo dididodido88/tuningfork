@@ -46,6 +46,7 @@ harbor_docker_log_max_file: 5
 
 # firewalld services opened in the default zone. http (80) only redirects to https; add it if
 # clients use http:// URLs.
+harbor_manage_firewall: true
 harbor_firewall_services: [https]
 
 # Trivy vulnerability scanner. Needs an offline vulnerability database; see docs/harbor.md.

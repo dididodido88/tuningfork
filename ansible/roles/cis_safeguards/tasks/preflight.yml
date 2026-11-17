@@ -109,8 +109,8 @@
     path: /etc/ssh/sshd_config
     regexp: '^\s*AllowUsers\s'
     state: absent
-    validate: sshd -t -f %s
-  notify: Restart sshd for safeguards
+    validate: /usr/sbin/sshd -t -f %s
+  notify: Safeguards | Restart sshd
 
 # --- sudo (CIS 5.2.4 replaces NOPASSWD with PASSWD for accounts not excluded) ---
 - name: Preflight | Give the Ansible account a NOPASSWD sudoers drop-in
@@ -147,7 +147,7 @@
 
 # --- Firewall (CIS 4.1.2 installs and starts firewalld) ---
 - name: Preflight | Install firewalld
-  ansible.builtin.package:
+  ansible.builtin.dnf:
     name: firewalld
     state: present
   when:

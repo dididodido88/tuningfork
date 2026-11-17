@@ -17,10 +17,10 @@
     owner: root
     group: root
     mode: "0644"
-  notify: Restart chronyd
+  notify: NTP | Restart chronyd
 
 - name: NTP | Enable and start chronyd
-  ansible.builtin.service:
+  ansible.builtin.systemd:
     name: "{{ linux_common_ntp_service }}"
-    state: started
     enabled: true
+    state: started

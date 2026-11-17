@@ -1,4 +1,8 @@
 ---
+# Common configuration for Windows hosts: time (W32Time) and the logon banner on every host,
+# then the Windows Server and Windows 11 Desktop layers (no tasks yet).
+# Settings: inventories/<ENV>/group_vars/windows.yml. Role: roles/windows_common/README.md.
+
 - name: Common configuration for all Windows hosts
   hosts: windows
   gather_facts: true
