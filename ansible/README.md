@@ -264,51 +264,46 @@ The CIS role's GPG checks pass: rule 1.2.1.1 needs the Rocky release key importe
 
 ## Data disks (`filesystems`)
 
-New Rocky 9 instances get blank disks for `/var`, `/var/log`, `/var/log/audit`, `/home`, `/tmp` and
-server-role paths. `playbooks/filesystems.yml` (first in `site.yml`) sets each one up:
+Terraform gives each VM empty data disks (`/var/log`, `/var/log/audit` and the paths of its role).
+`playbooks/filesystems.yml` (before CIS in `site.yml`) turns each one into a mounted filesystem.
+Full guide: [roles/filesystems/README.md](roles/filesystems/README.md).
 
-1. **Validate all volumes first.** Nothing is changed if any check fails:
-   - every disk is given by a stable `/dev/disk/by-path/…` or `/dev/disk/by-id/…` path and is a whole disk;
-   - it isn't the disk holding `/`, `/boot` or swap, and it isn't smaller than `min_size_gb`;
-   - no mount point or disk is listed twice, and the filesystem type is supported;
-   - no mount option cancels a CIS option.
+**Who does what**
 
-   A disk is used only if it is **blank**, or already holds exactly the one partition this role creates.
-   A disk with any other data is never touched.
-2. **Partition**: GPT with one partition from 1 MiB to the end, named after the label or mount point.
-3. **Format**: ext4 by default (`fstype: xfs` and others are supported). An existing filesystem is never
-   reformatted.
-4. **Migrate**: if the directory already has content, the new filesystem is mounted at a temporary path
-   and the data copied across with `rsync -aAXHx`, which keeps permissions, ACLs, xattrs and SELinux labels.
-5. **Mount by UUID**: the fstab entry is `UUID=…`, so it doesn't depend on device names. Options are
-   `defaults` + the volume's `mount_opts` + the CIS options for that path.
-6. **Without a reboot**:
-   - services listed in `filesystems_restart_services` (journald, rsyslog, auditd, chronyd) are
-     restarted so they write to the new filesystem;
-   - pseudo-filesystems below the path (e.g. `rpc_pipefs`) are remounted;
-   - any other process still using the old copy is listed, so you can restart it or reboot when convenient.
-7. **Verify**: each path is mounted from its partition, fstab has exactly one `UUID=` line with every
-   option, the CIS options are active, and `findmnt --verify` passes.
+| Step | Done by | Detail |
+|---|---|---|
+| Create the disk, empty | Terraform | Position *n* in `data_disks` becomes Proxmox slot `scsi<n+1>`. |
+| Say which disk is which | Terraform | Writes mount point, device path (`/dev/disk/by-id/...drive-scsiN`), size and filesystem type into `inventories/<ENV>/terraform_<unit>.yml`. |
+| Partition, format, copy existing data, mount | Ansible | Only on a disk that is blank or that it set up itself for that mount point. Mounted by filesystem UUID. |
 
-Define volumes in any variable named `filesystems_volumes__<something>`. Every such variable is combined,
-so levels add up instead of replacing each other:
+**How data is protected.** The play checks every volume before changing anything, and stops instead of
+guessing when something doesn't match:
+
+- A disk holding anything the role didn't create (a partition table, a filesystem, any signature) is never touched.
+- Each disk is recognised by the partition name the role gave it. If disks were reordered, the play sees
+  another volume's disk in the slot and stops, whether or not it is mounted.
+- A disk smaller than the size Terraform created (`min_size_gb`) is refused.
+- An existing filesystem is never reformatted.
+- Existing data is copied only onto an **empty** filesystem. If an unmounted data disk already holds data
+  and the directory has content too, the play stops and you choose which copy to keep.
+
+**Managing disks.** Add, grow or move disks in Terraform (see
+[terraform/README.md](../terraform/README.md), "Data disks"), apply, then run the playbook. Never
+reorder `data_disks` or remove a disk from the middle of the list.
+
+Hosts not built by Terraform define volumes by hand in any variable named `filesystems_volumes__<something>`
+(all such variables are combined):
 
 ```yaml
-# inventories/<ENV>/group_vars/linux.yml
-filesystems_volumes__base:
-  - mount: /var/log
-    disk: /dev/disk/by-path/pci-0000:03:00.0-scsi-0:0:2:0   # `ls -l /dev/disk/by-path/` on the host
-    fstype: ext4          # optional, default ext4
-    mount_opts: [noatime] # optional, added to defaults + CIS options
-    label: varlog         # optional
-    min_size_gb: 20       # optional guard against the wrong disk
-# inventories/<ENV>/group_vars/db_servers.yml
-filesystems_volumes__db:
-  - {mount: /var/lib/pgsql, disk: /dev/disk/by-path/...-scsi-0:0:8:0, fstype: xfs, owner: postgres, group: postgres, mode: "0700"}
+# inventories/<ENV>/host_vars/<host>.yml
+filesystems_volumes__host:
+  - mount: /var/lib/pgsql
+    disk: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi3   # `ls -l /dev/disk/by-id/` on the host
+    fstype: xfs
+    min_size_gb: 100      # guard against the wrong disk
 ```
 
-All fields are described in `roles/filesystems/defaults/main.yml`. The examples in each environment
-are commented out: add the real disk paths for your VM layout.
+Don't define a Terraform-built VM's disks by hand as well: a mount point listed twice stops the play.
 
 **How it works with CIS.** CIS 1.1.2.x requires `nodev`/`nosuid`/`noexec` on `/tmp`, `/home`, `/var`,
 `/var/tmp`, `/var/log` and `/var/log/audit`. When one is missing, the CIS handler rewrites that fstab line
@@ -322,15 +317,8 @@ using the device path (`/dev/sdb1`), which **drops `UUID=`**. So `filesystems`:
 CIS then finds nothing to change. The CIS post-check (`cis_safeguards`) also fails if any data-disk entry
 lost `UUID=`. A disk-based `/tmp` requires `rhel9cis_tmp_svc: false` (the default).
 
-**Things to know**
-
-- After migration the original files stay on the root filesystem, hidden under the new mount. They are
-  harmless, but use space. Free it later, e.g. `mount --bind / /mnt/root` and remove
-  `/mnt/root/var/log/*` (only the hidden copy).
-- Migrating a busy path (`/var`) without a reboot is safe on a freshly built host. On a long-running host,
-  stop the applications that write there first, or reboot after the play.
-- To grow a filesystem later, resize the virtual disk, then `growpart <disk> 1` and `resize2fs` /
-  `xfs_growfs`. This role doesn't resize.
+Growing a filesystem, freeing the space of migrated data, and what each stop message means are in the
+role's README ("Common tasks", "When the play stops").
 
 ## Layout
 
