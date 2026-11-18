@@ -21,7 +21,7 @@ locals {
 inputs = {
   vms = {
     "lb-app" = merge(local.role, {
-      ipv4_cidr      = "192.168.70.79/24" # REPLACE
+      ipv4_cidr      = "192.168.70.77/24"
       ansible_groups = concat(local.role.ansible_groups, ["lb_app"])
       # Virtual IP keepalived holds: the address clients and nodes use for the cluster. Reserve
       # it; no VM has it as its own address. It is passed to Ansible as a host variable.

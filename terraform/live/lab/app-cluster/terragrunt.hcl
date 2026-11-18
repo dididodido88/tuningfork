@@ -23,13 +23,13 @@ locals {
   server_count = 1
 
   # Nodes are named <name_prefix>01, 02, 03.
-  name_prefix = "rke"
+  name_prefix = "node"
 
   # One address per node, in node order. With server_count = 1 only the first is used.
   server_ipv4_cidrs = [
-    "192.168.70.84/24", # REPLACE
-    "192.168.70.85/24", # REPLACE
-    "192.168.70.86/24", # REPLACE
+    "192.168.70.91/24", # REPLACE
+    "192.168.70.92/24", # REPLACE
+    "192.168.70.93/24", # REPLACE
   ]
 }
 

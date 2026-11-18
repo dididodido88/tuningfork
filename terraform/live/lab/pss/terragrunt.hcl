@@ -20,8 +20,8 @@ locals {
 
 inputs = {
   vms = {
-    "support" = merge(local.role, {
-      ipv4_cidr = "192.168.70.76/24" # REPLACE
+    "pss" = merge(local.role, {
+      ipv4_cidr = "192.168.70.73/24" 
     })
   }
 }

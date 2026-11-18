@@ -20,8 +20,8 @@ locals {
 
 inputs = {
   vms = {
-    "nfs" = merge(local.role, {
-      ipv4_cidr = "192.168.70.73/24" # REPLACE
+    "nas" = merge(local.role, {
+      ipv4_cidr = "192.168.70.70/24"
     })
   }
 }

@@ -21,7 +21,7 @@ locals {
 inputs = {
   vms = {
     "db" = merge(local.role, {
-      ipv4_cidr = "192.168.70.75/24" # REPLACE
+      ipv4_cidr = "192.168.70.72/24"
     })
   }
 }
