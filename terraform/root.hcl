@@ -43,7 +43,8 @@ terraform {
   # -plugin-dir turns off registry downloads completely.
   extra_arguments "plugin_dir" {
     commands  = ["init"]
-    arguments = ["-plugin-dir=${get_parent_terragrunt_dir()}/providers"]
+#    arguments = ["-plugin-dir=${get_parent_terragrunt_dir()}/providers"] # if you want to store in the project folder, but it is commmited to git unless added 
+    arguments = ["-plugin-dir=/root/.terraform.d/plugins"] # points to root home folder instead to avoid
   }
 }
 
