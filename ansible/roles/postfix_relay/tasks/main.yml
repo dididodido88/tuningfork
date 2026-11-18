@@ -25,6 +25,18 @@
     state: present
   tags: [postfix_relay]
 
+# Postfix ships with inet_protocols = all. On a host where IPv6 is disabled (linux_common),
+# every postconf command and Postfix itself then stop at start-up with "no local interface
+# found for ::1", because loopback-only includes ::1. So this one setting is written into
+# main.cf directly, before the first postconf call below. Same value as in vars/main.yml.
+- name: Postfix | Match the IP protocols to the host before running postconf
+  ansible.builtin.lineinfile:
+    path: /etc/postfix/main.cf
+    regexp: '^\s*inet_protocols\s*='
+    line: "inet_protocols = {{ postfix_relay_settings.inet_protocols }}"
+  notify: Postfix | Restart
+  tags: [postfix_relay]
+
 # Relay login. postmap builds the .db file Postfix reads.
 - name: Postfix | Write the relay login
   ansible.builtin.copy:

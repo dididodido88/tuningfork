@@ -21,8 +21,12 @@ the Postfix queue and is retried. The services that send it are never held up.
 2. Installs Postfix, the SASL plain-login module and the `s-nail` mail client.
 3. Writes the relay login to `/etc/postfix/sasl_passwd` (mode 0600) when a user name is set, or
    removes it when none is.
-4. Reads the current Postfix settings and changes only those that differ (`postconf -e`).
-5. Enables and starts Postfix. It listens on loopback only.
+4. Sets `inet_protocols` in `/etc/postfix/main.cf` to match the host: `ipv4` when IPv6 is
+   disabled (`linux_common_ipv6_enabled: false`, the default), `all` when it is enabled. This is
+   written to the file directly, because with IPv6 disabled and the Postfix default (`all`),
+   `postconf` itself fails with `no local interface found for ::1`.
+5. Reads the current Postfix settings and changes only those that differ (`postconf -e`).
+6. Enables and starts Postfix. It listens on loopback only.
 
 ## Variables
 
