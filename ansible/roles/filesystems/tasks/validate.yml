@@ -4,12 +4,37 @@
 # point (re-runs): one GPT partition, named after the volume, with the volume's
 # filesystem type, not mounted anywhere else.
 
+# Volumes come from every filesystems_volumes__* variable, often in different files (Terraform's
+# terraform_<unit>.yml, group_vars, host_vars), so the message names the variable each comes from.
 - name: Validate | No mount point or disk is listed twice
+  vars:
+    filesystems_dup_mounts: >-
+      {%- set seen = [] -%}{%- set dup = [] -%}
+      {%- for x in filesystems_volumes | map(attribute='mount') -%}
+      {%-   if x in seen and x not in dup -%}{%- set _ = dup.append(x) -%}{%- endif -%}
+      {%-   set _ = seen.append(x) -%}
+      {%- endfor -%}
+      {{ dup }}
+    filesystems_dup_disks: >-
+      {%- set seen = [] -%}{%- set dup = [] -%}
+      {%- for x in filesystems_volumes | map(attribute='disk') -%}
+      {%-   if x in seen and x not in dup -%}{%- set _ = dup.append(x) -%}{%- endif -%}
+      {%-   set _ = seen.append(x) -%}
+      {%- endfor -%}
+      {{ dup }}
   ansible.builtin.assert:
     that:
-      - filesystems_volumes | map(attribute='mount') | unique | length == filesystems_volumes | length
-      - filesystems_volumes | map(attribute='disk') | unique | length == filesystems_volumes | length
-    fail_msg: "A mount point or disk appears more than once: {{ filesystems_volumes | map(attribute='mount') | list }}"
+      - filesystems_dup_mounts | length == 0
+      - filesystems_dup_disks | length == 0
+    fail_msg: >-
+      {% if filesystems_dup_mounts | length > 0 %}Mount points listed more than once:
+      {{ filesystems_dup_mounts | join(', ') }}. {% endif %}{% if filesystems_dup_disks | length > 0 %}Disks
+      listed more than once: {{ filesystems_dup_disks | join(', ') }}. {% endif %}The volumes come from
+      {% for n in query('varnames', '^filesystems_volumes__.+') | sort %}{{ n }}
+      ({{ query('vars', n) | flatten | map(attribute='mount') | join(', ') }}){{ '; ' if not loop.last else '.' }}
+      {% endfor %}
+      Keep each volume in one of them. For a VM built by Terraform that is
+      filesystems_volumes__terraform (inventories/<ENV>/terraform_<unit>.yml): remove the others.
     quiet: true
 
 - name: Validate | Filesystem types are supported

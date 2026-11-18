@@ -185,7 +185,7 @@ Each option is added only while its `rhel9cis_rule_1_1_2_*` rule is enabled.
 | `both the directory and the filesystem hold data` | Two copies of the data exist. | See "How existing data is protected". |
 | `already has another filesystem mounted` | Something else is mounted on the mount point. | Unmount it, or remove the volume. |
 | `mount_opts ... cancel CIS options` | A volume's `mount_opts` contradicts a CIS option (for example `exec` on `/tmp`). | Remove the option, or disable the matching `rhel9cis_rule_1_1_2_*` rule. |
-| `A mount point or disk appears more than once` | The same volume is defined twice. | Usually a hand-written `host_vars` entry for a VM that Terraform now manages. Remove the hand-written one. |
+| `listed more than once` | The same volume is defined twice, often in two files under different variable names. The message lists every `filesystems_volumes__*` variable and its mount points. | Usually a hand-written `host_vars` entry for a VM that Terraform now manages. Keep `filesystems_volumes__terraform` and remove the hand-written one. |
 
 ## Good to know
 

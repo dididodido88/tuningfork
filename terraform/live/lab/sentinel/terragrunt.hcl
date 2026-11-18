@@ -1,12 +1,9 @@
 # lab: logging and observability VM (the SIEM: Wazuh, Prometheus, Grafana, log collectors).
-#   cd terraform/live/lab/siem && terragrunt plan
+#   cd terraform/live/lab/sentinel && terragrunt plan
 #
 # Sizing: terraform/_envcommon/roles/siem.hcl. Every field: terraform/modules/proxmox-vm/variables.tf.
-# Applying writes ansible/inventories/lab/terraform_siem.yml.
-#
-# A sentinel VM built by hand is defined in ansible/inventories/lab (hosts.yml and
-# host_vars/sentinel.lab.local.yml). Before this unit takes it over, remove both entries there,
-# or the host and its disks are defined twice.
+# Applying writes ansible/inventories/lab/terraform_sentinel.yml, which also lists the data disks.
+# Don't list this host or its disks by hand in ansible/inventories/lab as well.
 
 include "root" {
   path = find_in_parent_folders("root.hcl")

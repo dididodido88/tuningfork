@@ -156,7 +156,7 @@ on Windows).
 | The VM: Rocky 9, 8 cores, 16 GB RAM, five data disks on scsi1–scsi5 | **Terraform**: the unit `terraform/live/<ENV>/siem`, which also attaches the data disks and writes them into the inventory (`terraform/README.md`). **By hand** (lab): clone the Rocky 9 template as `sentinel`, then add the disks below in this order. |
 | DNS A record for `siem_server_name` | AD DNS, e.g. `sentinel.lab.local` → 192.168.70.74 |
 | Host certificate covering `siem_server_name` | `/srv/security/certificates/files/<certificates_env_dir>/<short name>/` on the control node (roles/certificates) |
-| Inventory | `hosts.yml`: the host in `rocky9` and `siem_servers`. A hand-built VM also needs its disks in `host_vars/<host>.yml` (lab: `host_vars/sentinel.lab.local.yml`). |
+| Inventory | `hosts.yml`: the host in `rocky9` and `siem_servers`. A hand-built VM also needs its disks in `host_vars/<host>.yml`. A Terraform-built VM (lab: `sentinel`) is listed in `terraform_siem.yml` or `terraform_sentinel.yml` instead, with its disks: don't list it or its disks by hand as well. |
 | Settings | `group_vars/all/siem.yml` (name, address, networks, email) and `group_vars/siem_servers.yml` |
 | Secrets | `ansible-vault edit inventories/<ENV>/group_vars/all/vault.yml`, see 3.2 |
 
