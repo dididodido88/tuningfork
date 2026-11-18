@@ -1,0 +1,45 @@
+---
+# Retire cloud-init after a VM's first boot. cloud-init only exists to set up a new clone
+# (host name, network, DNS); once that is done it is not needed. This role removes the account
+# it created and that account's sudo rule, then removes or disables cloud-init itself.
+# What it keeps, and why: README.md.
+#
+# Set per environment in inventories/<ENV>/group_vars/rocky9.yml (only to change the defaults).
+
+# remove:  uninstall cloud-init and delete its configuration and state (/etc/cloud,
+#          /var/lib/cloud).
+# disable: keep the package and its files, but stop it from running at boot
+#          (/etc/cloud/cloud-init.disabled). Easy to undo by deleting that file.
+cloud_init_cleanup_method: remove
+
+# Accounts cloud-init created that nobody uses. cloud-user is the default user of cloud-init
+# on Rocky and RHEL (default_user in /etc/cloud/cloud.cfg). The account Ansible connects as
+# and root can never be listed here.
+cloud_init_cleanup_users: [cloud-user]
+
+# Account Ansible connects as. Its sudo rule is put in /etc/sudoers.d/90-<account> (the same
+# file the Terraform bootstrap and roles/cis_safeguards write) before the cloud-init sudo rule
+# is deleted, so it keeps sudo even if cloud-init created it.
+cloud_init_cleanup_account: "{{ ansible_user | default('ansible') }}"
+
+# Packages uninstalled with cloud_init_cleanup_method: remove.
+cloud_init_cleanup_packages: [cloud-init]
+
+# Configuration and state deleted with cloud_init_cleanup_method: remove.
+cloud_init_cleanup_paths:
+  - /etc/cloud
+  - /var/lib/cloud
+  - /run/cloud-init
+
+# cloud-init writes the sshd setting PasswordAuthentication to 50-cloud-init.conf. The setting
+# is kept, moved into this file. 45 sorts after 40-sssd-ad.conf and before 50-redhat.conf, so
+# sshd reads the files in the same order as before and the result doesn't change.
+cloud_init_cleanup_sshd_dropin: /etc/ssh/sshd_config.d/45-tuningfork-auth.conf
+
+# How long to wait for a first boot that is still running cloud-init (seconds).
+cloud_init_cleanup_wait_timeout: 600
+
+# cloud-init reported an error during first boot: stop by default, because the host name or
+# network may not be what Terraform asked for. Set true for one run once you have checked the
+# host: -e cloud_init_cleanup_allow_errors=true
+cloud_init_cleanup_allow_errors: false

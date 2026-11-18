@@ -53,10 +53,11 @@ sssd_ad_shell: /bin/bash
 sssd_ad_cache_credentials: true
 
 # sshd: allow password and keyboard-interactive logins (checked by PAM/sssd against AD).
-# AD users have no SSH keys on the hosts, and cloud-init's 50-cloud-init.conf sets
+# AD users have no SSH keys on the hosts, and cloud-init's 50-cloud-init.conf (moved to
+# 45-tuningfork-auth.conf by roles/cloud_init_cleanup) sets
 # PasswordAuthentication no on cloned VMs. Keyboard-interactive also lets users change an
 # expired AD password at login. Written to /etc/ssh/sshd_config.d/40-sssd-ad.conf, which sshd
-# reads before 50-cloud-init.conf and 50-redhat.conf (the first value read wins).
+# reads before those files and 50-redhat.conf (the first value read wins).
 sssd_ad_ssh_password_auth: true
 
 # Kerberos fails when the clock is more than 5 minutes off the DCs. Stop before joining if

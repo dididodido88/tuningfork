@@ -1,0 +1,14 @@
+---
+# Retire cloud-init on every Rocky 9 host once it has done its job (first boot of a clone):
+# remove its default account (cloud-user) and that account's sudo rule, then uninstall or
+# disable cloud-init. Runs before CIS in site.yml, because the CIS lockout pre-check stops any
+# host where a local login account (such as cloud-user) would lose SSH access.
+# Settings: roles/cloud_init_cleanup/defaults/main.yml. Guide: roles/cloud_init_cleanup/README.md.
+
+- name: Retire cloud-init
+  hosts: rocky9
+  become: true
+  gather_facts: false
+  roles:
+    - role: cloud_init_cleanup
+      tags: [cloud_init_cleanup]

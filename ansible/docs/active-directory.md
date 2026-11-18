@@ -201,7 +201,7 @@ Run these on the host as root, in this order:
 
 | Check | Command | Expected / fix |
 |---|---|---|
-| sshd accepts passwords | `sshd -T \| grep -Ei 'passwordauthentication\|kbdinteractive\|usepam'` | `yes` for all. The role writes `/etc/ssh/sshd_config.d/40-sssd-ad.conf`. cloud-init's `50-cloud-init.conf` sets `PasswordAuthentication no`, and sshd keeps the first value it reads |
+| sshd accepts passwords | `sshd -T \| grep -Ei 'passwordauthentication\|kbdinteractive\|usepam'` | `yes` for all. The role writes `/etc/ssh/sshd_config.d/40-sssd-ad.conf`. cloud-init's `50-cloud-init.conf` (moved to `45-tuningfork-auth.conf` by `cloud_init_cleanup`) sets `PasswordAuthentication no`, and sshd keeps the first value it reads |
 | User allowed by sshd | `sshd -T \| grep allowgroups` | Includes the user's AD group. If not, rerun `playbooks/cis_rhel9.yml` (it builds `AllowGroups` from the `sssd_ad_*` groups). journal: `not allowed because none of user's groups are listed in AllowGroups` |
 | User is a POSIX user | `getent passwd jdoe; id jdoe` | A line with uid ≥ 1000000. If empty: `uidNumber`/`gidNumber` missing or below `min_id` (section 3) |
 | User in an allowed group | `id jdoe` | Lists `sg-all-users`, `sg-lab-admins` (or the bastion's extra group). Otherwise add the user in AD, then `sss_cache -E` |

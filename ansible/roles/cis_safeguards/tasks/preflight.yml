@@ -91,6 +91,8 @@
       These local users are in none of {{ cis_safeguards_ssh_allow_groups }} and would lose SSH
       access: {{ cis_safeguards_ssh_locked_out }}. Add them to an allowed group, or
       list them in cis_safeguards_ssh_user_exceptions if that is intended.
+      {% if 'cloud-user' in cis_safeguards_ssh_locked_out.split(', ') %}cloud-user is the account
+      cloud-init creates: run playbooks/cloud_init_cleanup.yml first (site.yml does).{% endif %}
     quiet: true
   when: cis_safeguards_fail_on_unlisted_ssh_users | bool
 

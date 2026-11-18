@@ -1,0 +1,201 @@
+---
+# Order matters: the account Ansible uses gets its own sudo rule before the cloud-init one is
+# deleted, and the last task proves a new SSH login and sudo still work.
+#
+# Kept on purpose: everything cloud-init wrote that the host now runs on - the network
+# connection (NetworkManager or ifcfg files), /etc/resolv.conf, /etc/hostname, /etc/hosts -
+# and its logs (/var/log/cloud-init*.log). See README.md.
+
+- name: Cloud-init | Retire cloud-init
+  tags: [cloud_init_cleanup]
+  block:
+    # --- Pre-checks: nothing is changed until these pass ------------------------------------
+    - name: Cloud-init | Check the settings
+      ansible.builtin.assert:
+        that:
+          - cloud_init_cleanup_method in ['remove', 'disable']
+          - cloud_init_cleanup_account | length > 0
+          - cloud_init_cleanup_account != 'root'
+          - cloud_init_cleanup_account not in cloud_init_cleanup_users
+          - "'root' not in cloud_init_cleanup_users"
+        fail_msg: >-
+          cloud_init_cleanup_method must be remove or disable, and cloud_init_cleanup_users must not
+          include root or the account Ansible connects as ({{ cloud_init_cleanup_account }}):
+          removing it would end Ansible's access to the host.
+        quiet: true
+
+    - name: Cloud-init | Look for the cloud-init command
+      ansible.builtin.stat:
+        path: /usr/bin/cloud-init
+        get_checksum: false
+      register: cloud_init_cleanup_binary
+
+    # Present after an earlier run with cloud_init_cleanup_method: disable.
+    - name: Cloud-init | Look for the disabled marker
+      ansible.builtin.stat:
+        path: /etc/cloud/cloud-init.disabled
+        get_checksum: false
+      register: cloud_init_cleanup_disabled_marker
+
+    # A clone still in its first boot must finish first, or the network may be half set up.
+    # rc 0: done. rc 1: error. rc 2: done with recoverable errors. rc 124: still running.
+    - name: Cloud-init | Wait for the first boot to finish
+      ansible.builtin.command:
+        argv: [timeout, "{{ cloud_init_cleanup_wait_timeout }}", /usr/bin/cloud-init, status, --wait, --long]
+      register: cloud_init_cleanup_status
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      when:
+        - cloud_init_cleanup_binary.stat.exists
+        - not cloud_init_cleanup_disabled_marker.stat.exists
+
+    - name: Cloud-init | Stop if the first boot didn't finish cleanly
+      ansible.builtin.fail:
+        msg: >-
+          cloud-init {{ 'is still running after ' ~ cloud_init_cleanup_wait_timeout ~ ' seconds'
+          if cloud_init_cleanup_status.rc == 124 else 'reported an error' }} on {{ inventory_hostname }},
+          so the host name, network or DNS may not be what Terraform asked for. Nothing was changed.
+          Check /var/log/cloud-init.log, 'hostnamectl' and 'nmcli connection show'. When the host is
+          right, run once with -e cloud_init_cleanup_allow_errors=true.
+          cloud-init said: {{ cloud_init_cleanup_status.stdout_lines | default([]) | join(' | ') }}
+      when:
+        - cloud_init_cleanup_status is not skipped
+        - cloud_init_cleanup_status.rc not in [0, 2]
+        - not (cloud_init_cleanup_status.rc == 1 and cloud_init_cleanup_allow_errors | bool)
+
+    # --- Keep the Ansible account's sudo --------------------------------------------------------
+    # Same file and content as the Terraform bootstrap and roles/cis_safeguards (so CIS 5.2.4
+    # leaves it alone). Written before 90-cloud-init-users is deleted, in case cloud-init created
+    # this account and that file is where its sudo rule is.
+    - name: Cloud-init | Give the Ansible account its own sudoers drop-in
+      ansible.builtin.copy:
+        content: "{{ cloud_init_cleanup_account }} ALL=(ALL) NOPASSWD: ALL\n"
+        dest: /etc/sudoers.d/90-{{ cloud_init_cleanup_account | regex_replace('[^A-Za-z0-9_-]', '_') }}
+        owner: root
+        group: root
+        mode: "0440"
+        validate: /usr/sbin/visudo -cf %s
+
+    # --- The cloud-init account and its sudo rule -----------------------------------------------
+    - name: Cloud-init | Read the sudo rules cloud-init wrote
+      ansible.builtin.slurp:
+        src: /etc/sudoers.d/90-cloud-init-users
+      register: cloud_init_cleanup_sudoers
+      failed_when: false
+
+    # Accounts in that file other than the ones being removed lose the sudo rule it gave them.
+    - name: Cloud-init | Report other accounts that lose their cloud-init sudo rule
+      ansible.builtin.debug:
+        msg: >-
+          /etc/sudoers.d/90-cloud-init-users also gives sudo to {{ cloud_init_cleanup_other_sudo | join(', ') }}.
+          The file is deleted, so they keep their accounts but lose that sudo rule. Give them a
+          sudoers drop-in of their own if they need it.
+      when: cloud_init_cleanup_other_sudo | length > 0
+      vars:
+        cloud_init_cleanup_other_sudo: >-
+          {{ (cloud_init_cleanup_sudoers.content | default('') | b64decode).splitlines()
+             | reject('match', '^\s*(#|$)') | map('split') | map('first') | unique
+             | difference(cloud_init_cleanup_users + [cloud_init_cleanup_account]) | list }}
+
+    - name: Cloud-init | Remove the accounts cloud-init created
+      ansible.builtin.user:
+        name: "{{ item }}"
+        state: absent
+        remove: true
+      loop: "{{ cloud_init_cleanup_users }}"
+
+    - name: Cloud-init | Remove the sudo rules cloud-init wrote
+      ansible.builtin.file:
+        path: /etc/sudoers.d/90-cloud-init-users
+        state: absent
+
+    # --- sshd: keep the setting, drop the file cloud-init owns --------------------------------
+    - name: Cloud-init | Look for the sshd drop-in cloud-init wrote
+      ansible.builtin.stat:
+        path: /etc/ssh/sshd_config.d/50-cloud-init.conf
+        get_checksum: false
+      register: cloud_init_cleanup_sshd_old
+
+    - name: Cloud-init | Move the sshd settings out of the cloud-init drop-in
+      when: cloud_init_cleanup_sshd_old.stat.exists
+      block:
+        - name: Cloud-init | Read the effective sshd authentication settings (before)
+          ansible.builtin.shell: |
+            set -o pipefail
+            /usr/sbin/sshd -T | grep -Ei '^(passwordauthentication|kbdinteractiveauthentication|pubkeyauthentication|permitrootlogin|usepam) ' | sort
+          register: cloud_init_cleanup_sshd_before
+          changed_when: false
+          check_mode: false
+
+        - name: Cloud-init | Copy the settings to a drop-in that cloud-init doesn't own
+          ansible.builtin.copy:
+            src: /etc/ssh/sshd_config.d/50-cloud-init.conf
+            dest: "{{ cloud_init_cleanup_sshd_dropin }}"
+            remote_src: true
+            owner: root
+            group: root
+            mode: "0600"
+            validate: /usr/sbin/sshd -t -f %s
+
+        - name: Cloud-init | Remove the cloud-init sshd drop-in
+          ansible.builtin.file:
+            path: /etc/ssh/sshd_config.d/50-cloud-init.conf
+            state: absent
+
+        - name: Cloud-init | Read the effective sshd authentication settings (after)
+          ansible.builtin.shell: |
+            set -o pipefail
+            /usr/sbin/sshd -T | grep -Ei '^(passwordauthentication|kbdinteractiveauthentication|pubkeyauthentication|permitrootlogin|usepam) ' | sort
+          register: cloud_init_cleanup_sshd_after
+          changed_when: false
+          check_mode: false
+
+        - name: Cloud-init | Check the sshd settings didn't change
+          ansible.builtin.assert:
+            that: cloud_init_cleanup_sshd_after.stdout == cloud_init_cleanup_sshd_before.stdout
+            fail_msg: >-
+              Moving 50-cloud-init.conf to {{ cloud_init_cleanup_sshd_dropin }} changed the effective sshd
+              settings. Before: {{ cloud_init_cleanup_sshd_before.stdout_lines }}.
+              After: {{ cloud_init_cleanup_sshd_after.stdout_lines }}. sshd has not been restarted, so
+              current sessions are unaffected; fix the drop-ins before sshd restarts.
+            quiet: true
+
+    # --- cloud-init itself --------------------------------------------------------------------
+    # disablerepo: removing a package needs no repository, so this works without the mirror.
+    - name: Cloud-init | Uninstall cloud-init
+      ansible.builtin.dnf:
+        name: "{{ cloud_init_cleanup_packages }}"
+        state: absent
+        disablerepo: "*"
+      when: cloud_init_cleanup_method == 'remove'
+
+    - name: Cloud-init | Delete its configuration and state
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop: "{{ cloud_init_cleanup_paths }}"
+      when: cloud_init_cleanup_method == 'remove'
+
+    # cloud-init checks for this file at boot and does nothing while it exists.
+    - name: Cloud-init | Disable cloud-init at boot
+      ansible.builtin.copy:
+        content: "# Written by Ansible (roles/cloud_init_cleanup). Delete this file to turn cloud-init back on.\n"
+        dest: /etc/cloud/cloud-init.disabled
+        owner: root
+        group: root
+        mode: "0644"
+      when:
+        - cloud_init_cleanup_method == 'disable'
+        - cloud_init_cleanup_binary.stat.exists
+
+    # --- Verify: the next connection still works ------------------------------------------------
+    - name: Cloud-init | Drop the existing connection
+      ansible.builtin.meta: reset_connection
+
+    - name: Cloud-init | Check a new SSH login and sudo still work
+      ansible.builtin.command: id -u
+      register: cloud_init_cleanup_become_check
+      changed_when: false
+      check_mode: false
+      failed_when: cloud_init_cleanup_become_check.stdout | trim != '0'

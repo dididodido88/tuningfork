@@ -6,13 +6,14 @@ and collection it needs is vendored in this repository.
 
 ## Layers
 
-After three preparation steps, each host gets three layers, and the SIEM VM a fourth. `playbooks/site.yml` applies them in this order:
+After four preparation steps, each host gets three layers, and the SIEM VM a fourth. `playbooks/site.yml` applies them in this order:
 
 | Layer | What | Applies to | Playbook | Role(s) |
 |---|---|---|---|---|
 | Prep: Certificates | Root CA in the trust store; host certificate, key, p12, full chain | `rocky9` | `certificates.yml` | `certificates` |
 | Prep: Repositories | DNF repos on the internal mirror + GPG keys | `rocky9` | `repositories.yml` | `repositories` |
 | Prep: Data disks | Partition, format and mount blank disks by UUID | `linux` | `filesystems.yml` | `filesystems` |
+| Prep: Retire cloud-init | Remove `cloud-user` and its sudo rule; uninstall or disable cloud-init (only needed for first boot) | `rocky9` | `cloud_init_cleanup.yml` | `cloud_init_cleanup` |
 | 1. Hardening | CIS RHEL 9 benchmark (ansible-lockdown) | `rocky9` | `cis_rhel9.yml` | `RHEL9-CIS` (vendored) |
 | 2. Common OS | Settings every host of an OS family gets | `linux`, `windows`, `windows_server`, `windows_desktop` | `linux_common.yml`, `windows_common.yml` | `linux_common`, `windows_common`, `windows_server_common`, `windows_desktop_common` |
 | 2. CLI tools | btop, htop, jq, yq, tree, ripgrep, fd, bat, SELinux utilities (semanage, audit2allow) | `rocky9` | `cli_tools.yml` | `cli_tools` |
@@ -164,7 +165,7 @@ If the mirror lacks a package (e.g. EPEL isn't synced), the play fails and names
 - **IDs:** POSIX IDs come from `uidNumber`/`gidNumber` in AD.
 - **SSH:** the AD groups are added to sshd `AllowGroups` through `cis_safeguards_ssh_allow_groups` (rerun
   `cis_rhel9.yml` after turning AD on or changing groups). `/etc/ssh/sshd_config.d/40-sssd-ad.conf` allows password
-  logins (`sssd_ad_ssh_password_auth`), overriding cloud-init's `PasswordAuthentication no`.
+  logins (`sssd_ad_ssh_password_auth`), overriding the `PasswordAuthentication no` cloud-init wrote.
 - **Checks:** clock offset before joining; PAM/NSS use sssd; sshd accepts password logins; optional
   `sssd_ad_test_user` resolves and passes the PAM account check.
 - **sudo:** `sssd_ad_admin_groups` get `/etc/sudoers.d/50-ad-admins` (password required).
@@ -334,6 +335,7 @@ roles/
   certificates/              root CA trust + pre-generated host certificates (files on the control node)
   repositories/              DNF repositories on the internal mirror, GPG keys
   filesystems/               data disks: GPT partition, mkfs, data migration, mount by UUID
+  cloud_init_cleanup/        after first boot: remove cloud-user and its sudo rule, uninstall or disable cloud-init
   linux_common/              all Linux
   cli_tools/                 common CLI tools (btop, htop, jq, yq, tree, ripgrep, fd, bat) + SELinux utilities
   sssd_ad/                   Active Directory join + sssd (AD and local logins, SSH/sudo groups)
@@ -366,6 +368,7 @@ and an example.
 | [certificates](roles/certificates/README.md) | Root CA trust and pre-generated host certificates | `rocky9` |
 | [repositories](roles/repositories/README.md) | DNF repositories on the internal mirror, GPG keys | `rocky9` |
 | [filesystems](roles/filesystems/README.md) | Data disks: partition, format, migrate, mount by UUID | `linux` |
+| [cloud_init_cleanup](roles/cloud_init_cleanup/README.md) | Retire cloud-init after first boot | `rocky9` |
 | [cis_safeguards](roles/cis_safeguards/README.md) | Lockout pre-checks and post-checks around CIS | `rocky9` |
 | [RHEL9-CIS](roles/RHEL9-CIS/README.md) | CIS RHEL 9 benchmark (vendored, see `VENDORED.md`) | `rocky9` |
 | [linux_common](roles/linux_common/README.md) | NTP, login banners, IPv6, journald | `linux` |
@@ -425,7 +428,7 @@ ansible-playbook -i inventories/CRGS00 playbooks/site.yml --tags journald
 ansible-playbook -i inventories/CRGS01 playbooks/site.yml --limit nfs_servers
 ```
 
-Every role has a tag with its own name: `certificates`, `repositories`, `filesystems`, `linux_common`, `cli_tools`,
+Every role has a tag with its own name: `certificates`, `repositories`, `filesystems`, `cloud_init_cleanup`, `linux_common`, `cli_tools`,
 `sssd_ad`, `windows_common`, `nfs_server`, `database_server`, `harbor`, `kubectl`, `k8s_bastion`, `postfix_relay`,
 `wazuh_server`, `siem_artifacts`. The CIS role uses `cis`, plus a tag per rule (e.g. `rule_5.1.1`) and per level
 (`level1-server`).

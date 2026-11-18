@@ -130,6 +130,18 @@ The bootstrap runs once per VM, and again only if the VM is replaced. After the 
 root can no longer log in over SSH, and Terraform no longer needs it. Rotate the Ansible keys on
 running hosts with Ansible, not here.
 
+### After the first Ansible run: cloud-init is gone
+
+cloud-init is only needed for the first boot. The first `site.yml` run retires it
+(`ansible/roles/cloud_init_cleanup`): it removes `cloud-user`, the account cloud-init creates, and
+uninstalls cloud-init (or disables it). The network, host name and DNS it set stay in place.
+
+From then on, **Terraform's network settings no longer reach the VM.** Changing `ipv4_cidr`,
+`ipv4_gateway`, `dns_servers` or `dns_domain` only updates the cloud-init drive in Proxmox, which
+nothing reads. The generated inventory does change, so Ansible would then try the new address and
+fail. To change a VM's address, change it on the host first (`nmcli connection modify ...`), then
+in Terraform, then apply.
+
 ## Usage
 
 ```sh
@@ -205,7 +217,7 @@ inputs = {
       datastore_id   = "uxt-san-vol2"       # all of this VM's disks on another storage volume
       network_bridge = "vmbr3"              # another bridge
       vlan_id        = 120                  # a VLAN tag
-      ipv4_gateway   = "192.168.71.254"     # another gateway
+      ipv4_gateway   = "192.168.71.254"     # another gateway (network settings: new VMs only, see "After the first Ansible run")
       vm_id          = 2071                 # a fixed VM ID
     })
   }
