@@ -18,7 +18,7 @@ siem_admin_networks:
 # Services on the SIEM VM send mail to the local Postfix relay (roles/postfix_relay), which
 # forwards it to this SMTP server. While the relay is unset or unreachable, mail waits in the
 # Postfix queue (up to postfix_relay_queue_lifetime); nothing else is held up.
-siem_mail_relay_host: ""                # CHANGEME: SMTP server, e.g. smtp.lab.local
+siem_mail_relay_host: "smtp.lab.local"                # CHANGEME: SMTP server, e.g. smtp.lab.local
 siem_mail_relay_port: 25
 # none: plain SMTP; may: STARTTLS when offered; encrypt: STARTTLS required (certificate checked
 # against the system trust store, which holds the internal CA).
