@@ -1,0 +1,72 @@
+---
+- name: Node exporter | Download and check the release
+  ansible.builtin.include_role:
+    name: siem_artifacts
+  vars:
+    siem_artifacts_required: [node_exporter]
+  tags: [node_exporter]
+
+- name: Node exporter | Install the binary
+  ansible.builtin.include_role:
+    name: siem_artifacts
+    tasks_from: install_binaries
+  vars:
+    siem_install_key: node_exporter
+    siem_install_binaries: [node_exporter]
+  tags: [node_exporter]
+
+- name: Node exporter | Restart after a new binary
+  ansible.builtin.debug:
+    msg: node_exporter binary replaced
+  changed_when: siem_install_changed | bool
+  when: siem_install_changed | bool
+  notify: Node exporter | Restart
+  tags: [node_exporter]
+
+- name: Node exporter | Create the service user
+  ansible.builtin.user:
+    name: "{{ node_exporter_user }}"
+    system: true
+    shell: /sbin/nologin
+    home: /nonexistent
+    create_home: false
+  tags: [node_exporter]
+
+# Writable by root (the roles that write metrics), readable by node_exporter.
+- name: Node exporter | Create the textfile folder
+  ansible.builtin.file:
+    path: "{{ node_exporter_textfile_dir }}"
+    state: directory
+    owner: root
+    group: "{{ node_exporter_user }}"
+    mode: "0755"
+  tags: [node_exporter]
+
+- name: Node exporter | Install the service
+  ansible.builtin.template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Node exporter | Restart
+  tags: [node_exporter]
+
+- name: Node exporter | Start and enable
+  ansible.builtin.systemd:
+    name: node_exporter
+    enabled: true
+    state: started
+    daemon_reload: true
+  tags: [node_exporter]
+
+- name: Node exporter | Allow the SIEM VM through the firewall
+  ansible.posix.firewalld:
+    zone: "{{ node_exporter_firewall_zone }}"
+    rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="{{ node_exporter_port }}" protocol="tcp" accept'
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ node_exporter_scrapers }}"
+  when: node_exporter_manage_firewall | bool
+  tags: [node_exporter, firewall]

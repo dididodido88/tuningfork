@@ -1,0 +1,28 @@
+# {{ ansible_managed }} (roles/alertmanager)
+global:
+  smtp_smarthost: {{ alertmanager_smarthost }}
+  smtp_from: {{ alertmanager_email_from }}
+  # Local Postfix on loopback: no TLS or login between Alertmanager and the relay.
+  smtp_require_tls: false
+
+route:
+  receiver: {{ 'email' if alertmanager_email_to | length > 0 else 'none' }}
+  group_by: {{ alertmanager_group_by | to_json }}
+  group_wait: {{ alertmanager_group_wait }}
+  group_interval: {{ alertmanager_group_interval }}
+  repeat_interval: {{ alertmanager_repeat_interval }}
+
+receivers:
+  - name: none
+{% if alertmanager_email_to | length > 0 %}
+  - name: email
+    email_configs:
+      - to: "{{ alertmanager_email_to | join(', ') }}"
+        send_resolved: true
+{% endif %}
+
+# A host that is down raises TargetDown; its other alerts would only repeat it.
+inhibit_rules:
+  - source_matchers: [alertname = TargetDown]
+    target_matchers: [alertname != TargetDown]
+    equal: [instance]

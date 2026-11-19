@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  author: tuningfork
+  description: Prometheus on the SIEM VM from the checked release tarball, targets from the inventory
+  license: proprietary
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+dependencies: []

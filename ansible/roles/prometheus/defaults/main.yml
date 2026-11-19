@@ -1,0 +1,19 @@
+---
+# Prometheus on the SIEM VM, from the checked release tarball (siem_versions.yml). Scrape jobs
+# are built from the inventory; alerts go to the local Alertmanager. Guide: docs/siem.md.
+
+# Local only: administrators look at metrics through Grafana.
+prometheus_listen_address: 127.0.0.1:9090
+
+# Time series on the SIEM VM's /var/lib/prometheus data disk. Data is deleted when either
+# limit is reached; keep the size below the disk size (group_vars/siem_servers.yml).
+prometheus_data_dir: /var/lib/prometheus
+prometheus_retention_time: 90d
+prometheus_retention_size: 30GB
+
+prometheus_scrape_interval: 60s
+prometheus_evaluation_interval: 60s
+
+prometheus_alertmanager: 127.0.0.1:9093
+
+prometheus_user: prometheus

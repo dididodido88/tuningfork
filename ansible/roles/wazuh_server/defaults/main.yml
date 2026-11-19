@@ -64,6 +64,13 @@ wazuh_server_vd_feed_path: /var/ossec/var/offline/vd-feed.zip
 # The server API listens on this address only (the dashboard reaches it on 127.0.0.1).
 wazuh_server_api_host: 127.0.0.1
 
+# Other log files the manager reads on this host (log_format: syslog unless given). The received
+# syslog (roles/syslog_receiver) and SNMP traps (roles/snmp_trap_receiver) are under
+# /var/log/remote.
+wazuh_server_localfiles:
+  - location: /var/log/remote/*/*.log
+    log_format: syslog
+
 # --- Dashboard --------------------------------------------------------------------------------
 # https://<siem_server_name>/ with the host certificate from roles/certificates, so browsers
 # that trust the internal CA trust the dashboard. The certificate must cover siem_server_name.

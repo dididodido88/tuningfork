@@ -1,0 +1,50 @@
+---
+# Unpack a checked release tarball and install its binaries into /usr/local/bin (labelled bin_t
+# by SELinux). Run after the role's main tasks have downloaded and checked the artifact.
+#
+#   - ansible.builtin.include_role:
+#       name: siem_artifacts
+#       tasks_from: install_binaries
+#     vars:
+#       siem_install_key: prometheus             # key in siem_artifacts
+#       siem_install_binaries: [prometheus, promtool]
+#
+# Sets siem_install_changed (true when a binary was installed or replaced), for the caller to
+# restart its service.
+
+- name: Artifacts | Create the unpack folder
+  ansible.builtin.file:
+    path: "{{ siem_artifacts_unpack_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# The tarball holds one top folder named like the file (prometheus-3.15.1.linux-amd64/).
+- name: Artifacts | Unpack {{ siem_install_key }}
+  ansible.builtin.unarchive:
+    src: "{{ siem_artifact_paths[siem_install_key] }}"
+    dest: "{{ siem_artifacts_unpack_dir }}"
+    remote_src: true
+    owner: root
+    group: root
+    creates: "{{ siem_install_src_dir }}/{{ siem_install_binaries | first }}"
+  vars:
+    siem_install_src_dir: "{{ siem_artifacts_unpack_dir }}/{{ siem_artifact_paths[siem_install_key] | basename | replace('.tar.gz', '') }}"
+
+- name: Artifacts | Install the {{ siem_install_key }} binaries
+  ansible.builtin.copy:
+    src: "{{ siem_install_src_dir }}/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0755"
+  loop: "{{ siem_install_binaries }}"
+  register: siem_install_copy
+  vars:
+    siem_install_src_dir: "{{ siem_artifacts_unpack_dir }}/{{ siem_artifact_paths[siem_install_key] | basename | replace('.tar.gz', '') }}"
+
+- name: Artifacts | Record whether the binaries changed
+  ansible.builtin.set_fact:
+    siem_install_changed: "{{ siem_install_copy is changed }}"

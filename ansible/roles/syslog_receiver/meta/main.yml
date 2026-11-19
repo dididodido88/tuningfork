@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  author: tuningfork
+  description: rsyslog receiver on the SIEM VM, one file per sender and program for Wazuh
+  license: proprietary
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+dependencies: []

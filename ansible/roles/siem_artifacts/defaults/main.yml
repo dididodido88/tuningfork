@@ -19,3 +19,6 @@ siem_artifacts_windows_cache_dir: 'C:\ProgramData\Tuningfork\siem'
 
 # Windows path separator (a variable, so templates don't need backslash escapes).
 siem_artifacts_win_sep: '\'
+
+# Release tarballs are unpacked here (tasks/install_binaries.yml); binaries go to /usr/local/bin.
+siem_artifacts_unpack_dir: /usr/local/lib/tuningfork

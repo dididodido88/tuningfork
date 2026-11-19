@@ -1,0 +1,5 @@
+---
+# Dell iDRAC 9 controllers. Ansible doesn't log in to them: tasks run on the control node and
+# talk to each iDRAC's Redfish API (roles/idrac_config, docs/siem.md).
+ansible_connection: local
+ansible_python_interpreter: "{{ ansible_playbook_python }}"

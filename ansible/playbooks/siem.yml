@@ -11,3 +11,18 @@
 
 - name: Wazuh central components
   ansible.builtin.import_playbook: wazuh_server.yml
+
+- name: Syslog receiver
+  ansible.builtin.import_playbook: syslog_receiver.yml
+
+- name: SNMP trap receiver
+  ansible.builtin.import_playbook: snmp_trap_receiver.yml
+
+- name: Node exporter
+  ansible.builtin.import_playbook: node_exporter.yml
+
+- name: Alertmanager
+  ansible.builtin.import_playbook: alertmanager.yml
+
+- name: Prometheus
+  ansible.builtin.import_playbook: prometheus.yml
