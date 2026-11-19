@@ -8,8 +8,9 @@
 #
 # Installation runs once. A host where the components are already installed at wazuh_version
 # is left alone; a partial installation or another version stops the play (an upgrade is a
-# separate procedure: docs/siem.md, "Updating a version"). This role never passes the
-# installer's -o (overwrite), which erases all Wazuh data.
+# separate procedure: docs/siem.md, "Updating a version"). The installer's -o (overwrite)
+# erases all Wazuh data: it is passed only on a host with no Wazuh package whose Wazuh folders
+# are empty (the data-disk mount points), where the installer needs it and there is nothing to erase.
 
 # Artifacts this role needs (keys of siem_artifacts in siem_versions.yml).
 wazuh_server_artifacts: [wazuh_install_script, wazuh_offline, wazuh_passwords_tool]
@@ -21,8 +22,9 @@ wazuh_server_work_dir: /var/lib/tuningfork/wazuh
 # Seconds the installation may take before the play gives up on it.
 wazuh_server_install_timeout: 3600
 
-# Packages the offline installer expects to find already installed (from the mirrored Rocky repos).
-wazuh_server_prerequisites: [tar, coreutils, curl, libcap, openssl, lsof, procps-ng, gnupg2]
+# Packages the offline installer expects to find already installed (from the mirrored Rocky repos);
+# its own lists, minus curl: Rocky 9 has curl-minimal, which the installer accepts.
+wazuh_server_prerequisites: [tar, coreutils, grep, sed, gawk, procps-ng, libcap, gnupg2, openssl, lsof]
 
 # Wazuh indexer JVM heap (-Xms and -Xmx), e.g. 4g. At most half the RAM, as the manager, the
 # dashboard and the monitoring stack share the VM.

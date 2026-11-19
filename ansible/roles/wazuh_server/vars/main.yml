@@ -10,3 +10,17 @@ wazuh_server_install_files_tar: "{{ wazuh_server_work_dir }}/wazuh-install-files
 # The central components and their systemd units.
 wazuh_server_packages: [wazuh-manager, wazuh-indexer, wazuh-dashboard]
 wazuh_server_services: [wazuh-indexer, wazuh-manager, filebeat, wazuh-dashboard]
+
+# Folders the installer treats as an earlier installation when they exist (its "remaining files"
+# checks), even empty. /var/ossec and /var/lib/wazuh-indexer are data-disk mount points.
+wazuh_server_install_dirs:
+  - /var/ossec
+  - /var/lib/wazuh-indexer
+  - /usr/share/wazuh-indexer
+  - /etc/wazuh-indexer
+  - /var/lib/filebeat
+  - /usr/share/filebeat
+  - /etc/filebeat
+  - /var/lib/wazuh-dashboard
+  - /usr/share/wazuh-dashboard
+  - /etc/wazuh-dashboard

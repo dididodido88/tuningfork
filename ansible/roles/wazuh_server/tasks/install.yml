@@ -50,11 +50,45 @@
   loop_control:
     label: "{{ item.name }}"
 
+# The installer refuses to run while any of its folders exists, even empty, and the data-disk
+# mount points always exist. Its -o then only runs rm -rf on those folders. So -o is passed
+# only on a host with no Wazuh package and nothing in those folders (lost+found aside): there
+# is no data for it to erase. Anything found there stops the play instead.
+- name: Wazuh | Find the installer's folders that exist
+  ansible.builtin.command:
+    argv: "{{ ['find'] + wazuh_server_install_dirs + ['-maxdepth', '0', '-type', 'd'] }}"
+  register: wazuh_server_dirs_present
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: wazuh_server_installed | length == 0
+
+- name: Wazuh | Look for files in those folders
+  ansible.builtin.command:
+    argv: "{{ ['find'] + wazuh_server_dirs_present.stdout_lines + ['-mindepth', '1', '-maxdepth', '1', '!', '-name', 'lost+found'] }}"
+  register: wazuh_server_dirs_content
+  changed_when: false
+  check_mode: false
+  when:
+    - wazuh_server_installed | length == 0
+    - wazuh_server_dirs_present.stdout_lines | default([]) | length > 0
+
+- name: Wazuh | Stop if a folder holds files from an earlier installation
+  ansible.builtin.assert:
+    that: wazuh_server_dirs_content.stdout_lines | default([]) | length == 0
+    fail_msg: >-
+      No Wazuh package is installed, but these exist: {{ wazuh_server_dirs_content.stdout_lines[:20] }}.
+      The installer would erase them. Check them, move or delete them by hand, and run again.
+    quiet: true
+  when: wazuh_server_installed | length == 0
+
 # The installer's summary prints the generated admin password, so the output is hidden; on failure
 # the next task shows its last lines without any password line. Full log: /var/log/wazuh-install.log.
 - name: Wazuh | Run the offline all-in-one installation (takes several minutes)
   ansible.builtin.command:
-    argv: [bash, wazuh-install.sh, --offline-installation, --all-in-one]
+    argv: >-
+      {{ ['bash', 'wazuh-install.sh', '--offline-installation', '--all-in-one']
+         + (['--overwrite'] if wazuh_server_dirs_present.stdout_lines | default([]) | length > 0 else []) }}
     chdir: "{{ wazuh_server_work_dir }}"
   async: "{{ wazuh_server_install_timeout }}"
   poll: 30
