@@ -1,0 +1,20 @@
+---
+# Alertmanager on the SIEM VM, from the checked release tarball (siem_versions.yml). It emails
+# Prometheus alerts through the local Postfix relay (best effort: if mail can't be delivered,
+# alerts stay visible in Grafana and Alertmanager). Guide: docs/siem.md.
+
+alertmanager_listen_address: 127.0.0.1:9093
+alertmanager_data_dir: /var/lib/alertmanager
+
+# Email (empty recipient list: no email, alerts only on the dashboards).
+alertmanager_email_to: "{{ siem_mail_to | default([]) }}"
+alertmanager_email_from: "{{ siem_mail_from | default('alertmanager@' ~ env_domain) }}"
+alertmanager_smarthost: localhost:25
+
+# Grouping and repetition.
+alertmanager_group_by: [alertname, instance]
+alertmanager_group_wait: 30s
+alertmanager_group_interval: 5m
+alertmanager_repeat_interval: 4h
+
+alertmanager_user: alertmanager

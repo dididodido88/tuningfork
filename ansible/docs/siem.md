@@ -213,6 +213,29 @@ minutes; its full log is `/var/log/wazuh-install.log` on the SIEM VM (root only)
 - Mail: `echo test | mail -s "SIEM mail test" <recipient>`, then `postqueue -p`. While no relay is set, or the
   relay is down, the message waits in the queue; nothing else is affected.
 
+### 3.5 Collectors on the SIEM VM
+
+| Component | Listens on | Who may connect (firewalld) | Writes to |
+|---|---|---|---|
+| rsyslog receiver | 514/udp, 514/tcp | `siem_log_senders`: the `proxmox_hosts` and `idrac` groups, plus `siem_log_senders_extra` | `/var/log/remote/<sender IP>/<program>.log` (kept 30 days) |
+| snmptrapd | 162/udp | `siem_trap_senders`: the `idrac` group, plus `siem_log_senders_extra`; SNMPv3 users in `siem_snmp_trap_users` only | `/var/log/remote/snmptrapd/traps.log` |
+| node_exporter | 127.0.0.1:9100 | local | |
+| Prometheus | 127.0.0.1:9090 | local (viewed through Grafana) | `/var/lib/prometheus` (90 days or `prometheus_retention_size`) |
+| Alertmanager | 127.0.0.1:9093 | local | email through Postfix to `siem_mail_to` |
+
+The Wazuh manager reads every file under `/var/log/remote` (`wazuh_server_localfiles`). The SIEM VM is the
+environment's log host, so the CIS control "Ensure only one logging system is in use" is off for
+`siem_servers` (`playbooks/group_vars/siem_servers.yml`): it would stop rsyslog on every run.
+
+Check from the SIEM VM:
+
+```sh
+systemctl is-active rsyslog snmptrapd node_exporter prometheus alertmanager
+curl -s 127.0.0.1:9090/api/v1/targets | grep -o '"health":"[a-z]*"' | sort | uniq -c
+logger -n 127.0.0.1 -P 514 -d -t tuningfork-test "syslog receiver test"   # from a sender: -n <SIEM VM>
+ls /var/log/remote/
+```
+
 ---
 
 ## 4. Writing rules

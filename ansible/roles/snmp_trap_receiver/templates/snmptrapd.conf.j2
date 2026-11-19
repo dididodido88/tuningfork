@@ -1,0 +1,11 @@
+# {{ ansible_managed }} (roles/snmp_trap_receiver)
+# SNMPv3 traps only, from the users below; anything else is dropped (no communities, no
+# unauthenticated traps).
+disableAuthorization no
+
+{% for u in snmp_trap_receiver_users %}
+createUser -e {{ u.engine_id }} {{ u.name }} {{ u.auth_protocol }} "{{ u.auth_password }}" {{ u.priv_protocol }} "{{ u.priv_password }}"
+authUser log {{ u.name }} priv
+{% else %}
+# No sender configured yet (siem_snmp_trap_users).
+{% endfor %}

@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  author: tuningfork
+  description: snmptrapd on the SIEM VM, SNMPv3 traps from the iDRACs translated with the Dell MIB
+  license: proprietary
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+dependencies: []

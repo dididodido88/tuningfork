@@ -349,6 +349,10 @@ roles/
   siem_artifacts/            download SIEM artifacts from the mirror and check their SHA-256 (docs/siem.md)
   postfix_relay/             SIEM VM: loopback-only Postfix relay, best-effort email (docs/siem.md)
   wazuh_server/              SIEM VM: Wazuh indexer, manager and dashboard, offline all-in-one (docs/siem.md)
+  syslog_receiver/           SIEM VM: rsyslog receiving syslog from the Proxmox hosts and iDRACs
+  snmp_trap_receiver/        SIEM VM: snmptrapd receiving SNMPv3 traps from the iDRACs (Dell MIB)
+  node_exporter/             Prometheus node_exporter (operating system metrics)
+  prometheus/  alertmanager/ SIEM VM: metrics, alert rules and alert email
 playbooks/
   site.yml                   runs everything in layer order
   group_vars/                settings that apply to every environment (see below)

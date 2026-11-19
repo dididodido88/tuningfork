@@ -1,0 +1,5 @@
+---
+- name: Traps | Restart snmptrapd
+  ansible.builtin.systemd:
+    name: snmptrapd
+    state: restarted

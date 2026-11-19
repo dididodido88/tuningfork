@@ -1,0 +1,89 @@
+---
+- name: Prometheus | Download and check the release
+  ansible.builtin.include_role:
+    name: siem_artifacts
+  vars:
+    siem_artifacts_required: [prometheus]
+  tags: [prometheus]
+
+- name: Prometheus | Install the binaries
+  ansible.builtin.include_role:
+    name: siem_artifacts
+    tasks_from: install_binaries
+  vars:
+    siem_install_key: prometheus
+    siem_install_binaries: [prometheus, promtool]
+  tags: [prometheus]
+
+- name: Prometheus | Restart after new binaries
+  ansible.builtin.debug:
+    msg: prometheus binaries replaced
+  changed_when: siem_install_changed | bool
+  when: siem_install_changed | bool
+  notify: Prometheus | Restart
+  tags: [prometheus]
+
+- name: Prometheus | Create the service user
+  ansible.builtin.user:
+    name: "{{ prometheus_user }}"
+    system: true
+    shell: /sbin/nologin
+    home: /nonexistent
+    create_home: false
+  tags: [prometheus]
+
+- name: Prometheus | Create the folders
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ prometheus_user }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: /etc/prometheus, owner: root, mode: "0750"}
+    - {path: /etc/prometheus/rules, owner: root, mode: "0750"}
+    - {path: "{{ prometheus_data_dir }}", owner: "{{ prometheus_user }}", mode: "0750"}
+  loop_control:
+    label: "{{ item.path }}"
+  tags: [prometheus]
+
+# Alert rules: this file holds the base rules; more come with the detection content.
+- name: Prometheus | Install the alert rules
+  ansible.builtin.template:
+    src: rules.yml.j2
+    dest: /etc/prometheus/rules/tuningfork.yml
+    owner: root
+    group: "{{ prometheus_user }}"
+    mode: "0640"
+    validate: /usr/local/bin/promtool check rules %s
+  notify: Prometheus | Reload
+  tags: [prometheus]
+
+- name: Prometheus | Configure the scrape jobs
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: /etc/prometheus/prometheus.yml
+    owner: root
+    group: "{{ prometheus_user }}"
+    mode: "0640"
+    validate: /usr/local/bin/promtool check config --syntax-only %s
+  notify: Prometheus | Reload
+  tags: [prometheus]
+
+- name: Prometheus | Install the service
+  ansible.builtin.template:
+    src: prometheus.service.j2
+    dest: /etc/systemd/system/prometheus.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Prometheus | Restart
+  tags: [prometheus]
+
+- name: Prometheus | Start and enable
+  ansible.builtin.systemd:
+    name: prometheus
+    enabled: true
+    state: started
+    daemon_reload: true
+  tags: [prometheus]

@@ -1,0 +1,76 @@
+---
+- name: Alertmanager | Download and check the release
+  ansible.builtin.include_role:
+    name: siem_artifacts
+  vars:
+    siem_artifacts_required: [alertmanager]
+  tags: [alertmanager]
+
+- name: Alertmanager | Install the binaries
+  ansible.builtin.include_role:
+    name: siem_artifacts
+    tasks_from: install_binaries
+  vars:
+    siem_install_key: alertmanager
+    siem_install_binaries: [alertmanager, amtool]
+  tags: [alertmanager]
+
+- name: Alertmanager | Restart after new binaries
+  ansible.builtin.debug:
+    msg: alertmanager binaries replaced
+  changed_when: siem_install_changed | bool
+  when: siem_install_changed | bool
+  notify: Alertmanager | Restart
+  tags: [alertmanager]
+
+- name: Alertmanager | Create the service user
+  ansible.builtin.user:
+    name: "{{ alertmanager_user }}"
+    system: true
+    shell: /sbin/nologin
+    home: /nonexistent
+    create_home: false
+  tags: [alertmanager]
+
+- name: Alertmanager | Create the folders
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ alertmanager_user }}"
+    mode: "0750"
+  loop:
+    - {path: /etc/alertmanager, owner: root}
+    - {path: "{{ alertmanager_data_dir }}", owner: "{{ alertmanager_user }}"}
+  loop_control:
+    label: "{{ item.path }}"
+  tags: [alertmanager]
+
+- name: Alertmanager | Configure routing and email
+  ansible.builtin.template:
+    src: alertmanager.yml.j2
+    dest: /etc/alertmanager/alertmanager.yml
+    owner: root
+    group: "{{ alertmanager_user }}"
+    mode: "0640"
+    validate: /usr/local/bin/amtool check-config %s
+  notify: Alertmanager | Reload
+  tags: [alertmanager]
+
+- name: Alertmanager | Install the service
+  ansible.builtin.template:
+    src: alertmanager.service.j2
+    dest: /etc/systemd/system/alertmanager.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Alertmanager | Restart
+  tags: [alertmanager]
+
+- name: Alertmanager | Start and enable
+  ansible.builtin.systemd:
+    name: alertmanager
+    enabled: true
+    state: started
+    daemon_reload: true
+  tags: [alertmanager]

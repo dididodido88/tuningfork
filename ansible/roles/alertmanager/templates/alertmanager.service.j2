@@ -1,0 +1,26 @@
+# {{ ansible_managed }} (roles/alertmanager)
+[Unit]
+Description=Prometheus Alertmanager
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User={{ alertmanager_user }}
+Group={{ alertmanager_user }}
+# Single node: the cluster listener is switched off (empty address).
+ExecStart=/usr/local/bin/alertmanager \
+  --config.file=/etc/alertmanager/alertmanager.yml \
+  --storage.path={{ alertmanager_data_dir }} \
+  --web.listen-address={{ alertmanager_listen_address }} \
+  --cluster.listen-address=
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths={{ alertmanager_data_dir }}
+
+[Install]
+WantedBy=multi-user.target

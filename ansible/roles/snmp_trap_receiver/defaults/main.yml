@@ -1,0 +1,29 @@
+---
+# SNMP trap receiver on the SIEM VM: snmptrapd accepts SNMPv3 traps from the iDRACs, translates
+# them with the Dell iDRAC MIB and writes them to snmp_trap_receiver_log, which the Wazuh manager
+# reads (roles/wazuh_server). Guide: docs/siem.md.
+
+# Under the syslog receiver's folder, so its log rotation covers it.
+snmp_trap_receiver_dir: /var/log/remote/snmptrapd
+snmp_trap_receiver_log: "{{ snmp_trap_receiver_dir }}/traps.log"
+
+# Dell MIB from siem_versions.yml (dell_idrac_mib), installed here and loaded by name.
+snmp_trap_receiver_mib_dir: /usr/share/snmp/mibs/tuningfork
+snmp_trap_receiver_mibs: [IDRAC-MIB-SMIv2]
+
+# SNMPv3 users allowed to send traps. A trap from anyone else is dropped. Each entry:
+#   engine_id: "0x80001f88..."   the sender's SNMP engine ID (each iDRAC has its own)
+#   name: tuningfork-trap
+#   auth_protocol: SHA-256      (net-snmp names: SHA, SHA-256, ...)
+#   auth_password: "{{ vault_... }}"
+#   priv_protocol: AES
+#   priv_password: "{{ vault_... }}"
+# Set with the iDRAC configuration (group_vars/all/siem.yml, siem_snmp_trap_users).
+snmp_trap_receiver_users: "{{ siem_snmp_trap_users | default([]) }}"
+
+# Addresses allowed to send (firewalld, 162/udp): the idrac inventory group plus
+# siem_log_senders_extra (group_vars/all/siem.yml).
+snmp_trap_receiver_senders: "{{ siem_trap_senders | default([]) }}"
+
+snmp_trap_receiver_manage_firewall: true
+snmp_trap_receiver_firewall_zone: "{{ rhel9cis_default_zone | default('public') }}"

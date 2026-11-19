@@ -1,0 +1,11 @@
+---
+# rsyslog on the SIEM VM receives syslog from the Proxmox hosts and the iDRACs (514/udp+tcp).
+# Senders: siem_log_senders in inventories/<ENV>/group_vars/all/siem.yml. Guide: docs/siem.md.
+
+- name: Syslog receiver on the SIEM VM
+  hosts: siem_servers
+  become: true
+  gather_facts: true
+  roles:
+    - role: syslog_receiver
+      tags: [syslog_receiver]

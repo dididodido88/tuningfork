@@ -28,3 +28,17 @@ siem_mail_relay_tls: may
 siem_mail_relay_username: ""
 siem_mail_from: "siem@{{ env_domain }}"
 siem_mail_to: []                        # CHANGEME: alert recipients, e.g. [soc@crgs00.local]
+
+# --- Log and trap senders ------------------------------------------------------------------------
+# Addresses allowed to send syslog (514/udp+tcp) and SNMP traps (162/udp) to the SIEM VM: every
+# host in the proxmox_hosts and idrac groups (traps: idrac only), plus these addresses.
+siem_log_senders_extra: []
+siem_log_senders: >-
+  {{ ((groups['proxmox_hosts'] | default([])) + (groups['idrac'] | default([])))
+     | map('extract', hostvars, 'ansible_host') | list + siem_log_senders_extra }}
+siem_trap_senders: >-
+  {{ (groups['idrac'] | default([])) | map('extract', hostvars, 'ansible_host') | list + siem_log_senders_extra }}
+
+# SNMPv3 users the iDRACs send traps with (roles/snmp_trap_receiver). Filled in with the iDRAC
+# configuration; empty: every trap is dropped.
+siem_snmp_trap_users: []

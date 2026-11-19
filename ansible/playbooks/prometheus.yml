@@ -1,0 +1,19 @@
+---
+# Prometheus on the SIEM VM: scrape jobs from the inventory, alerts to the local Alertmanager.
+# Retention: prometheus_retention_* in inventories/<ENV>/group_vars/siem_servers.yml.
+# Guide: docs/siem.md.
+
+- name: Prometheus on the SIEM VM
+  hosts: siem_servers
+  become: true
+  gather_facts: true
+  # Artifacts come from the mirror (env_repo_base_url), HTTPS with a certificate from the internal CA.
+  pre_tasks:
+    - name: Check the internal CA is trusted (playbooks/certificates.yml ran)
+      ansible.builtin.import_role:
+        name: certificates
+        tasks_from: verify_trust
+      tags: [always]
+  roles:
+    - role: prometheus
+      tags: [prometheus]

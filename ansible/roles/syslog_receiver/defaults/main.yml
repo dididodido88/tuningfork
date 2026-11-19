@@ -1,0 +1,21 @@
+---
+# Syslog receiver on the SIEM VM: rsyslog accepts syslog from the Proxmox hosts and the iDRACs
+# and writes one file per sender and program under syslog_receiver_dir, which the Wazuh
+# manager reads (roles/wazuh_server, wazuh_server_localfiles). Guide: docs/siem.md.
+
+syslog_receiver_port: 514
+syslog_receiver_protocols: [udp, tcp]
+
+# <dir>/<sender IP>/<program>.log. A data disk on the SIEM VM.
+syslog_receiver_dir: /var/log/remote
+
+# Days the received files are kept here (rotated daily). Wazuh keeps its own copy of every event
+# in its archives, for longer.
+syslog_receiver_keep_days: 30
+
+# Addresses allowed to send (firewalld): every host in the proxmox_hosts and idrac inventory
+# groups, plus siem_log_senders_extra (group_vars/all/siem.yml).
+syslog_receiver_senders: "{{ siem_log_senders | default([]) }}"
+
+syslog_receiver_manage_firewall: true
+syslog_receiver_firewall_zone: "{{ rhel9cis_default_zone | default('public') }}"

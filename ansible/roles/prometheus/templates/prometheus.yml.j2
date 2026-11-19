@@ -1,0 +1,41 @@
+# {{ ansible_managed }} (roles/prometheus). Targets come from the inventory.
+global:
+  scrape_interval: {{ prometheus_scrape_interval }}
+  evaluation_interval: {{ prometheus_evaluation_interval }}
+  external_labels:
+    environment: {{ env_name }}
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["{{ prometheus_alertmanager }}"]
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["{{ prometheus_listen_address }}"]
+        labels:
+          instance: {{ inventory_hostname }}
+
+  - job_name: alertmanager
+    static_configs:
+      - targets: ["{{ prometheus_alertmanager }}"]
+        labels:
+          instance: {{ inventory_hostname }}
+
+  # Operating system metrics. The SIEM VM's own node_exporter listens on 127.0.0.1.
+  - job_name: node
+    static_configs:
+{% for host in groups['siem_servers'] | default([]) if host == inventory_hostname %}
+      - targets: ["127.0.0.1:9100"]
+        labels:
+          instance: {{ host }}
+{% endfor %}
+{% for host in groups['node_exporter_hosts'] | default([]) if host not in groups['siem_servers'] | default([]) %}
+      - targets: ["{{ hostvars[host]['ansible_host'] | default(host) }}:9100"]
+        labels:
+          instance: {{ host }}
+{% endfor %}
