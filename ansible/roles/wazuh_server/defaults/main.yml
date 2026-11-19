@@ -30,6 +30,10 @@ wazuh_server_prerequisites: [tar, coreutils, grep, sed, gawk, procps-ng, libcap,
 # dashboard and the monitoring stack share the VM.
 wazuh_server_indexer_heap: 4g
 
+# Indexer temporary folder (OPENSEARCH_TMPDIR). Must be on a filesystem without noexec: /tmp
+# has noexec (CIS). The default is on the indexer's data disk.
+wazuh_server_indexer_tmpdir: /var/lib/wazuh-indexer/tmp
+
 # --- Passwords --------------------------------------------------------------------------------
 # Set from the vault right after installation, replacing the generated ones:
 #   admin  Wazuh dashboard and indexer login (break-glass administrator; Filebeat uses it too)
