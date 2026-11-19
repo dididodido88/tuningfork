@@ -37,18 +37,42 @@
     group: root
     mode: "0700"
 
-# The installer looks for wazuh-offline.tar.gz next to itself.
-- name: Wazuh | Link the checked artifacts into the working directory
+# The scripts are copied, not linked: the installer resolves its own folder through a symlink
+# (and looks there for what it unpacked into the current folder), and it rewrites itself.
+- name: Wazuh | Copy the password tool into the working directory
+  ansible.builtin.copy:
+    src: "{{ siem_artifact_paths['wazuh_passwords_tool'] }}"
+    dest: "{{ wazuh_server_work_dir }}/wazuh-passwords-tool.sh"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0700"
+
+# Only for an installation, as the installer changes its own copy when it runs.
+- name: Wazuh | Copy the installer into the working directory
+  ansible.builtin.copy:
+    src: "{{ siem_artifact_paths['wazuh_install_script'] }}"
+    dest: "{{ wazuh_server_work_dir }}/wazuh-install.sh"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0700"
+  when: wazuh_server_installed | length == 0
+
+# The installer opens the archive by name in the current folder; a link saves copying 1.7 GB.
+- name: Wazuh | Link the offline package archive into the working directory
   ansible.builtin.file:
-    src: "{{ siem_artifact_paths[item.key] }}"
-    dest: "{{ wazuh_server_work_dir }}/{{ item.name }}"
+    src: "{{ siem_artifact_paths['wazuh_offline'] }}"
+    dest: "{{ wazuh_server_work_dir }}/wazuh-offline.tar.gz"
     state: link
-  loop:
-    - {key: wazuh_install_script, name: wazuh-install.sh}
-    - {key: wazuh_offline, name: wazuh-offline.tar.gz}
-    - {key: wazuh_passwords_tool, name: wazuh-passwords-tool.sh}
-  loop_control:
-    label: "{{ item.name }}"
+    force: true
+
+# The installer skips unpacking when wazuh-offline/ exists; unpack fresh from the checked archive.
+- name: Wazuh | Remove packages unpacked by an earlier attempt
+  ansible.builtin.file:
+    path: "{{ wazuh_server_work_dir }}/wazuh-offline"
+    state: absent
+  when: wazuh_server_installed | length == 0
 
 # The installer refuses to run while any of its folders exists, even empty, and the data-disk
 # mount points always exist. Its -o then only runs rm -rf on those folders. So -o is passed
@@ -107,6 +131,13 @@
   when:
     - wazuh_server_install is not skipped
     - wazuh_server_install.rc | default(1) != 0
+
+# About 1.8 GB on /var, no longer needed once the packages are installed.
+- name: Wazuh | Remove the unpacked packages after installation
+  ansible.builtin.file:
+    path: "{{ wazuh_server_work_dir }}/wazuh-offline"
+    state: absent
+  when: wazuh_server_install is changed
 
 # Both hold generated passwords.
 - name: Wazuh | Restrict the installer's log and files
