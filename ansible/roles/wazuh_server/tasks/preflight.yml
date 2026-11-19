@@ -28,6 +28,9 @@
       {%- if wazuh_server_indexer_heap is not match('^[0-9]+[mg]$') -%}
       {%-   set _ = p.append('wazuh_server_indexer_heap must look like 4g') -%}
       {%- endif -%}
+      {%- if wazuh_server_enrollment_password | length < 8 or ' ' in wazuh_server_enrollment_password -%}
+      {%-   set _ = p.append('vault_wazuh_enrollment_password: at least 8 characters, no spaces') -%}
+      {%- endif -%}
       {%- if siem_server_name | default('') | length == 0 -%}
       {%-   set _ = p.append('siem_server_name is not set in group_vars/all/siem.yml') -%}
       {%- endif -%}

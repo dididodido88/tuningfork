@@ -1,0 +1,47 @@
+---
+# Vulnerability feed snapshot, read by the manager instead of downloading it (air gap).
+- name: Wazuh | Create the folder for the vulnerability feed
+  ansible.builtin.file:
+    path: "{{ wazuh_server_vd_feed_path | dirname }}"
+    state: directory
+    owner: root
+    group: wazuh
+    mode: "0750"
+
+- name: Wazuh | Install the vulnerability feed snapshot
+  ansible.builtin.copy:
+    src: "{{ siem_artifact_paths['wazuh_vd_feed'] }}"
+    dest: "{{ wazuh_server_vd_feed_path }}"
+    remote_src: true
+    owner: root
+    group: wazuh
+    mode: "0640"
+  notify: Wazuh | Restart the manager
+
+- name: Wazuh | Set the agent enrollment password
+  ansible.builtin.copy:
+    dest: /var/ossec/etc/authd.pass
+    content: "{{ wazuh_server_enrollment_password }}\n"
+    owner: root
+    group: wazuh
+    mode: "0640"
+  no_log: true
+  notify: Wazuh | Restart the manager
+
+- name: Wazuh | Configure the manager
+  ansible.builtin.template:
+    src: ossec.conf.j2
+    dest: /var/ossec/etc/ossec.conf
+    owner: root
+    group: wazuh
+    mode: "0660"
+    backup: true
+  notify: Wazuh | Restart the manager
+
+# api.yaml ships fully commented; this one line overrides the default ['0.0.0.0', '::'].
+- name: Wazuh | Make the server API listen on {{ wazuh_server_api_host }} only
+  ansible.builtin.lineinfile:
+    path: /var/ossec/api/configuration/api.yaml
+    regexp: '^#?\s*host:'
+    line: "host: ['{{ wazuh_server_api_host }}']"
+  notify: Wazuh | Restart the manager

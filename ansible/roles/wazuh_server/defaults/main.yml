@@ -13,7 +13,7 @@
 # are empty (the data-disk mount points), where the installer needs it and there is nothing to erase.
 
 # Artifacts this role needs (keys of siem_artifacts in siem_versions.yml).
-wazuh_server_artifacts: [wazuh_install_script, wazuh_offline, wazuh_passwords_tool]
+wazuh_server_artifacts: [wazuh_install_script, wazuh_offline, wazuh_passwords_tool, wazuh_vd_feed]
 
 # The installer runs here and leaves wazuh-install-files.tar (Wazuh's internal certificates and
 # the generated passwords). root only.
@@ -42,6 +42,27 @@ wazuh_server_indexer_tmpdir: /var/lib/wazuh-indexer/tmp
 # letter, one lower-case letter, one digit and one symbol.
 wazuh_server_admin_password: "{{ vault_wazuh_indexer_admin_password | default('') }}"
 wazuh_server_api_password: "{{ vault_wazuh_api_password | default('') }}"
+
+# --- Manager (ossec.conf, templated from Wazuh 4.14's default) ----------------------------------
+# Agents enroll with this password (authd.pass). Set vault_wazuh_enrollment_password.
+wazuh_server_enrollment_password: "{{ vault_wazuh_enrollment_password | default('') }}"
+
+# Email through the local Postfix relay (roles/postfix_relay), best effort. Off while
+# wazuh_server_email_to is empty.
+wazuh_server_email_to: "{{ siem_mail_to | default([]) }}"
+wazuh_server_email_from: "{{ siem_mail_from | default('wazuh@' ~ env_domain) }}"
+wazuh_server_email_alert_level: 10
+wazuh_server_email_maxperhour: 12
+
+# Keep every event received in /var/ossec/logs/archives (not only those matching a rule).
+wazuh_server_logall_json: true
+
+# Vulnerability detection reads the feed snapshot from siem_versions.yml (wazuh_vd_feed) from
+# this file instead of downloading it.
+wazuh_server_vd_feed_path: /var/ossec/var/offline/vd-feed.zip
+
+# The server API listens on this address only (the dashboard reaches it on 127.0.0.1).
+wazuh_server_api_host: 127.0.0.1
 
 # --- Dashboard --------------------------------------------------------------------------------
 # https://<siem_server_name>/ with the host certificate from roles/certificates, so browsers

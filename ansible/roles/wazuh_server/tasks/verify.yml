@@ -7,6 +7,32 @@
   failed_when: wazuh_server_active.rc != 0
   check_mode: false
 
+# wazuh-control prints "<daemon> is running..." or "<daemon> not running..." per daemon.
+- name: Wazuh | Check the manager's daemons
+  ansible.builtin.command: /var/ossec/bin/wazuh-control status
+  register: wazuh_server_daemons
+  changed_when: false
+  failed_when: wazuh_server_daemons.stdout_lines | select('search', 'not running') | reject('search', wazuh_server_daemons_optional) | list | length > 0
+  check_mode: false
+  vars:
+    # Off in this configuration (cluster, agentless, client buffer, integrations, Docker, CSyslog, maild without email).
+    wazuh_server_daemons_optional: "wazuh-clusterd|wazuh-agentlessd|wazuh-integratord|wazuh-dbd|wazuh-csyslogd|wazuh-maild"
+
+# After a restart the API takes a moment to come back.
+- name: Wazuh | Check the server API answers on {{ wazuh_server_api_host }}
+  ansible.builtin.uri:
+    url: "https://{{ wazuh_server_api_host }}:55000/security/user/authenticate"
+    method: POST
+    user: wazuh
+    password: "{{ wazuh_server_api_password }}"
+    force_basic_auth: true
+    validate_certs: false
+  register: wazuh_server_api_final
+  until: wazuh_server_api_final.status == 200
+  retries: 18
+  delay: 10
+  no_log: true
+
 - name: Wazuh | Check the indexer cluster health
   ansible.builtin.uri:
     url: https://127.0.0.1:9200/_cluster/health

@@ -25,6 +25,10 @@
   ansible.builtin.import_tasks: passwords.yml
   tags: [wazuh_server]
 
+- name: Wazuh | Manager configuration
+  ansible.builtin.import_tasks: manager.yml
+  tags: [wazuh_server]
+
 - name: Wazuh | Dashboard
   ansible.builtin.import_tasks: dashboard.yml
   tags: [wazuh_server]

@@ -182,6 +182,7 @@ together, and the manager already monitors its own host.
 |---|---|
 | `vault_wazuh_indexer_admin_password` | `admin`: Wazuh dashboard and indexer login (break-glass administrator) |
 | `vault_wazuh_api_password` | `wazuh`: Wazuh server API administrator |
+| `vault_wazuh_enrollment_password` | agents enroll with it (at least 8 characters, no spaces); every agent role uses the same key |
 | `vault_postfix_relay_password` | only if `siem_mail_relay_username` is set |
 
 Wazuh passwords: 8 to 64 characters, only `A-Z a-z 0-9 . * + ? -`, with at least one upper-case letter, one
