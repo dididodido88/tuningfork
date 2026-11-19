@@ -1,42 +1,43 @@
 ---
- Indexer$| Pre-checks
+- name: Wazuh | Pre-checks
   ansible.builtin.import_tasks: preflight.yml
   tags: [wazuh_server]
 
 # Downloads from the mirror and checks each sha256 against siem_versions.yml; sets
 # siem_artifact_paths (key -> checked local file).
- Indexer$| Download and check the artifacts
+- name: Wazuh | Download and check the artifacts
   ansible.builtin.include_role:
     name: siem_artifacts
   vars:
     siem_artifacts_required: "{{ wazuh_server_artifacts }}"
   tags: [wazuh_server]
 
- Indexer$| Indexer
+# Before the installer: it starts the indexer, which needs these settings.
+- name: Wazuh | Indexer service settings
   ansible.builtin.import_tasks: indexer.yml
   tags: [wazuh_server]
 
- Indexer$| Install
+- name: Wazuh | Install
   ansible.builtin.import_tasks: install.yml
   tags: [wazuh_server]
 
- Indexer$| Passwords
+- name: Wazuh | Passwords
   ansible.builtin.import_tasks: passwords.yml
   tags: [wazuh_server]
 
- Indexer$| Dashboard
+- name: Wazuh | Dashboard
   ansible.builtin.import_tasks: dashboard.yml
   tags: [wazuh_server]
 
- Indexer$| Firewall
+- name: Wazuh | Firewall
   ansible.builtin.import_tasks: firewall.yml
   when: wazuh_server_manage_firewall | bool
   tags: [wazuh_server, firewall]
 
- Indexer$| Apply pending restarts
+- name: Wazuh | Apply pending restarts
   ansible.builtin.meta: flush_handlers
   tags: [wazuh_server]
 
- Indexer$| Check
+- name: Wazuh | Check
   ansible.builtin.import_tasks: verify.yml
   tags: [wazuh_server]
