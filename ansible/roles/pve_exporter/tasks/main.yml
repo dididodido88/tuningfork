@@ -55,6 +55,36 @@
   notify: PVE exporter | Restart
   tags: [pve_exporter]
 
+# root's umask is 027 (CIS), so venv and pip leave files only root can read; the service user
+# needs to read and run them.
+- name: PVE exporter | Make the virtualenv readable by the service
+  ansible.builtin.file:
+    path: "{{ pve_exporter_venv }}"
+    state: directory
+    recurse: true
+    owner: root
+    group: root
+    mode: "u=rwX,g=rX,o=rX"
+  tags: [pve_exporter]
+
+# Files under /opt are usr_t; label the virtualenv's programs like /usr/bin (bin_t) so systemd
+# may start them.
+- name: PVE exporter | Label the virtualenv's programs as executables (SELinux)
+  community.general.sefcontext:
+    target: "{{ pve_exporter_base_dir }}(/[^/]+)?/bin(/.*)?"
+    setype: bin_t
+    state: present
+  register: pve_exporter_fcontext
+  tags: [pve_exporter]
+
+- name: PVE exporter | Apply the SELinux labels
+  ansible.builtin.command: restorecon -R -v {{ pve_exporter_base_dir }}
+  register: pve_exporter_restorecon
+  changed_when: pve_exporter_restorecon.stdout | length > 0
+  when: pve_exporter_fcontext is changed
+  notify: PVE exporter | Restart
+  tags: [pve_exporter]
+
 - name: PVE exporter | Create the service user
   ansible.builtin.user:
     name: "{{ pve_exporter_user }}"
