@@ -74,7 +74,7 @@
   ansible.builtin.copy:
     dest: /etc/sysconfig/snmptrapd
     content: |
-      # {{ ansible_managed }} (roles/snmp_trap_receiver)
+      # Managed by Ansible (roles/snmp_trap_receiver)
       OPTIONS="-Lf {{ snmp_trap_receiver_log }} -p /run/snmptrapd.pid -M +{{ snmp_trap_receiver_mib_dir }} -m +{{ snmp_trap_receiver_mibs | join(':') }}"
     owner: root
     group: root
