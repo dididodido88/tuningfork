@@ -1,0 +1,20 @@
+---
+# Wazuh agent on the Rocky VMs and the Proxmox hosts (group wazuh_agents), except the SIEM VM,
+# which is the manager. Enrollment password: vault_wazuh_enrollment_password. Guide: docs/siem.md.
+
+- name: Wazuh agent on Linux
+  hosts: wazuh_agents:!siem_servers
+  become: true
+  gather_facts: true
+  # The agent package comes from the mirror (env_repo_base_url), HTTPS with a certificate from
+  # the internal CA (checked on the Rocky VMs; the Proxmox hosts use the same mirror for apt).
+  pre_tasks:
+    - name: Check the internal CA is trusted (playbooks/certificates.yml ran)
+      ansible.builtin.import_role:
+        name: certificates
+        tasks_from: verify_trust
+      when: ansible_os_family == 'RedHat'
+      tags: [always]
+  roles:
+    - role: wazuh_agent_linux
+      tags: [wazuh_agent]

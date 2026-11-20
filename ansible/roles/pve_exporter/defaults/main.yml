@@ -16,8 +16,12 @@ pve_exporter_api_user: "{{ siem_pve_api_user | default('tuningfork-monitor@pve')
 pve_exporter_token_name: "{{ siem_pve_token_name | default('prometheus') }}"
 pve_exporter_token_value: "{{ vault_pve_exporter_token_value | default('') }}"
 
-# Check the Proxmox API certificate against the system trust store (internal CA). Set false
-# only while the hosts still use Proxmox's self-signed certificate.
+# Check the Proxmox API certificate against the system trust store (internal CA and, with
+# pve_exporter_trust_cluster_ca, the Proxmox cluster CA).
 pve_exporter_verify_ssl: true
 
 pve_exporter_user: pve-exporter
+
+# Trust the Proxmox cluster's own CA (/etc/pve/pve-root-ca.pem, read from the first host in
+# proxmox_hosts), which signs the nodes' API certificates unless they were replaced.
+pve_exporter_trust_cluster_ca: true

@@ -103,6 +103,36 @@
     mode: "0750"
   tags: [pve_exporter]
 
+# Root over SSH on the Proxmox host (no sudo there).
+- name: PVE exporter | Read the Proxmox cluster CA
+  ansible.builtin.slurp:
+    src: /etc/pve/pve-root-ca.pem
+  delegate_to: "{{ groups['proxmox_hosts'][0] }}"
+  become: false
+  register: pve_exporter_cluster_ca
+  when:
+    - pve_exporter_trust_cluster_ca | bool
+    - groups['proxmox_hosts'] | default([]) | length > 0
+  tags: [pve_exporter]
+
+- name: PVE exporter | Trust the Proxmox cluster CA
+  ansible.builtin.copy:
+    dest: "/etc/pki/ca-trust/source/anchors/proxmox-{{ env_name }}-root-ca.pem"
+    content: "{{ pve_exporter_cluster_ca.content | b64decode }}"
+    owner: root
+    group: root
+    mode: "0644"
+  register: pve_exporter_ca_anchor
+  when: pve_exporter_cluster_ca is not skipped
+  tags: [pve_exporter]
+
+- name: PVE exporter | Rebuild the system trust store
+  ansible.builtin.command: update-ca-trust extract
+  changed_when: true
+  when: pve_exporter_ca_anchor is changed
+  notify: PVE exporter | Restart
+  tags: [pve_exporter]
+
 - name: PVE exporter | Write the API token
   ansible.builtin.template:
     src: pve.yml.j2

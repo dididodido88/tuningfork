@@ -1,0 +1,104 @@
+---
+- name: Wazuh agent | Check the settings
+  ansible.builtin.assert:
+    that:
+      - wazuh_agent_manager | length > 0
+      - wazuh_agent_enrollment_password | length >= 8
+      - inventory_hostname not in groups['siem_servers'] | default([])
+    fail_msg: >-
+      Needs siem_server_ip (group_vars/all/siem.yml) and vault_wazuh_enrollment_password. The SIEM VM
+      gets no agent: it is the manager.
+    quiet: true
+  no_log: true
+  tags: [wazuh_agent]
+
+- name: Wazuh agent | Download and check the package
+  ansible.builtin.include_role:
+    name: siem_artifacts
+  vars:
+    siem_artifacts_required: ["{{ wazuh_agent_artifact }}"]
+  tags: [wazuh_agent]
+
+- name: Wazuh agent | Read the installed packages
+  ansible.builtin.package_facts:
+    manager: auto
+  tags: [wazuh_agent]
+
+- name: Wazuh agent | Check this host can take the agent at {{ wazuh_version }}
+  ansible.builtin.assert:
+    that:
+      - "'wazuh-manager' not in ansible_facts.packages"
+      - wazuh_agent_installed | length == 0 or wazuh_agent_installed is version(wazuh_version | string, '<=')
+    fail_msg: >-
+      {{ 'wazuh-manager is installed here.' if 'wazuh-manager' in ansible_facts.packages else
+         'wazuh-agent ' ~ wazuh_agent_installed ~ ' is newer than the manager (' ~ wazuh_version ~ '). Agents must be
+         the same version as the manager or older: upgrade the manager first (docs/siem.md, "Updating a version").' }}
+    quiet: true
+  tags: [wazuh_agent]
+
+# The package reads the WAZUH_* variables on first installation (manager address, enrollment
+# password and group) and enrolls when it starts. An older agent is upgraded in place.
+- name: Wazuh agent | Install the agent (Rocky)
+  ansible.builtin.dnf:
+    name: "{{ siem_artifact_paths[wazuh_agent_artifact] }}"
+    state: present
+    # Wazuh's signing key isn't on the host; the package is the exact file pinned by sha256.
+    disable_gpg_check: true
+  environment: "{{ wazuh_agent_install_env }}"
+  when:
+    - ansible_os_family == 'RedHat'
+    - wazuh_agent_installed | length == 0 or wazuh_agent_installed is version(wazuh_version | string, '<')
+  notify: Wazuh agent | Restart
+  tags: [wazuh_agent]
+
+- name: Wazuh agent | Install the agent (Debian, Proxmox)
+  ansible.builtin.apt:
+    deb: "{{ siem_artifact_paths[wazuh_agent_artifact] }}"
+  environment: "{{ wazuh_agent_install_env }}"
+  when:
+    - ansible_os_family == 'Debian'
+    - wazuh_agent_installed | length == 0 or wazuh_agent_installed is version(wazuh_version | string, '<')
+  notify: Wazuh agent | Restart
+  tags: [wazuh_agent]
+
+# Kept in line with the inventory after installation (the WAZUH_* variables only apply once).
+- name: Wazuh agent | Point the agent at the manager
+  ansible.builtin.replace:
+    path: /var/ossec/etc/ossec.conf
+    regexp: '<address>[^<]*</address>'
+    replace: '<address>{{ wazuh_agent_manager }}</address>'
+  notify: Wazuh agent | Restart
+  tags: [wazuh_agent]
+
+- name: Wazuh agent | Set the enrollment password
+  ansible.builtin.copy:
+    dest: /var/ossec/etc/authd.pass
+    content: "{{ wazuh_agent_enrollment_password }}\n"
+    owner: root
+    group: wazuh
+    mode: "0640"
+  no_log: true
+  notify: Wazuh agent | Restart
+  tags: [wazuh_agent]
+
+- name: Wazuh agent | Start and enable
+  ansible.builtin.systemd:
+    name: wazuh-agent
+    enabled: true
+    state: started
+    daemon_reload: true
+  tags: [wazuh_agent]
+
+- name: Wazuh agent | Apply pending restarts
+  ansible.builtin.meta: flush_handlers
+  tags: [wazuh_agent]
+
+- name: Wazuh agent | Wait until the agent is connected to the manager
+  ansible.builtin.command: grep -q "^status='connected'" /var/ossec/var/run/wazuh-agentd.state
+  register: wazuh_agent_connected
+  until: wazuh_agent_connected.rc == 0
+  retries: 18
+  delay: 10
+  changed_when: false
+  check_mode: false
+  tags: [wazuh_agent]

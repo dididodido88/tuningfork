@@ -355,6 +355,8 @@ roles/
   prometheus/  alertmanager/ SIEM VM: metrics, alert rules and alert email
   snmp_exporter/ pve_exporter/ SIEM VM: iDRAC (SNMPv3) and Proxmox API exporters
   grafana/                   SIEM VM: Grafana OSS (HTTPS, Prometheus data source, no internet calls)
+  wazuh_agent_linux/         Wazuh agent on the Rocky VMs and Proxmox hosts (same version as the manager)
+  proxmox_monitoring/        read-only Proxmox user and API token for pve-exporter
 playbooks/
   site.yml                   runs everything in layer order
   group_vars/                settings that apply to every environment (see below)

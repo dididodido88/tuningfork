@@ -1,0 +1,92 @@
+---
+# Cluster-wide (stored in /etc/pve): run on one host only.
+- name: Proxmox | Read the users
+  ansible.builtin.command: pveum user list --output-format json
+  register: proxmox_monitoring_users
+  changed_when: false
+  check_mode: false
+  run_once: true
+  tags: [proxmox_monitoring]
+
+- name: Proxmox | Create the monitoring user {{ proxmox_monitoring_user }}
+  ansible.builtin.command:
+    argv: [pveum, user, add, "{{ proxmox_monitoring_user }}", --comment, "SIEM VM pve-exporter (read-only, managed by Ansible)"]
+  changed_when: true
+  run_once: true
+  when: proxmox_monitoring_user not in (proxmox_monitoring_users.stdout | from_json | map(attribute='userid') | list)
+  tags: [proxmox_monitoring]
+
+- name: Proxmox | Read the permissions
+  ansible.builtin.command: pveum acl list --output-format json
+  register: proxmox_monitoring_acl
+  changed_when: false
+  check_mode: false
+  run_once: true
+  tags: [proxmox_monitoring]
+
+- name: Proxmox | Give the monitoring user {{ proxmox_monitoring_role }} on /
+  ansible.builtin.command:
+    argv: [pveum, acl, modify, /, --users, "{{ proxmox_monitoring_user }}", --roles, "{{ proxmox_monitoring_role }}"]
+  changed_when: true
+  run_once: true
+  when: >-
+    proxmox_monitoring_acl.stdout | from_json
+    | selectattr('path', 'equalto', '/') | selectattr('ugid', 'equalto', proxmox_monitoring_user)
+    | selectattr('roleid', 'equalto', proxmox_monitoring_role) | list | length == 0
+  tags: [proxmox_monitoring]
+
+- name: Proxmox | Read the monitoring user's tokens
+  ansible.builtin.command:
+    argv: [pveum, user, token, list, "{{ proxmox_monitoring_user }}", --output-format, json]
+  register: proxmox_monitoring_tokens
+  changed_when: false
+  check_mode: false
+  run_once: true
+  tags: [proxmox_monitoring]
+
+# privsep 0: the token has exactly the user's rights (read-only).
+- name: Proxmox | Create the API token {{ proxmox_monitoring_token_name }}
+  ansible.builtin.command:
+    argv:
+      - pveum
+      - user
+      - token
+      - add
+      - "{{ proxmox_monitoring_user }}"
+      - "{{ proxmox_monitoring_token_name }}"
+      - --privsep
+      - "0"
+      - --comment
+      - SIEM VM pve-exporter
+      - --output-format
+      - json
+  register: proxmox_monitoring_new_token
+  changed_when: true
+  no_log: true
+  run_once: true
+  when: proxmox_monitoring_token_name not in (proxmox_monitoring_tokens.stdout | from_json | map(attribute='tokenid') | list)
+  tags: [proxmox_monitoring]
+
+# Shown once: Proxmox can't show it again. If it is lost, remove the token in Proxmox
+# (pveum user token remove <user> <name>) and run this playbook again.
+- name: Proxmox | Show the new token secret (save it as vault_pve_exporter_token_value)
+  ansible.builtin.debug:
+    msg:
+      - "New Proxmox API token {{ proxmox_monitoring_user }}!{{ proxmox_monitoring_token_name }}."
+      - "Save this secret now as vault_pve_exporter_token_value (ansible-vault edit inventories/{{ env_name }}/group_vars/all/vault.yml):"
+      - "{{ (proxmox_monitoring_new_token.stdout | from_json).value }}"
+  run_once: true
+  when: proxmox_monitoring_new_token is changed
+  tags: [proxmox_monitoring]
+
+- name: Proxmox | Check the token is in the vault
+  ansible.builtin.debug:
+    msg: >-
+      The token {{ proxmox_monitoring_user }}!{{ proxmox_monitoring_token_name }} exists in Proxmox but
+      vault_pve_exporter_token_value is empty, so the SIEM VM doesn't read Proxmox yet. If the secret
+      was lost, remove the token in Proxmox and run this playbook again.
+  run_once: true
+  when:
+    - proxmox_monitoring_new_token is skipped
+    - (vault_pve_exporter_token_value | default('')) | length == 0
+  tags: [proxmox_monitoring]

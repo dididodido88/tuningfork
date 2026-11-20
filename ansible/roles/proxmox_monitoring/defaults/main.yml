@@ -1,0 +1,11 @@
+---
+# Proxmox VE side of the monitoring: a read-only user (PVEAuditor) and its API token for
+# pve-exporter on the SIEM VM. Created once on the first host in proxmox_hosts (the cluster shares
+# its user configuration). Guide: docs/siem.md.
+#
+# Proxmox shows a token's secret only when the token is created: this role prints it once, to be
+# saved as vault_pve_exporter_token_value. Later runs only check the user, role and token exist.
+
+proxmox_monitoring_user: "{{ siem_pve_api_user | default('tuningfork-monitor@pve') }}"
+proxmox_monitoring_token_name: "{{ siem_pve_token_name | default('prometheus') }}"
+proxmox_monitoring_role: PVEAuditor

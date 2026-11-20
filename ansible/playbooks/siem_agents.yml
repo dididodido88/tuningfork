@@ -1,0 +1,15 @@
+---
+# SIEM agents and exporters on the monitored hosts. Guide: docs/siem.md.
+#
+#   ansible-playbook -i inventories/lab playbooks/siem_agents.yml
+#
+# Run after siem.yml (the SIEM VM must be up: agents enroll with its manager).
+
+- name: Proxmox monitoring access
+  ansible.builtin.import_playbook: proxmox_monitoring.yml
+
+- name: Wazuh agent on Linux
+  ansible.builtin.import_playbook: wazuh_agent_linux.yml
+
+- name: Node exporter
+  ansible.builtin.import_playbook: node_exporter.yml

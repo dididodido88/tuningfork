@@ -34,7 +34,8 @@ scrape_configs:
         labels:
           instance: {{ host }}
 {% endfor %}
-{% for host in groups['node_exporter_hosts'] | default([]) if host not in groups['siem_servers'] | default([]) %}
+{% set node_skip = (groups['siem_servers'] | default([])) + (groups['k8s_nodes'] | default([])) %}
+{% for host in groups['node_exporter_hosts'] | default([]) if host not in node_skip %}
       - targets: ["{{ hostvars[host]['ansible_host'] | default(host) }}:9100"]
         labels:
           instance: {{ host }}

@@ -1,0 +1,11 @@
+---
+# Read-only Proxmox user and API token for the SIEM VM's pve-exporter (once, on the first
+# Proxmox host). Prints a new token's secret once: save it as vault_pve_exporter_token_value.
+# Guide: docs/siem.md.
+
+- name: Proxmox monitoring access
+  hosts: proxmox_hosts
+  gather_facts: false
+  roles:
+    - role: proxmox_monitoring
+      tags: [proxmox_monitoring]

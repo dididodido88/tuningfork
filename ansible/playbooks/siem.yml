@@ -4,7 +4,8 @@
 #   ansible-playbook -i inventories/lab playbooks/siem.yml
 #
 # The SIEM VM also gets the common layers (certificates, repositories, data disks, CIS, common
-# Linux config) from site.yml; run site.yml --limit siem_servers on a new SIEM VM.
+# Linux config) from site.yml; run site.yml --limit siem_servers on a new SIEM VM. Its node_exporter
+# comes with the other monitored hosts (siem_agents.yml).
 
 - name: Postfix relay
   ansible.builtin.import_playbook: postfix_relay.yml
@@ -17,9 +18,6 @@
 
 - name: SNMP trap receiver
   ansible.builtin.import_playbook: snmp_trap_receiver.yml
-
-- name: Node exporter
-  ansible.builtin.import_playbook: node_exporter.yml
 
 - name: Alertmanager
   ansible.builtin.import_playbook: alertmanager.yml

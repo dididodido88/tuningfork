@@ -244,6 +244,33 @@ ls /var/log/remote/
 
 ---
 
+### 3.6 Agents and exporters on the monitored hosts
+
+```sh
+ansible-playbook -i inventories/lab playbooks/siem_agents.yml
+```
+
+| Group | Gets | Notes |
+|---|---|---|
+| `wazuh_agents` (rocky9, proxmox_hosts) | Wazuh agent, same version as the manager | Not on the SIEM VM (it is the manager). Agent group on the manager: `linux` or `proxmox`. Enrolls with `vault_wazuh_enrollment_password`. Reads the journal and the audit log; no rsyslog on the Rocky VMs (CIS keeps journald, 90 days). |
+| `node_exporter_hosts` (rocky9, proxmox_hosts) | node_exporter on 9100 | Not on `k8s_nodes` (Rancher's monitoring uses 9100). Rocky: firewalld lets only the SIEM VM in. Proxmox: listens on the management address (no host firewall managed). |
+| `proxmox_hosts` (first host) | read-only user `siem_pve_api_user` (PVEAuditor) and API token `siem_pve_token_name` | For pve-exporter on the SIEM VM. |
+
+**Proxmox API token, first time:** the `proxmox_monitoring` play prints the new token's secret once. Save it with
+`ansible-vault edit inventories/<ENV>/group_vars/all/vault.yml` as `vault_pve_exporter_token_value`, then run
+`playbooks/siem.yml` again: pve-exporter gets the token and Prometheus starts scraping Proxmox. pve-exporter trusts the
+cluster's own CA (`/etc/pve/pve-root-ca.pem`, read from the first host). If the secret is lost, remove the token
+(`pveum user token remove <user> <name>` on a Proxmox host) and run `siem_agents.yml` again.
+
+Check:
+
+```sh
+# On the SIEM VM: every agent listed as Active
+/var/ossec/bin/agent_control -l
+# Prometheus targets
+curl -s 127.0.0.1:9090/api/v1/targets | grep -o '"health":"[a-z]*"' | sort | uniq -c
+```
+
 ## 4. Writing rules
 
 Audit requirements are referred to by **title only**, everywhere: code, comments, rule descriptions,

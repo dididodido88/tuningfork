@@ -71,6 +71,9 @@ wazuh_server_localfiles:
   - location: /var/log/remote/*/*.log
     log_format: syslog
 
+# Agent groups: linux (Rocky VMs), proxmox (Proxmox hosts), windows-dc (domain controllers).
+wazuh_server_agent_groups: [linux, proxmox, windows-dc]
+
 # --- Dashboard --------------------------------------------------------------------------------
 # https://<siem_server_name>/ with the host certificate from roles/certificates, so browsers
 # that trust the internal CA trust the dashboard. The certificate must cover siem_server_name.

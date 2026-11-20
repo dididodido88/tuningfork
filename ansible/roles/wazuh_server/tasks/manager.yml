@@ -45,3 +45,11 @@
     regexp: '^#?\s*host:'
     line: "host: ['{{ wazuh_server_api_host }}']"
   notify: Wazuh | Restart the manager
+
+# Agents enroll into one of these groups (central configuration per group comes with the
+# detection content). Enrollment into a group the manager doesn't have is refused.
+- name: Wazuh | Create the agent groups
+  ansible.builtin.command:
+    argv: [/var/ossec/bin/agent_groups, -a, -g, "{{ item }}", -q]
+    creates: "/var/ossec/etc/shared/{{ item }}"
+  loop: "{{ wazuh_server_agent_groups }}"
