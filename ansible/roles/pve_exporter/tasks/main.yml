@@ -1,0 +1,103 @@
+---
+- name: PVE exporter | Download and check the wheel bundle
+  ansible.builtin.include_role:
+    name: siem_artifacts
+  vars:
+    siem_artifacts_required: [pve_exporter_wheels]
+  tags: [pve_exporter]
+
+- name: PVE exporter | Install Python {{ pve_exporter_python_version }}
+  ansible.builtin.dnf:
+    name: "python{{ pve_exporter_python_version }}"
+    state: present
+  tags: [pve_exporter]
+
+- name: PVE exporter | Create the folders
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ pve_exporter_base_dir }}"
+    - "{{ pve_exporter_wheel_dir }}"
+  tags: [pve_exporter]
+
+# The bundle holds one folder, pve-wheels/.
+- name: PVE exporter | Unpack the wheel bundle
+  ansible.builtin.unarchive:
+    src: "{{ siem_artifact_paths['pve_exporter_wheels'] }}"
+    dest: "{{ pve_exporter_wheel_dir }}"
+    remote_src: true
+    owner: root
+    group: root
+    creates: "{{ pve_exporter_wheel_dir }}/pve-wheels"
+  tags: [pve_exporter]
+
+- name: PVE exporter | Create the virtualenv
+  ansible.builtin.command:
+    argv: ["{{ pve_exporter_python }}", -m, venv, "{{ pve_exporter_venv }}"]
+    creates: "{{ pve_exporter_venv }}/bin/python"
+  tags: [pve_exporter]
+
+# Only from the local wheels (--no-index): nothing is downloaded.
+- name: PVE exporter | Install prometheus-pve-exporter {{ pve_exporter_version }} from the wheels
+  ansible.builtin.command:
+    argv:
+      - "{{ pve_exporter_venv }}/bin/pip"
+      - install
+      - --no-index
+      - --find-links
+      - "{{ pve_exporter_wheel_dir }}/pve-wheels"
+      - "prometheus-pve-exporter=={{ pve_exporter_version }}"
+    creates: "{{ pve_exporter_venv }}/bin/pve_exporter"
+  notify: PVE exporter | Restart
+  tags: [pve_exporter]
+
+- name: PVE exporter | Create the service user
+  ansible.builtin.user:
+    name: "{{ pve_exporter_user }}"
+    system: true
+    shell: /sbin/nologin
+    home: /nonexistent
+    create_home: false
+  tags: [pve_exporter]
+
+- name: PVE exporter | Create the configuration folder
+  ansible.builtin.file:
+    path: /etc/pve-exporter
+    state: directory
+    owner: root
+    group: "{{ pve_exporter_user }}"
+    mode: "0750"
+  tags: [pve_exporter]
+
+- name: PVE exporter | Write the API token
+  ansible.builtin.template:
+    src: pve.yml.j2
+    dest: /etc/pve-exporter/pve.yml
+    owner: root
+    group: "{{ pve_exporter_user }}"
+    mode: "0640"
+  no_log: true
+  notify: PVE exporter | Restart
+  tags: [pve_exporter]
+
+- name: PVE exporter | Install the service
+  ansible.builtin.template:
+    src: pve_exporter.service.j2
+    dest: /etc/systemd/system/pve_exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: PVE exporter | Restart
+  tags: [pve_exporter]
+
+- name: PVE exporter | Start and enable
+  ansible.builtin.systemd:
+    name: pve_exporter
+    enabled: true
+    state: started
+    daemon_reload: true
+  tags: [pve_exporter]

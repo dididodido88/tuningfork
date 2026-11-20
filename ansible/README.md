@@ -353,6 +353,8 @@ roles/
   snmp_trap_receiver/        SIEM VM: snmptrapd receiving SNMPv3 traps from the iDRACs (Dell MIB)
   node_exporter/             Prometheus node_exporter (operating system metrics)
   prometheus/  alertmanager/ SIEM VM: metrics, alert rules and alert email
+  snmp_exporter/ pve_exporter/ SIEM VM: iDRAC (SNMPv3) and Proxmox API exporters
+  grafana/                   SIEM VM: Grafana OSS (HTTPS, Prometheus data source, no internet calls)
 playbooks/
   site.yml                   runs everything in layer order
   group_vars/                settings that apply to every environment (see below)

@@ -1,0 +1,6 @@
+# {{ ansible_managed }} (roles/pve_exporter): Proxmox API token (read-only, PVEAuditor).
+default:
+  user: {{ pve_exporter_api_user | to_json }}
+  token_name: {{ pve_exporter_token_name | to_json }}
+  token_value: {{ (pve_exporter_token_value if pve_exporter_token_value | length > 0 else 'not-set') | to_json }}
+  verify_ssl: {{ pve_exporter_verify_ssl | bool | lower }}

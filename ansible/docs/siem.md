@@ -184,6 +184,9 @@ together, and the manager already monitors its own host.
 | `vault_wazuh_api_password` | `wazuh`: Wazuh server API administrator |
 | `vault_wazuh_enrollment_password` | agents enroll with it (at least 8 characters, no spaces); every agent role uses the same key |
 | `vault_postfix_relay_password` | only if `siem_mail_relay_username` is set |
+| `vault_grafana_admin_password` | Grafana `admin` (break-glass administrator), at least 12 characters |
+| `vault_snmp_idrac_auth_password`, `vault_snmp_idrac_priv_password` | SNMPv3 user `siem_idrac_snmp_username` the SIEM VM polls the iDRACs with (set with the iDRAC configuration) |
+| `vault_pve_exporter_token_value` | Proxmox API token `siem_pve_api_user`!`siem_pve_token_name` (set with the Proxmox monitoring) |
 
 Wazuh passwords: 8 to 64 characters, only `A-Z a-z 0-9 . * + ? -`, with at least one upper-case letter, one
 lower-case letter, one digit and one symbol. The role replaces the generated passwords with these right after
@@ -222,6 +225,9 @@ minutes; its full log is `/var/log/wazuh-install.log` on the SIEM VM (root only)
 | node_exporter | 127.0.0.1:9100 | local | |
 | Prometheus | 127.0.0.1:9090 | local (viewed through Grafana) | `/var/lib/prometheus` (90 days or `prometheus_retention_size`) |
 | Alertmanager | 127.0.0.1:9093 | local | email through Postfix to `siem_mail_to` |
+| snmp_exporter | 127.0.0.1:9116 | local; polls the iDRACs (SNMPv3, stock `dell` module) once the SNMPv3 credentials are set | |
+| pve-exporter | 127.0.0.1:9221 | local; reads the Proxmox API (each node, plus cluster-wide data from the first node) once the token is set | |
+| Grafana | 3000/tcp (HTTPS, host certificate) | `siem_admin_networks` | `/var/lib/grafana`; dashboards from `/var/lib/grafana/dashboards/tuningfork` |
 
 The Wazuh manager reads every file under `/var/log/remote` (`wazuh_server_localfiles`). The SIEM VM is the
 environment's log host, so the CIS control "Ensure only one logging system is in use" is off for
@@ -230,7 +236,7 @@ environment's log host, so the CIS control "Ensure only one logging system is in
 Check from the SIEM VM:
 
 ```sh
-systemctl is-active rsyslog snmptrapd node_exporter prometheus alertmanager
+systemctl is-active rsyslog snmptrapd node_exporter prometheus alertmanager snmp_exporter pve_exporter grafana-server
 curl -s 127.0.0.1:9090/api/v1/targets | grep -o '"health":"[a-z]*"' | sort | uniq -c
 logger -n 127.0.0.1 -P 514 -d -t tuningfork-test "syslog receiver test"   # from a sender: -n <SIEM VM>
 ls /var/log/remote/

@@ -39,3 +39,62 @@ scrape_configs:
         labels:
           instance: {{ host }}
 {% endfor %}
+{% if prometheus_idrac_enabled | bool %}
+
+  # Dell iDRACs (SNMPv3) through the local snmp_exporter.
+  - job_name: idrac
+    scrape_timeout: {{ prometheus_idrac_scrape_timeout }}
+    metrics_path: /snmp
+    params:
+      module: [dell]
+      auth: [idrac_v3]
+    static_configs:
+{% for host in groups['idrac'] %}
+      - targets: ["{{ hostvars[host]['ansible_host'] | default(host) }}"]
+        labels:
+          instance: {{ host }}
+{% endfor %}
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - target_label: __address__
+        replacement: {{ prometheus_snmp_exporter }}
+{% endif %}
+{% if prometheus_pve_enabled | bool %}
+
+  # Proxmox VE, through the local pve_exporter: each node's own metrics...
+  - job_name: pve-node
+    metrics_path: /pve
+    params:
+      module: [default]
+      cluster: ["0"]
+      node: ["1"]
+    static_configs:
+{% for host in groups['proxmox_hosts'] %}
+      - targets: ["{{ hostvars[host]['ansible_host'] | default(host) }}"]
+        labels:
+          instance: {{ host }}
+{% endfor %}
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - target_label: __address__
+        replacement: {{ prometheus_pve_exporter }}
+
+  # ...and the cluster-wide metrics (VMs, storage, quorum), read once from the first node.
+  - job_name: pve-cluster
+    metrics_path: /pve
+    params:
+      module: [default]
+      cluster: ["1"]
+      node: ["0"]
+    static_configs:
+      - targets: ["{{ hostvars[groups['proxmox_hosts'][0]]['ansible_host'] | default(groups['proxmox_hosts'][0]) }}"]
+        labels:
+          instance: {{ groups['proxmox_hosts'][0] }}
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - target_label: __address__
+        replacement: {{ prometheus_pve_exporter }}
+{% endif %}

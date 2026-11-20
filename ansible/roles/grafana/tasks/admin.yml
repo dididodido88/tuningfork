@@ -1,0 +1,46 @@
+---
+# Grafana creates admin with the default password on its first start; set the vault one, and set
+# it again whenever it no longer logs in. Checked through the name browsers use (internal CA).
+- name: Grafana | Wait until Grafana answers
+  ansible.builtin.uri:
+    url: "https://{{ grafana_domain }}:{{ grafana_port }}/api/health"
+  register: grafana_health
+  until: grafana_health.status == 200
+  retries: 30
+  delay: 5
+
+- name: Grafana | Try the vault admin password
+  ansible.builtin.uri:
+    url: "https://{{ grafana_domain }}:{{ grafana_port }}/api/user"
+    user: admin
+    password: "{{ grafana_admin_password }}"
+    force_basic_auth: true
+    status_code: [200, 401]
+  register: grafana_admin_login
+  no_log: true
+
+- name: Grafana | Set the admin password from the vault
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/grafana
+      - cli
+      - --homepath
+      - /usr/share/grafana
+      - --config
+      - /etc/grafana/grafana.ini
+      - admin
+      - reset-admin-password
+      - --password-from-stdin
+    stdin: "{{ grafana_admin_password }}"
+  changed_when: true
+  no_log: true
+  when: grafana_admin_login.status == 401
+
+- name: Grafana | Check the vault admin password now logs in
+  ansible.builtin.uri:
+    url: "https://{{ grafana_domain }}:{{ grafana_port }}/api/user"
+    user: admin
+    password: "{{ grafana_admin_password }}"
+    force_basic_auth: true
+  no_log: true
+  when: grafana_admin_login.status == 401

@@ -42,3 +42,12 @@ siem_trap_senders: >-
 # SNMPv3 users the iDRACs send traps with (roles/snmp_trap_receiver). Filled in with the iDRAC
 # configuration; empty: every trap is dropped.
 siem_snmp_trap_users: []
+
+# --- Monitoring credentials (non-secret parts; passwords and tokens are in the vault) -------------
+# SNMPv3 user the SIEM VM polls the iDRACs with (read-only). Passwords:
+# vault_snmp_idrac_auth_password, vault_snmp_idrac_priv_password.
+siem_idrac_snmp_username: tuningfork-poll
+# Proxmox VE API user (PVEAuditor) and token the SIEM VM reads the cluster with. Token value:
+# vault_pve_exporter_token_value.
+siem_pve_api_user: tuningfork-monitor@pve
+siem_pve_token_name: prometheus

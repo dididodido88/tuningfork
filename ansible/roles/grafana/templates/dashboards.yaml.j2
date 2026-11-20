@@ -1,0 +1,10 @@
+# {{ ansible_managed }} (roles/grafana)
+apiVersion: 1
+providers:
+  - name: tuningfork
+    folder: Tuningfork
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    options:
+      path: {{ grafana_dashboards_dir }}

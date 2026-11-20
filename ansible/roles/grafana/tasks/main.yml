@@ -1,0 +1,103 @@
+---
+- name: Grafana | Check the admin password is set
+  ansible.builtin.assert:
+    that: grafana_admin_password | length >= 12
+    fail_msg: Set vault_grafana_admin_password (at least 12 characters) in group_vars/all/vault.yml.
+    quiet: true
+  no_log: true
+  tags: [grafana]
+
+- name: Grafana | Download and check the RPM
+  ansible.builtin.include_role:
+    name: siem_artifacts
+  vars:
+    siem_artifacts_required: [grafana_rpm]
+  tags: [grafana]
+
+# Grafana's signing key isn't on the host; the RPM is the exact file pinned by sha256 in
+# siem_versions.yml (checked against Grafana's published checksum when it was downloaded).
+- name: Grafana | Install the RPM
+  ansible.builtin.dnf:
+    name: "{{ siem_artifact_paths['grafana_rpm'] }}"
+    state: present
+    disable_gpg_check: true
+  notify: Grafana | Restart
+  tags: [grafana]
+
+- name: Grafana | Install the host certificate for Grafana
+  ansible.builtin.copy:
+    src: "{{ item.src }}"
+    dest: "/etc/grafana/{{ item.dest }}"
+    remote_src: true
+    owner: root
+    group: grafana
+    mode: "0640"
+  loop:
+    - {src: "{{ grafana_certificate }}", dest: tls.crt}
+    - {src: "{{ grafana_key }}", dest: tls.key}
+  loop_control:
+    label: "{{ item.dest }}"
+  notify: Grafana | Restart
+  tags: [grafana]
+
+- name: Grafana | Configure grafana.ini
+  community.general.ini_file:
+    path: /etc/grafana/grafana.ini
+    section: "{{ item.0.key }}"
+    option: "{{ item.1.key }}"
+    value: "{{ item.1.value }}"
+    owner: root
+    group: grafana
+    mode: "0640"
+  loop: "{{ grafana_settings | dict2items | subelements('value') }}"
+  loop_control:
+    label: "[{{ item.0.key }}] {{ item.1.key }}"
+  notify: Grafana | Restart
+  tags: [grafana]
+
+- name: Grafana | Create the dashboard folder
+  ansible.builtin.file:
+    path: "{{ grafana_dashboards_dir }}"
+    state: directory
+    owner: root
+    group: grafana
+    mode: "0750"
+  tags: [grafana]
+
+- name: Grafana | Provision the Prometheus data source and the dashboard folder
+  ansible.builtin.template:
+    src: "{{ item }}.yaml.j2"
+    dest: "/etc/grafana/provisioning/{{ item }}/tuningfork.yaml"
+    owner: root
+    group: grafana
+    mode: "0640"
+  loop: [datasources, dashboards]
+  notify: Grafana | Restart
+  tags: [grafana]
+
+- name: Grafana | Start and enable
+  ansible.builtin.systemd:
+    name: grafana-server
+    enabled: true
+    state: started
+    daemon_reload: true
+  tags: [grafana]
+
+- name: Grafana | Allow the admin networks through the firewall
+  ansible.posix.firewalld:
+    zone: "{{ grafana_firewall_zone }}"
+    rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="{{ grafana_port }}" protocol="tcp" accept'
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ grafana_admin_networks }}"
+  when: grafana_manage_firewall | bool
+  tags: [grafana, firewall]
+
+- name: Grafana | Apply pending restarts
+  ansible.builtin.meta: flush_handlers
+  tags: [grafana]
+
+- name: Grafana | Admin password
+  ansible.builtin.import_tasks: admin.yml
+  tags: [grafana]

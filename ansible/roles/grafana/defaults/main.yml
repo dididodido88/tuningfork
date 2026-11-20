@@ -1,0 +1,27 @@
+---
+# Grafana OSS on the SIEM VM, from the checked RPM (siem_versions.yml, grafana_rpm). HTTPS with
+# the host certificate, Prometheus as the data source, dashboards provisioned from files.
+# Nothing is fetched from the internet: update checks, news, usage reporting, gravatar and
+# plugin installs are off. Guide: docs/siem.md.
+
+grafana_port: 3000
+# https://<siem_server_name>:3000/ (the host certificate must cover the name).
+grafana_domain: "{{ siem_server_name }}"
+grafana_certificate: /etc/pki/tls/certs/host.fullchain.crt
+grafana_key: /etc/pki/tls/private/host.key
+
+# Local break-glass administrator. The password is set from the vault and reset to it whenever
+# it no longer logs in.
+grafana_admin_password: "{{ vault_grafana_admin_password | default('') }}"
+
+grafana_prometheus_url: http://127.0.0.1:9090
+
+# Dashboards (JSON) provisioned from this folder; they come with the detection content.
+grafana_dashboards_dir: /var/lib/grafana/dashboards/tuningfork
+
+# Email (password resets, alert tests) through the local Postfix relay.
+grafana_mail_from: "{{ siem_mail_from | default('grafana@' ~ env_domain) }}"
+
+grafana_manage_firewall: true
+grafana_firewall_zone: "{{ rhel9cis_default_zone | default('public') }}"
+grafana_admin_networks: "{{ siem_admin_networks | default([]) }}"

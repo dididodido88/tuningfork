@@ -1,0 +1,23 @@
+---
+# prometheus-pve-exporter on the SIEM VM: reads the Proxmox VE API (read-only token) and serves
+# the metrics to Prometheus. Installed into a virtualenv from the checked wheel bundle
+# (siem_versions.yml, pve_exporter_wheels), never from the internet. Guide: docs/siem.md.
+
+pve_exporter_listen_address: 127.0.0.1
+pve_exporter_port: 9221
+
+# Virtualenv per version: /opt/pve-exporter/<version>.
+pve_exporter_base_dir: /opt/pve-exporter
+pve_exporter_python: "python{{ pve_exporter_python_version }}"
+
+# API token (Proxmox: Datacenter > Permissions > API Tokens) of a user with the PVEAuditor role,
+# created with the Proxmox monitoring. Until the token is in the vault, Prometheus doesn't scrape.
+pve_exporter_api_user: "{{ siem_pve_api_user | default('tuningfork-monitor@pve') }}"
+pve_exporter_token_name: "{{ siem_pve_token_name | default('prometheus') }}"
+pve_exporter_token_value: "{{ vault_pve_exporter_token_value | default('') }}"
+
+# Check the Proxmox API certificate against the system trust store (internal CA). Set false
+# only while the hosts still use Proxmox's self-signed certificate.
+pve_exporter_verify_ssl: true
+
+pve_exporter_user: pve-exporter

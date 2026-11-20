@@ -1,0 +1,5 @@
+---
+# The iDRACs are polled only once the SNMPv3 user and both passwords are set.
+snmp_exporter_credentials_set: >-
+  {{ snmp_exporter_username | length > 0 and snmp_exporter_auth_password | length > 0
+     and snmp_exporter_priv_password | length > 0 }}

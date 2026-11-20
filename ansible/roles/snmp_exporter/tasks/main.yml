@@ -1,0 +1,84 @@
+---
+- name: SNMP exporter | Download and check the release
+  ansible.builtin.include_role:
+    name: siem_artifacts
+  vars:
+    siem_artifacts_required: [snmp_exporter]
+  tags: [snmp_exporter]
+
+- name: SNMP exporter | Install the binary
+  ansible.builtin.include_role:
+    name: siem_artifacts
+    tasks_from: install_binaries
+  vars:
+    siem_install_key: snmp_exporter
+    siem_install_binaries: [snmp_exporter]
+  tags: [snmp_exporter]
+
+- name: SNMP exporter | Restart after a new binary
+  ansible.builtin.debug:
+    msg: snmp_exporter binary replaced
+  changed_when: siem_install_changed | bool
+  when: siem_install_changed | bool
+  notify: SNMP exporter | Restart
+  tags: [snmp_exporter]
+
+- name: SNMP exporter | Create the service user
+  ansible.builtin.user:
+    name: "{{ snmp_exporter_user }}"
+    system: true
+    shell: /sbin/nologin
+    home: /nonexistent
+    create_home: false
+  tags: [snmp_exporter]
+
+- name: SNMP exporter | Create the configuration folder
+  ansible.builtin.file:
+    path: /etc/snmp_exporter
+    state: directory
+    owner: root
+    group: "{{ snmp_exporter_user }}"
+    mode: "0750"
+  tags: [snmp_exporter]
+
+# The release's own module definitions, as shipped.
+- name: SNMP exporter | Install the release's snmp.yml
+  ansible.builtin.copy:
+    src: "{{ siem_artifacts_unpack_dir }}/{{ siem_artifact_paths['snmp_exporter'] | basename | replace('.tar.gz', '') }}/snmp.yml"
+    dest: /etc/snmp_exporter/snmp.yml
+    remote_src: true
+    owner: root
+    group: "{{ snmp_exporter_user }}"
+    mode: "0640"
+  notify: SNMP exporter | Restart
+  tags: [snmp_exporter]
+
+- name: SNMP exporter | Write the SNMPv3 credentials
+  ansible.builtin.template:
+    src: auth.yml.j2
+    dest: /etc/snmp_exporter/auth.yml
+    owner: root
+    group: "{{ snmp_exporter_user }}"
+    mode: "0640"
+  no_log: true
+  notify: SNMP exporter | Restart
+  when: snmp_exporter_credentials_set | bool
+  tags: [snmp_exporter]
+
+- name: SNMP exporter | Install the service
+  ansible.builtin.template:
+    src: snmp_exporter.service.j2
+    dest: /etc/systemd/system/snmp_exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: SNMP exporter | Restart
+  tags: [snmp_exporter]
+
+- name: SNMP exporter | Start and enable
+  ansible.builtin.systemd:
+    name: snmp_exporter
+    enabled: true
+    state: started
+    daemon_reload: true
+  tags: [snmp_exporter]

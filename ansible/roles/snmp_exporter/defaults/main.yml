@@ -1,0 +1,19 @@
+---
+# Prometheus snmp_exporter on the SIEM VM, from the checked release tarball (siem_versions.yml).
+# It polls the iDRACs with the release's own snmp.yml, unmodified (module dell); the SNMPv3
+# credentials are in a second config file. Guide: docs/siem.md.
+
+snmp_exporter_listen_address: 127.0.0.1:9116
+snmp_exporter_module: dell
+
+# SNMPv3 user the iDRACs answer to (read-only; created with the iDRAC configuration). Until the
+# passwords are in the vault, the exporter runs without credentials and Prometheus doesn't poll
+# the iDRACs.
+snmp_exporter_auth_name: idrac_v3
+snmp_exporter_username: "{{ siem_idrac_snmp_username | default('') }}"
+snmp_exporter_auth_protocol: SHA256
+snmp_exporter_auth_password: "{{ vault_snmp_idrac_auth_password | default('') }}"
+snmp_exporter_priv_protocol: AES
+snmp_exporter_priv_password: "{{ vault_snmp_idrac_priv_password | default('') }}"
+
+snmp_exporter_user: snmp_exporter

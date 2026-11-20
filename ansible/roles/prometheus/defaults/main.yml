@@ -17,3 +17,20 @@ prometheus_evaluation_interval: 60s
 prometheus_alertmanager: 127.0.0.1:9093
 
 prometheus_user: prometheus
+
+# iDRACs through snmp_exporter (module dell): only once the SNMPv3 user and passwords are set
+# (roles/snmp_exporter), so the iDRACs don't show as down before they are configured.
+prometheus_idrac_enabled: >-
+  {{ (groups['idrac'] | default([])) | length > 0
+     and (siem_idrac_snmp_username | default('')) | length > 0
+     and (vault_snmp_idrac_auth_password | default('')) | length > 0
+     and (vault_snmp_idrac_priv_password | default('')) | length > 0 }}
+prometheus_snmp_exporter: 127.0.0.1:9116
+# The dell module walks large tables (event and Lifecycle logs): allow most of the interval.
+prometheus_idrac_scrape_timeout: 50s
+
+# Proxmox through pve_exporter: only once the API token is in the vault (roles/pve_exporter).
+prometheus_pve_enabled: >-
+  {{ (groups['proxmox_hosts'] | default([])) | length > 0
+     and (vault_pve_exporter_token_value | default('')) | length > 0 }}
+prometheus_pve_exporter: 127.0.0.1:9221
