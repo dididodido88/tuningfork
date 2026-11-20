@@ -10,7 +10,7 @@
 #       siem_install_binaries: [prometheus, promtool]
 #
 # Sets siem_install_changed (true when a binary was installed or replaced), for the caller to
-# restart its service.
+# restart its service, and siem_install_dir (the unpacked release folder, for other files in it).
 
 - name: Artifacts | Create the unpack folder
   ansible.builtin.file:
@@ -45,6 +45,7 @@
   vars:
     siem_install_src_dir: "{{ siem_artifacts_unpack_dir }}/{{ siem_artifact_paths[siem_install_key] | basename | replace('.tar.gz', '') }}"
 
-- name: Artifacts | Record whether the binaries changed
+- name: Artifacts | Record the result
   ansible.builtin.set_fact:
     siem_install_changed: "{{ siem_install_copy is changed }}"
+    siem_install_dir: "{{ siem_artifacts_unpack_dir }}/{{ siem_artifact_paths[siem_install_key] | basename | replace('.tar.gz', '') }}"

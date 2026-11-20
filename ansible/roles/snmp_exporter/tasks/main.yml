@@ -44,7 +44,7 @@
 # The release's own module definitions, as shipped.
 - name: SNMP exporter | Install the release's snmp.yml
   ansible.builtin.copy:
-    src: "{{ siem_artifacts_unpack_dir }}/{{ siem_artifact_paths['snmp_exporter'] | basename | replace('.tar.gz', '') }}/snmp.yml"
+    src: "{{ siem_install_dir }}/snmp.yml"
     dest: /etc/snmp_exporter/snmp.yml
     remote_src: true
     owner: root
