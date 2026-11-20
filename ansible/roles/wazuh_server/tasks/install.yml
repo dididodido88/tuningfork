@@ -1,19 +1,15 @@
 ---
-- name: Wazuh | Check which central components are installed
-  ansible.builtin.command:
-    argv: [rpm, -q, --qf, '%{NAME} %{VERSION}\n', wazuh-manager, wazuh-indexer, wazuh-dashboard]
-  register: wazuh_server_rpm
-  changed_when: false
-  failed_when: false
-  check_mode: false
+- name: Wazuh | Read the installed packages
+  ansible.builtin.package_facts:
+    manager: rpm
 
-# name -> version of the components that are installed ("package ... is not installed" lines are skipped).
+# name -> version of the central components that are installed.
 - name: Wazuh | Record the installed versions
   ansible.builtin.set_fact:
     wazuh_server_installed: >-
       {%- set ns = namespace(d={}) -%}
-      {%- for line in wazuh_server_rpm.stdout_lines if line is match('^wazuh-(manager|indexer|dashboard) \S+$') -%}
-      {%-   set ns.d = ns.d | combine({line.split(' ')[0]: line.split(' ')[1]}) -%}
+      {%- for p in wazuh_server_packages if p in ansible_facts.packages -%}
+      {%-   set ns.d = ns.d | combine({p: ansible_facts.packages[p][0].version}) -%}
       {%- endfor -%}
       {{ ns.d }}
 
@@ -133,7 +129,7 @@
     - wazuh_server_install.rc | default(1) != 0
 
 # About 1.8 GB on /var, no longer needed once the packages are installed.
-- name: Wazuh | Remove the unpacked packages after installation
+- name: Wazuh | Remove the unpacked packages after installation  # noqa: no-handler
   ansible.builtin.file:
     path: "{{ wazuh_server_work_dir }}/wazuh-offline"
     state: absent

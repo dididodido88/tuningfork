@@ -51,7 +51,7 @@
     setype: snmpd_log_t
   tags: [snmp_trap_receiver]
 
-- name: Traps | Apply the SELinux label to existing files
+- name: Traps | Apply the SELinux label to existing files  # noqa: no-handler
   ansible.builtin.command: restorecon -R -v {{ snmp_trap_receiver_dir }}
   register: snmp_trap_receiver_restorecon
   changed_when: snmp_trap_receiver_restorecon.stdout | length > 0

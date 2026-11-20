@@ -69,7 +69,7 @@
 
 # Shown once: Proxmox can't show it again. If it is lost, remove the token in Proxmox
 # (pveum user token remove <user> <name>) and run this playbook again.
-- name: Proxmox | Show the new token secret (save it as vault_pve_exporter_token_value)
+- name: Proxmox | Show the new token secret (save it as vault_pve_exporter_token_value)  # noqa: no-handler
   ansible.builtin.debug:
     msg:
       - "New Proxmox API token {{ proxmox_monitoring_user }}!{{ proxmox_monitoring_token_name }}."

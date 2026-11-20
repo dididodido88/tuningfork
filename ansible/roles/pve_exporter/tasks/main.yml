@@ -77,7 +77,7 @@
   register: pve_exporter_fcontext
   tags: [pve_exporter]
 
-- name: PVE exporter | Apply the SELinux labels
+- name: PVE exporter | Apply the SELinux labels  # noqa: no-handler
   ansible.builtin.command: restorecon -R -v {{ pve_exporter_base_dir }}
   register: pve_exporter_restorecon
   changed_when: pve_exporter_restorecon.stdout | length > 0
@@ -126,7 +126,7 @@
   when: pve_exporter_cluster_ca is not skipped
   tags: [pve_exporter]
 
-- name: PVE exporter | Rebuild the system trust store
+- name: PVE exporter | Rebuild the system trust store  # noqa: no-handler
   ansible.builtin.command: update-ca-trust extract
   changed_when: true
   when: pve_exporter_ca_anchor is changed

@@ -25,7 +25,7 @@
   register: wazuh_server_indexer_dropin
   notify: Wazuh | Restart the indexer
 
-- name: Wazuh | Reload systemd after changing the drop-in
+- name: Wazuh | Reload systemd after changing the drop-in  # noqa: no-handler
   ansible.builtin.systemd:
     daemon_reload: true
   when: wazuh_server_indexer_dropin is changed
