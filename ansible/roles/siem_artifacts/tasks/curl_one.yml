@@ -43,7 +43,3 @@
       ansible.builtin.file:
         path: "{{ siem_curl_dest }}.part"
         state: absent
-  vars:
-    siem_curl_dest: "{{ siem_artifacts_cache_dir }}/{{ siem_artifacts_rel_paths[siem_artifact_key] }}"
-    siem_curl_url: "{{ siem_mirror_url }}/{{ siem_artifacts_rel_paths[siem_artifact_key] }}"
-    siem_curl_sha256: "{{ siem_artifacts[siem_artifact_key].sha256 | lower }}"

@@ -29,6 +29,10 @@
   loop: "{{ siem_artifacts_keys }}"
   loop_control:
     loop_var: siem_artifact_key
+  vars:
+    siem_curl_dest: "{{ siem_artifacts_cache_dir }}/{{ siem_artifacts_rel_paths[siem_artifact_key] }}"
+    siem_curl_url: "{{ siem_mirror_url }}/{{ siem_artifacts_rel_paths[siem_artifact_key] }}"
+    siem_curl_sha256: "{{ siem_artifacts[siem_artifact_key].sha256 | lower }}"
   when: siem_artifacts_use_curl | bool
 
 - name: Artifacts | Record the checked local paths
