@@ -11,5 +11,22 @@ database_server_postgresql_stream: "16"
 database_server_postgresql_data_dir: /var/lib/pgsql/data
 database_server_postgresql_port: 5432
 
+# Character encoding and locale the database cluster is created with. Both are fixed when the
+# cluster is first initialised and become the defaults of every database created later; the
+# role can't change them on an existing cluster (it stops and says so). C.UTF-8 sorts by
+# Unicode code point: indexes stay valid across glibc upgrades, and it needs no language pack.
+database_server_postgresql_encoding: UTF8
+database_server_postgresql_locale: C.UTF-8
+
+# Time zone PostgreSQL uses for sessions (how timestamps are shown and read, and what now()
+# returns for "timestamp without time zone") and for the times in its own log. Applied to an
+# existing cluster too, with a reload.
+database_server_postgresql_timezone: UTC
+
+# Password of the built-in postgres superuser, from the vault
+# (inventories/<ENV>/group_vars/all/vault.yml). Required: at least 12 characters.
+# Use ASCII characters only; PostgreSQL normalises other characters before hashing.
+database_server_postgresql_postgres_password: "{{ vault_postgresql_postgres_password | default('') }}"
+
 # Open database_server_postgresql_port/tcp in firewalld.
 database_server_manage_firewall: true

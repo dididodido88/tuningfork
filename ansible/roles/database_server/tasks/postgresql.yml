@@ -1,19 +1,158 @@
 ---
+- name: PostgreSQL | Check the postgres password is set
+  ansible.builtin.assert:
+    that:
+      - database_server_postgresql_postgres_password | length >= 12
+      - database_server_postgresql_postgres_password != 'CHANGEME'
+    fail_msg: >-
+      Set vault_postgresql_postgres_password (at least 12 characters) in
+      inventories/<ENV>/group_vars/all/vault.yml: the password of the built-in postgres superuser.
+    quiet: true
+  no_log: true
+
 - name: PostgreSQL | Install server from module stream
   ansible.builtin.dnf:
     name: "@postgresql:{{ database_server_postgresql_stream }}/server"
     state: present
 
-- name: PostgreSQL | Initialise the database cluster
+# The encoding and locale are given explicitly. Without them initdb takes them from the
+# locale of the Ansible session, which is often plain C, and the cluster ends up SQL_ASCII.
+# postgresql-setup passes PGSETUP_INITDB_OPTIONS on to initdb.
+- name: PostgreSQL | Initialise the database cluster ({{ database_server_postgresql_encoding }}, {{ database_server_postgresql_locale }})
   ansible.builtin.command: postgresql-setup --initdb
   args:
     creates: "{{ database_server_postgresql_data_dir }}/PG_VERSION"
+  environment:
+    PGSETUP_INITDB_OPTIONS: >-
+      --encoding={{ database_server_postgresql_encoding }}
+      --locale={{ database_server_postgresql_locale }}
+
+- name: PostgreSQL | Look for the database cluster
+  ansible.builtin.stat:
+    path: "{{ database_server_postgresql_data_dir }}/postgresql.conf"
+    get_checksum: false
+  register: database_server_postgresql_conf
+
+# Applies to existing clusters too. The regexps match the commented-out defaults as well, and
+# "timezone" doesn't match "log_timezone".
+- name: PostgreSQL | Set the time zone ({{ database_server_postgresql_timezone }})
+  ansible.builtin.lineinfile:
+    path: "{{ database_server_postgresql_data_dir }}/postgresql.conf"
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.name }} = '{{ database_server_postgresql_timezone }}'"
+  loop:
+    - {name: timezone, regexp: '^\s*#?\s*timezone\s*='}
+    - {name: log_timezone, regexp: '^\s*#?\s*log_timezone\s*='}
+  loop_control:
+    label: "{{ item.name }}"
+  notify: PostgreSQL | Reload postgresql
+  when: database_server_postgresql_conf.stat.exists
 
 - name: PostgreSQL | Enable and start postgresql
   ansible.builtin.systemd:
     name: postgresql
     enabled: true
     state: started
+
+- name: PostgreSQL | Apply the settings before checking them
+  ansible.builtin.meta: flush_handlers
+
+# --- postgres password from the vault -----------------------------------------------------
+# The password is set as a SCRAM-SHA-256 verifier made on the host (files/scram_verifier.py),
+# so PostgreSQL never receives the password itself, and it is only changed when the vault
+# password no longer matches. The password travels on stdin only, never on a command line.
+- name: PostgreSQL | Read the stored postgres password verifier
+  ansible.builtin.command:
+    argv: [psql, -XAt, -c, "SELECT coalesce(rolpassword, '') FROM pg_authid WHERE rolname = 'postgres'"]
+    chdir: /
+  become: true
+  become_user: postgres
+  register: database_server_postgres_verifier
+  changed_when: false
+  check_mode: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: PostgreSQL | Compare it with the vault password
+  ansible.builtin.command:
+    argv: [/usr/bin/python3, -c, "{{ lookup('ansible.builtin.file', 'scram_verifier.py') }}"]
+    stdin: "{{ database_server_postgresql_postgres_password }}\n{{ database_server_postgres_verifier.stdout | trim }}"
+  register: database_server_postgres_new_verifier
+  changed_when: false
+  check_mode: false
+  no_log: true
+  when: not ansible_check_mode
+
+- name: PostgreSQL | Set the postgres password from the vault
+  ansible.builtin.command:
+    argv: [psql, -X, -v, ON_ERROR_STOP=1, -q]
+    stdin: "ALTER ROLE postgres WITH PASSWORD '{{ database_server_postgres_new_verifier.stdout | trim }}';"
+    chdir: /
+  become: true
+  become_user: postgres
+  changed_when: true
+  no_log: true
+  when:
+    - not ansible_check_mode
+    - database_server_postgres_new_verifier.stdout | trim != "unchanged"
+
+# template1 is the template every new database is copied from, so its encoding is the default.
+- name: PostgreSQL | Read the encoding, locale and time zone in use
+  ansible.builtin.command:
+    argv:
+      - psql
+      - -XAt
+      - -F
+      - "|"
+      - -c
+      - >-
+        SELECT pg_encoding_to_char(encoding), datcollate,
+        current_setting('TimeZone'), current_setting('log_timezone')
+        FROM pg_database WHERE datname = 'template1'
+    # Not the Ansible account's home directory, which postgres can't enter.
+    chdir: /
+  become: true
+  become_user: postgres
+  register: database_server_postgresql_actual
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: PostgreSQL | Check the encoding and time zone
+  vars:
+    database_server_actual: "{{ database_server_postgresql_actual.stdout | trim | split('|') }}"
+  ansible.builtin.assert:
+    that:
+      - database_server_actual[0] == database_server_postgresql_encoding
+      - database_server_actual[2] == database_server_postgresql_timezone
+      - database_server_actual[3] == database_server_postgresql_timezone
+    fail_msg: >-
+      PostgreSQL on {{ inventory_hostname }} uses encoding {{ database_server_actual[0] }} and time zone
+      {{ database_server_actual[2] }} (log: {{ database_server_actual[3] }}); expected
+      {{ database_server_postgresql_encoding }} and {{ database_server_postgresql_timezone }}.
+      {% if database_server_actual[0] != database_server_postgresql_encoding %}The encoding is fixed
+      when the cluster is created and is never changed by this role. If the cluster holds no data:
+      stop postgresql, move {{ database_server_postgresql_data_dir }} aside, and run this play again
+      to create it with {{ database_server_postgresql_encoding }}. If it holds data: back it up with
+      pg_dumpall, create the cluster again the same way, and restore the backup.{% endif %}
+    quiet: true
+  when: not ansible_check_mode
+
+# Reported, not enforced: a different locale only changes sorting and upper/lower case rules.
+# Compared without case or dashes, since C.UTF-8 and C.utf8 are the same locale.
+- name: PostgreSQL | Report a locale that differs from the setting
+  vars:
+    database_server_actual_locale: "{{ (database_server_postgresql_actual.stdout | trim | split('|'))[1] }}"
+  ansible.builtin.debug:
+    msg: >-
+      The cluster on {{ inventory_hostname }} was created with locale '{{ database_server_actual_locale }}',
+      not '{{ database_server_postgresql_locale }}'. Like the encoding, it is fixed when the cluster is
+      created, and this role leaves it as it is.
+  when:
+    - not ansible_check_mode
+    - >-
+      (database_server_actual_locale | lower | replace('-', ''))
+      != (database_server_postgresql_locale | lower | replace('-', ''))
 
 - name: PostgreSQL | Open firewall port
   ansible.posix.firewalld:

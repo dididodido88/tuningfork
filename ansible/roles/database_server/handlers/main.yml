@@ -1,0 +1,6 @@
+---
+# timezone and log_timezone take effect on a reload; no restart needed.
+- name: PostgreSQL | Reload postgresql
+  ansible.builtin.systemd:
+    name: postgresql
+    state: reloaded
