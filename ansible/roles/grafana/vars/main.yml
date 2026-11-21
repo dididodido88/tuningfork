@@ -1,0 +1,35 @@
+---
+# grafana.ini settings this role manages: section -> list of {key, value}.
+grafana_settings:
+  server:
+    - {key: protocol, value: https}
+    - {key: http_port, value: "{{ grafana_port }}"}
+    - {key: domain, value: "{{ grafana_domain }}"}
+    - {key: root_url, value: "https://{{ grafana_domain }}:{{ grafana_port }}/"}
+    - {key: cert_file, value: /etc/grafana/tls.crt}
+    - {key: cert_key, value: /etc/grafana/tls.key}
+  security:
+    - {key: admin_user, value: admin}
+    - {key: disable_gravatar, value: "true"}
+    - {key: cookie_secure, value: "true"}
+  users:
+    - {key: allow_sign_up, value: "false"}
+    - {key: allow_org_create, value: "false"}
+  auth.anonymous:
+    - {key: enabled, value: "false"}
+  analytics:
+    - {key: reporting_enabled, value: "false"}
+    - {key: check_for_updates, value: "false"}
+    - {key: check_for_plugin_updates, value: "false"}
+    - {key: feedback_links_enabled, value: "false"}
+  news:
+    - {key: news_feed_enabled, value: "false"}
+  # Air gap: no plugin installs from the UI, and no download of Grafana's preinstalled plugins.
+  plugins:
+    - {key: plugin_admin_enabled, value: "false"}
+    - {key: preinstall_disabled, value: "true"}
+  smtp:
+    - {key: enabled, value: "true"}
+    - {key: host, value: "localhost:25"}
+    - {key: from_address, value: "{{ grafana_mail_from }}"}
+    - {key: startTLS_policy, value: NoStartTLS}

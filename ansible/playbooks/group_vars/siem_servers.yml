@@ -1,0 +1,6 @@
+---
+# The SIEM VM is the environment's log host: it runs rsyslog to receive syslog from the Proxmox
+# hosts and the iDRACs (roles/syslog_receiver). CIS "Ensure only one logging system is in use"
+# would stop and disable rsyslog on every run, since the Rocky hosts use journald
+# (rhel9cis_syslog). The benchmark allows a designated log host to receive remote logs.
+rhel9cis_rule_6_2_1_4: false

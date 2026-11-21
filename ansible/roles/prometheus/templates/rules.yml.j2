@@ -1,0 +1,12 @@
+# {{ ansible_managed }} (roles/prometheus): base alert rules.
+groups:
+  - name: tuningfork-base
+    rules:
+      - alert: TargetDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ '{{' }} $labels.job {{ '}}' }} on {{ '{{' }} $labels.instance {{ '}}' }} is not answering"
+          description: "Prometheus could not scrape {{ '{{' }} $labels.instance {{ '}}' }} ({{ '{{' }} $labels.job {{ '}}' }}) for 5 minutes."

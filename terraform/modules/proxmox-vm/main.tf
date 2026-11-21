@@ -124,7 +124,7 @@ resource "proxmox_virtual_environment_vm" "this" {
     interface    = var.os_disk_interface
     datastore_id = each.value.datastore_id
     size         = each.value.os_disk_gb
-    file_format  = "raw"
+    file_format  = "qcow2"
     iothread     = true
     discard      = "on"
   }
@@ -138,7 +138,7 @@ resource "proxmox_virtual_environment_vm" "this" {
       interface    = "scsi${disk.key + 1}"
       datastore_id = coalesce(disk.value.datastore_id, each.value.datastore_id)
       size         = disk.value.size_gb
-      file_format  = "raw"
+      file_format  = "qcow2"
       iothread     = true
       discard      = "on"
     }

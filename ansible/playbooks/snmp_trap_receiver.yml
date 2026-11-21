@@ -1,0 +1,19 @@
+---
+# snmptrapd on the SIEM VM receives SNMPv3 traps from the iDRACs (162/udp), translated with the
+# Dell iDRAC MIB. Run after syslog_receiver.yml (its log rotation covers the trap log).
+# Guide: docs/siem.md.
+
+- name: SNMP trap receiver on the SIEM VM
+  hosts: siem_servers
+  become: true
+  gather_facts: true
+  # Artifacts come from the mirror (env_repo_base_url), HTTPS with a certificate from the internal CA.
+  pre_tasks:
+    - name: Check the internal CA is trusted (playbooks/certificates.yml ran)
+      ansible.builtin.import_role:
+        name: certificates
+        tasks_from: verify_trust
+      tags: [always]
+  roles:
+    - role: snmp_trap_receiver
+      tags: [snmp_trap_receiver]

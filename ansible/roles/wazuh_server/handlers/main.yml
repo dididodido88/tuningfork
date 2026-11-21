@@ -3,6 +3,7 @@
   ansible.builtin.systemd:
     name: wazuh-indexer
     state: restarted
+    daemon_reload: true
 
 - name: Wazuh | Restart the manager
   ansible.builtin.systemd:

@@ -1,0 +1,14 @@
+---
+galaxy_info:
+  author: tuningfork
+  description: Prometheus node_exporter from the checked release tarball, scraped by the SIEM VM
+  license: proprietary
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+    - name: Debian
+      versions:
+        - trixie
+dependencies: []

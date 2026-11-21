@@ -1,0 +1,69 @@
+---
+- name: Syslog | Install rsyslog
+  ansible.builtin.dnf:
+    name: rsyslog
+    state: present
+  tags: [syslog_receiver]
+
+- name: Syslog | Create the folder for received logs
+  ansible.builtin.file:
+    path: "{{ syslog_receiver_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  tags: [syslog_receiver]
+
+# Received messages go only to their own files (own ruleset), never into this host's logs.
+- name: Syslog | Configure the receiver
+  ansible.builtin.template:
+    src: receiver.conf.j2
+    dest: /etc/rsyslog.d/10-tuningfork-receiver.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: rsyslogd -N1 -f %s
+  notify: Syslog | Restart rsyslog
+  tags: [syslog_receiver]
+
+# copytruncate: also covers files written by other programs here (snmptrapd), which don't
+# reopen their file on a signal from rsyslog.
+- name: Syslog | Rotate the received logs
+  ansible.builtin.copy:
+    dest: /etc/logrotate.d/tuningfork-remote
+    content: |
+      # Managed by Ansible (roles/syslog_receiver)
+      {{ syslog_receiver_dir }}/*/*.log {
+          daily
+          rotate {{ syslog_receiver_keep_days }}
+          dateext
+          compress
+          delaycompress
+          copytruncate
+          missingok
+          notifempty
+      }
+    owner: root
+    group: root
+    mode: "0644"
+  tags: [syslog_receiver]
+
+- name: Syslog | Start and enable rsyslog
+  ansible.builtin.systemd:
+    name: rsyslog
+    enabled: true
+    state: started
+  tags: [syslog_receiver]
+
+- name: Syslog | Allow the senders through the firewall
+  ansible.posix.firewalld:
+    zone: "{{ syslog_receiver_firewall_zone }}"
+    rich_rule: 'rule family="ipv4" source address="{{ item.0 }}" port port="{{ syslog_receiver_port }}" protocol="{{ item.1 }}" accept'
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ syslog_receiver_senders | product(syslog_receiver_protocols) | list }}"
+  loop_control:
+    label: "{{ item.0 }} -> {{ syslog_receiver_port }}/{{ item.1 }}"
+  when: syslog_receiver_manage_firewall | bool
+  tags: [syslog_receiver, firewall]

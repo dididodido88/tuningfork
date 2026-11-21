@@ -1,10 +1,31 @@
 ---
-# jvm.options.d is read after jvm.options, so these values win over the installer's.
-- name: Wazuh | Set the indexer heap
-  ansible.builtin.template:
-    src: heap.options.j2
-    dest: /etc/wazuh-indexer/jvm.options.d/tuningfork-heap.options
+# Indexer service settings, as a systemd drop-in. Written before the installer runs, because the
+# installer starts the indexer itself, and kept out of /etc/wazuh-indexer, which the installer's
+# -o deletes.
+#   OPENSEARCH_TMPDIR: CIS mounts /tmp noexec, and the indexer unpacks a native library (JNA)
+#     into its temporary folder, then fails to start ("failed to map segment from shared
+#     object"). The folder goes on the indexer's data disk instead; ExecStartPre (+: as root)
+#     creates it, since the wazuh-indexer user exists only once the package is installed.
+#   OPENSEARCH_JAVA_OPTS: the heap. Added after jvm.options, so it wins over the installer's.
+- name: Wazuh | Create the indexer's systemd drop-in folder
+  ansible.builtin.file:
+    path: /etc/systemd/system/wazuh-indexer.service.d
+    state: directory
     owner: root
-    group: wazuh-indexer
-    mode: "0640"
+    group: root
+    mode: "0755"
+
+- name: Wazuh | Set the indexer's temporary folder and heap
+  ansible.builtin.template:
+    src: wazuh-indexer.conf.j2
+    dest: /etc/systemd/system/wazuh-indexer.service.d/tuningfork.conf
+    owner: root
+    group: root
+    mode: "0644"
+  register: wazuh_server_indexer_dropin
   notify: Wazuh | Restart the indexer
+
+- name: Wazuh | Reload systemd after changing the drop-in  # noqa: no-handler
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: wazuh_server_indexer_dropin is changed

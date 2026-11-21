@@ -1,0 +1,20 @@
+---
+# Prometheus node_exporter on the Rocky VMs and the Proxmox hosts (group node_exporter_hosts),
+# except Kubernetes nodes (k8s_nodes: Rancher's monitoring uses 9100 there). Guide: docs/siem.md.
+
+- name: Node exporter
+  hosts: node_exporter_hosts:!k8s_nodes
+  become: true
+  gather_facts: true
+  # The release comes from the mirror (env_repo_base_url), HTTPS with a certificate from the
+  # internal CA (checked on the Rocky VMs).
+  pre_tasks:
+    - name: Check the internal CA is trusted (playbooks/certificates.yml ran)
+      ansible.builtin.import_role:
+        name: certificates
+        tasks_from: verify_trust
+      when: ansible_os_family == 'RedHat'
+      tags: [always]
+  roles:
+    - role: node_exporter
+      tags: [node_exporter]

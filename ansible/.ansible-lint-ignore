@@ -1,0 +1,6 @@
+# Deliberate exceptions ansible-lint doesn't pick up from an inline noqa (tasks inside nested
+# blocks). Format: <file> <rule>
+#
+# rsync, not synchronize: a copy within the host keeping ACLs, xattrs and SELinux labels
+# (synchronize copies between the control node and a host).
+roles/filesystems/tasks/volume.yml command-instead-of-module

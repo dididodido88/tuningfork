@@ -1,0 +1,18 @@
+---
+# Grafana OSS on the SIEM VM: https://<siem_server_name>:3000/, Prometheus as the data source.
+# Admin password: vault_grafana_admin_password. Guide: docs/siem.md.
+
+- name: Grafana on the SIEM VM
+  hosts: siem_servers
+  become: true
+  gather_facts: true
+  # Artifacts come from the mirror (env_repo_base_url), HTTPS with a certificate from the internal CA.
+  pre_tasks:
+    - name: Check the internal CA is trusted (playbooks/certificates.yml ran)
+      ansible.builtin.import_role:
+        name: certificates
+        tasks_from: verify_trust
+      tags: [always]
+  roles:
+    - role: grafana
+      tags: [grafana]

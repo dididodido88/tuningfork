@@ -1,0 +1,7 @@
+---
+# get_url in ansible-core < 2.15 breaks on Python 3.12+ targets (HTTPSConnection lost cert_file):
+# download with curl there instead.
+siem_artifacts_use_curl: >-
+  {{ ansible_facts.python is defined
+     and ansible_facts.python.version.major == 3 and ansible_facts.python.version.minor >= 12
+     and ansible_version.full is version('2.15', '<') }}

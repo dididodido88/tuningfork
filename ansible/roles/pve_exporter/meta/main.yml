@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  author: tuningfork
+  description: prometheus-pve-exporter on the SIEM VM, from local wheels, read-only Proxmox API token
+  license: proprietary
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+dependencies: []

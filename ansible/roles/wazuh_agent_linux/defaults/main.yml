@@ -1,0 +1,18 @@
+---
+# Wazuh agent on Linux (Rocky 9 RPM, Debian/Proxmox DEB) from the checked packages
+# (siem_versions.yml). The agent reads the journal and the audit log and sends them to the
+# manager on the SIEM VM over its own encrypted connection (1514/tcp). Guide: docs/siem.md.
+#
+# One wazuh_version for the manager and every agent; an agent newer than the manager stops the
+# play (Wazuh requires agents to be the same version as the manager or older).
+
+# Manager address (IP, so enrollment doesn't depend on DNS).
+wazuh_agent_manager: "{{ siem_server_ip | default('') }}"
+
+# Agent name in Wazuh: the inventory name.
+wazuh_agent_name: "{{ inventory_hostname }}"
+
+# Agent group on the manager (central configuration): proxmox for the Proxmox hosts, else linux.
+wazuh_agent_group: "{{ 'proxmox' if inventory_hostname in groups['proxmox_hosts'] | default([]) else 'linux' }}"
+
+wazuh_agent_enrollment_password: "{{ vault_wazuh_enrollment_password | default('') }}"

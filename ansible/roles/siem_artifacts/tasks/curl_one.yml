@@ -1,0 +1,45 @@
+---
+# One artifact with curl, same rules as get_url with checksum: a file already in place with the
+# pinned sha256 isn't downloaded again; a download that doesn't match is deleted and stops the play.
+
+- name: Artifacts | Check {{ siem_artifact_key }} in the cache
+  ansible.builtin.stat:
+    path: "{{ siem_curl_dest }}"
+    checksum_algorithm: sha256
+  register: siem_curl_cached
+
+- name: Artifacts | Download {{ siem_artifact_key }} and check it
+  when: siem_curl_cached.stat.checksum | default('') != siem_curl_sha256
+  block:
+    - name: Artifacts | Download {{ siem_artifact_key }}
+      ansible.builtin.command:
+        argv: [curl, -fsS, --proto, "=https", --retry, "3", --max-time, "600", -o, "{{ siem_curl_dest }}.part", "{{ siem_curl_url }}"]
+      changed_when: true
+
+    - name: Artifacts | Read the sha256 of {{ siem_artifact_key }}
+      ansible.builtin.stat:
+        path: "{{ siem_curl_dest }}.part"
+        checksum_algorithm: sha256
+      register: siem_curl_part
+
+    - name: Artifacts | Stop if {{ siem_artifact_key }} doesn't match its pinned sha256
+      ansible.builtin.assert:
+        that: siem_curl_part.stat.checksum == siem_curl_sha256
+        fail_msg: >-
+          {{ siem_curl_url }} has sha256 {{ siem_curl_part.stat.checksum }}, expected {{ siem_curl_sha256 }}
+          (siem_versions.yml). The download was deleted.
+        quiet: true
+
+    - name: Artifacts | Keep {{ siem_artifact_key }}
+      ansible.builtin.copy:
+        src: "{{ siem_curl_dest }}.part"
+        dest: "{{ siem_curl_dest }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0644"
+  always:
+    - name: Artifacts | Remove the partial download of {{ siem_artifact_key }}
+      ansible.builtin.file:
+        path: "{{ siem_curl_dest }}.part"
+        state: absent

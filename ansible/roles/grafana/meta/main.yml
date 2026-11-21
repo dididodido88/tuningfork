@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  author: tuningfork
+  description: Grafana OSS on the SIEM VM from the checked RPM, HTTPS, Prometheus data source, no internet calls
+  license: proprietary
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+dependencies: []

@@ -1,0 +1,7 @@
+# {{ ansible_managed }} (roles/wazuh_server)
+[Service]
+# /tmp is noexec (CIS): the indexer's temporary folder is on its data disk.
+Environment=OPENSEARCH_TMPDIR={{ wazuh_server_indexer_tmpdir }}
+ExecStartPre=+/usr/bin/install -d -o wazuh-indexer -g wazuh-indexer -m 0750 {{ wazuh_server_indexer_tmpdir }}
+# JVM heap.
+Environment="OPENSEARCH_JAVA_OPTS=-Xms{{ wazuh_server_indexer_heap }} -Xmx{{ wazuh_server_indexer_heap }}"

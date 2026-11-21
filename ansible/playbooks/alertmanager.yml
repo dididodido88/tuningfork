@@ -1,0 +1,18 @@
+---
+# Alertmanager on the SIEM VM: emails Prometheus alerts through the local Postfix relay.
+# Recipients: siem_mail_to in inventories/<ENV>/group_vars/all/siem.yml. Guide: docs/siem.md.
+
+- name: Alertmanager on the SIEM VM
+  hosts: siem_servers
+  become: true
+  gather_facts: true
+  # Artifacts come from the mirror (env_repo_base_url), HTTPS with a certificate from the internal CA.
+  pre_tasks:
+    - name: Check the internal CA is trusted (playbooks/certificates.yml ran)
+      ansible.builtin.import_role:
+        name: certificates
+        tasks_from: verify_trust
+      tags: [always]
+  roles:
+    - role: alertmanager
+      tags: [alertmanager]

@@ -1,0 +1,10 @@
+# {{ ansible_managed }} (roles/snmp_exporter): SNMPv3 credentials, merged with snmp.yml.
+auths:
+  {{ snmp_exporter_auth_name }}:
+    version: 3
+    security_level: authPriv
+    username: {{ snmp_exporter_username | to_json }}
+    password: {{ snmp_exporter_auth_password | to_json }}
+    auth_protocol: {{ snmp_exporter_auth_protocol }}
+    priv_protocol: {{ snmp_exporter_priv_protocol }}
+    priv_password: {{ snmp_exporter_priv_password | to_json }}

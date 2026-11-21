@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  author: tuningfork
+  description: Read-only Proxmox VE user and API token for the SIEM VM's pve-exporter
+  license: proprietary
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Debian
+      versions:
+        - trixie
+dependencies: []

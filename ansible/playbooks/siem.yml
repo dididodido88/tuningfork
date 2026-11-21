@@ -4,10 +4,32 @@
 #   ansible-playbook -i inventories/lab playbooks/siem.yml
 #
 # The SIEM VM also gets the common layers (certificates, repositories, data disks, CIS, common
-# Linux config) from site.yml; run site.yml --limit siem_servers on a new SIEM VM.
+# Linux config) from site.yml; run site.yml --limit siem_servers on a new SIEM VM. Its node_exporter
+# comes with the other monitored hosts (siem_agents.yml).
 
 - name: Postfix relay
   ansible.builtin.import_playbook: postfix_relay.yml
 
 - name: Wazuh central components
   ansible.builtin.import_playbook: wazuh_server.yml
+
+- name: Syslog receiver
+  ansible.builtin.import_playbook: syslog_receiver.yml
+
+- name: SNMP trap receiver
+  ansible.builtin.import_playbook: snmp_trap_receiver.yml
+
+- name: Alertmanager
+  ansible.builtin.import_playbook: alertmanager.yml
+
+- name: SNMP exporter
+  ansible.builtin.import_playbook: snmp_exporter.yml
+
+- name: Proxmox VE exporter
+  ansible.builtin.import_playbook: pve_exporter.yml
+
+- name: Prometheus
+  ansible.builtin.import_playbook: prometheus.yml
+
+- name: Grafana
+  ansible.builtin.import_playbook: grafana.yml

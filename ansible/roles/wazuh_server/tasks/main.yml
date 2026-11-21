@@ -12,16 +12,21 @@
     siem_artifacts_required: "{{ wazuh_server_artifacts }}"
   tags: [wazuh_server]
 
+# Before the installer: it starts the indexer, which needs these settings.
+- name: Wazuh | Indexer service settings
+  ansible.builtin.import_tasks: indexer.yml
+  tags: [wazuh_server]
+
 - name: Wazuh | Install
   ansible.builtin.import_tasks: install.yml
   tags: [wazuh_server]
 
-- name: Wazuh | Indexer
-  ansible.builtin.import_tasks: indexer.yml
-  tags: [wazuh_server]
-
 - name: Wazuh | Passwords
   ansible.builtin.import_tasks: passwords.yml
+  tags: [wazuh_server]
+
+- name: Wazuh | Manager configuration
+  ansible.builtin.import_tasks: manager.yml
   tags: [wazuh_server]
 
 - name: Wazuh | Dashboard

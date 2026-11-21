@@ -182,7 +182,11 @@ together, and the manager already monitors its own host.
 |---|---|
 | `vault_wazuh_indexer_admin_password` | `admin`: Wazuh dashboard and indexer login (break-glass administrator) |
 | `vault_wazuh_api_password` | `wazuh`: Wazuh server API administrator |
+| `vault_wazuh_enrollment_password` | agents enroll with it (at least 8 characters, no spaces); every agent role uses the same key |
 | `vault_postfix_relay_password` | only if `siem_mail_relay_username` is set |
+| `vault_grafana_admin_password` | Grafana `admin` (break-glass administrator), at least 12 characters |
+| `vault_snmp_idrac_auth_password`, `vault_snmp_idrac_priv_password` | SNMPv3 user `siem_idrac_snmp_username` the SIEM VM polls the iDRACs with (set with the iDRAC configuration) |
+| `vault_pve_exporter_token_value` | Proxmox API token `siem_pve_api_user`!`siem_pve_token_name` (set with the Proxmox monitoring) |
 
 Wazuh passwords: 8 to 64 characters, only `A-Z a-z 0-9 . * + ? -`, with at least one upper-case letter, one
 lower-case letter, one digit and one symbol. The role replaces the generated passwords with these right after
@@ -212,7 +216,60 @@ minutes; its full log is `/var/log/wazuh-install.log` on the SIEM VM (root only)
 - Mail: `echo test | mail -s "SIEM mail test" <recipient>`, then `postqueue -p`. While no relay is set, or the
   relay is down, the message waits in the queue; nothing else is affected.
 
+### 3.5 Collectors on the SIEM VM
+
+| Component | Listens on | Who may connect (firewalld) | Writes to |
+|---|---|---|---|
+| rsyslog receiver | 514/udp, 514/tcp | `siem_log_senders`: the `proxmox_hosts` and `idrac` groups, plus `siem_log_senders_extra` | `/var/log/remote/<sender IP>/<program>.log` (kept 30 days) |
+| snmptrapd | 162/udp | `siem_trap_senders`: the `idrac` group, plus `siem_log_senders_extra`; SNMPv3 users in `siem_snmp_trap_users` only | `/var/log/remote/snmptrapd/traps.log` |
+| node_exporter | 127.0.0.1:9100 | local | |
+| Prometheus | 127.0.0.1:9090 | local (viewed through Grafana) | `/var/lib/prometheus` (90 days or `prometheus_retention_size`) |
+| Alertmanager | 127.0.0.1:9093 | local | email through Postfix to `siem_mail_to` |
+| snmp_exporter | 127.0.0.1:9116 | local; polls the iDRACs (SNMPv3, stock `dell` module) once the SNMPv3 credentials are set | |
+| pve-exporter | 127.0.0.1:9221 | local; reads the Proxmox API (each node, plus cluster-wide data from the first node) once the token is set | |
+| Grafana | 3000/tcp (HTTPS, host certificate) | `siem_admin_networks` | `/var/lib/grafana`; dashboards from `/var/lib/grafana/dashboards/tuningfork` |
+
+The Wazuh manager reads every file under `/var/log/remote` (`wazuh_server_localfiles`). The SIEM VM is the
+environment's log host, so the CIS control "Ensure only one logging system is in use" is off for
+`siem_servers` (`playbooks/group_vars/siem_servers.yml`): it would stop rsyslog on every run.
+
+Check from the SIEM VM:
+
+```sh
+systemctl is-active rsyslog snmptrapd node_exporter prometheus alertmanager snmp_exporter pve_exporter grafana-server
+curl -s 127.0.0.1:9090/api/v1/targets | grep -o '"health":"[a-z]*"' | sort | uniq -c
+logger -n 127.0.0.1 -P 514 -d -t tuningfork-test "syslog receiver test"   # from a sender: -n <SIEM VM>
+ls /var/log/remote/
+```
+
 ---
+
+### 3.6 Agents and exporters on the monitored hosts
+
+```sh
+ansible-playbook -i inventories/lab playbooks/siem_agents.yml
+```
+
+| Group | Gets | Notes |
+|---|---|---|
+| `wazuh_agents` (rocky9, proxmox_hosts) | Wazuh agent, same version as the manager | Not on the SIEM VM (it is the manager). Agent group on the manager: `linux` or `proxmox`. Enrolls with `vault_wazuh_enrollment_password`. Reads the journal and the audit log; no rsyslog on the Rocky VMs (CIS keeps journald, 90 days). |
+| `node_exporter_hosts` (rocky9, proxmox_hosts) | node_exporter on 9100 | Not on `k8s_nodes` (Rancher's monitoring uses 9100). Rocky: firewalld lets only the SIEM VM in. Proxmox: listens on the management address (no host firewall managed). |
+| `proxmox_hosts` (first host) | read-only user `siem_pve_api_user` (PVEAuditor) and API token `siem_pve_token_name` | For pve-exporter on the SIEM VM. |
+
+**Proxmox API token, first time:** the `proxmox_monitoring` play prints the new token's secret once. Save it with
+`ansible-vault edit inventories/<ENV>/group_vars/all/vault.yml` as `vault_pve_exporter_token_value`, then run
+`playbooks/siem.yml` again: pve-exporter gets the token and Prometheus starts scraping Proxmox. pve-exporter trusts the
+cluster's own CA (`/etc/pve/pve-root-ca.pem`, read from the first host). If the secret is lost, remove the token
+(`pveum user token remove <user> <name>` on a Proxmox host) and run `siem_agents.yml` again.
+
+Check:
+
+```sh
+# On the SIEM VM: every agent listed as Active
+/var/ossec/bin/agent_control -l
+# Prometheus targets
+curl -s 127.0.0.1:9090/api/v1/targets | grep -o '"health":"[a-z]*"' | sort | uniq -c
+```
 
 ## 4. Writing rules
 

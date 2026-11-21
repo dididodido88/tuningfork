@@ -1,0 +1,101 @@
+---
+- name: Traps | Download and check the Dell iDRAC MIB
+  ansible.builtin.include_role:
+    name: siem_artifacts
+  vars:
+    siem_artifacts_required: [dell_idrac_mib]
+  tags: [snmp_trap_receiver]
+
+- name: Traps | Install snmptrapd
+  ansible.builtin.dnf:
+    name: [net-snmp, net-snmp-utils]
+    state: present
+  tags: [snmp_trap_receiver]
+
+- name: Traps | Create the MIB folder
+  ansible.builtin.file:
+    path: "{{ snmp_trap_receiver_mib_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags: [snmp_trap_receiver]
+
+- name: Traps | Install the Dell iDRAC MIB
+  ansible.builtin.copy:
+    src: "{{ siem_artifact_paths['dell_idrac_mib'] }}"
+    dest: "{{ snmp_trap_receiver_mib_dir }}/{{ siem_artifact_paths['dell_idrac_mib'] | basename }}"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Traps | Restart snmptrapd
+  tags: [snmp_trap_receiver]
+
+# snmptrapd runs confined (snmpd_t): its log folder gets the snmpd log type.
+- name: Traps | Label the trap log folder for snmptrapd (SELinux)
+  community.general.sefcontext:
+    target: "{{ snmp_trap_receiver_dir }}(/.*)?"
+    setype: snmpd_log_t
+    state: present
+  register: snmp_trap_receiver_fcontext
+  tags: [snmp_trap_receiver]
+
+- name: Traps | Create the trap log folder
+  ansible.builtin.file:
+    path: "{{ snmp_trap_receiver_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+    setype: snmpd_log_t
+  tags: [snmp_trap_receiver]
+
+- name: Traps | Apply the SELinux label to existing files  # noqa: no-handler
+  ansible.builtin.command: restorecon -R -v {{ snmp_trap_receiver_dir }}
+  register: snmp_trap_receiver_restorecon
+  changed_when: snmp_trap_receiver_restorecon.stdout | length > 0
+  when: snmp_trap_receiver_fcontext is changed
+  tags: [snmp_trap_receiver]
+
+# Holds the SNMPv3 passwords.
+- name: Traps | Configure snmptrapd (users allowed to send)
+  ansible.builtin.template:
+    src: snmptrapd.conf.j2
+    dest: /etc/snmp/snmptrapd.conf
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Traps | Restart snmptrapd
+  tags: [snmp_trap_receiver]
+
+- name: Traps | Set the snmptrapd options (log file, MIBs)
+  ansible.builtin.copy:
+    dest: /etc/sysconfig/snmptrapd
+    content: |
+      # Managed by Ansible (roles/snmp_trap_receiver)
+      OPTIONS="-Lf {{ snmp_trap_receiver_log }} -p /run/snmptrapd.pid -M +{{ snmp_trap_receiver_mib_dir }} -m +{{ snmp_trap_receiver_mibs | join(':') }}"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Traps | Restart snmptrapd
+  tags: [snmp_trap_receiver]
+
+- name: Traps | Start and enable snmptrapd
+  ansible.builtin.systemd:
+    name: snmptrapd
+    enabled: true
+    state: started
+  tags: [snmp_trap_receiver]
+
+- name: Traps | Allow the senders through the firewall
+  ansible.posix.firewalld:
+    zone: "{{ snmp_trap_receiver_firewall_zone }}"
+    rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="162" protocol="udp" accept'
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ snmp_trap_receiver_senders }}"
+  when: snmp_trap_receiver_manage_firewall | bool
+  tags: [snmp_trap_receiver, firewall]

@@ -1,0 +1,163 @@
+---
+- name: PVE exporter | Download and check the wheel bundle
+  ansible.builtin.include_role:
+    name: siem_artifacts
+  vars:
+    siem_artifacts_required: [pve_exporter_wheels]
+  tags: [pve_exporter]
+
+- name: PVE exporter | Install Python {{ pve_exporter_python_version }}
+  ansible.builtin.dnf:
+    name: "python{{ pve_exporter_python_version }}"
+    state: present
+  tags: [pve_exporter]
+
+- name: PVE exporter | Create the folders
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ pve_exporter_base_dir }}"
+    - "{{ pve_exporter_wheel_dir }}"
+  tags: [pve_exporter]
+
+# The bundle holds one folder, pve-wheels/.
+- name: PVE exporter | Unpack the wheel bundle
+  ansible.builtin.unarchive:
+    src: "{{ siem_artifact_paths['pve_exporter_wheels'] }}"
+    dest: "{{ pve_exporter_wheel_dir }}"
+    remote_src: true
+    owner: root
+    group: root
+    creates: "{{ pve_exporter_wheel_dir }}/pve-wheels"
+  tags: [pve_exporter]
+
+- name: PVE exporter | Create the virtualenv
+  ansible.builtin.command:
+    argv: ["{{ pve_exporter_python }}", -m, venv, "{{ pve_exporter_venv }}"]
+    creates: "{{ pve_exporter_venv }}/bin/python"
+  tags: [pve_exporter]
+
+# Only from the local wheels (--no-index): nothing is downloaded.
+- name: PVE exporter | Install prometheus-pve-exporter {{ pve_exporter_version }} from the wheels
+  ansible.builtin.command:
+    argv:
+      - "{{ pve_exporter_venv }}/bin/pip"
+      - install
+      - --no-index
+      - --find-links
+      - "{{ pve_exporter_wheel_dir }}/pve-wheels"
+      - "prometheus-pve-exporter=={{ pve_exporter_version }}"
+    creates: "{{ pve_exporter_venv }}/bin/pve_exporter"
+  notify: PVE exporter | Restart
+  tags: [pve_exporter]
+
+# root's umask is 027 (CIS), so venv and pip leave files only root can read; the service user
+# needs to read and run them.
+- name: PVE exporter | Make the virtualenv readable by the service
+  ansible.builtin.file:
+    path: "{{ pve_exporter_venv }}"
+    state: directory
+    recurse: true
+    owner: root
+    group: root
+    mode: "u=rwX,g=rX,o=rX"
+  tags: [pve_exporter]
+
+# Files under /opt are usr_t; label the virtualenv's programs like /usr/bin (bin_t) so systemd
+# may start them.
+- name: PVE exporter | Label the virtualenv's programs as executables (SELinux)
+  community.general.sefcontext:
+    target: "{{ pve_exporter_base_dir }}(/[^/]+)?/bin(/.*)?"
+    setype: bin_t
+    state: present
+  register: pve_exporter_fcontext
+  tags: [pve_exporter]
+
+- name: PVE exporter | Apply the SELinux labels  # noqa: no-handler
+  ansible.builtin.command: restorecon -R -v {{ pve_exporter_base_dir }}
+  register: pve_exporter_restorecon
+  changed_when: pve_exporter_restorecon.stdout | length > 0
+  when: pve_exporter_fcontext is changed
+  notify: PVE exporter | Restart
+  tags: [pve_exporter]
+
+- name: PVE exporter | Create the service user
+  ansible.builtin.user:
+    name: "{{ pve_exporter_user }}"
+    system: true
+    shell: /sbin/nologin
+    home: /nonexistent
+    create_home: false
+  tags: [pve_exporter]
+
+- name: PVE exporter | Create the configuration folder
+  ansible.builtin.file:
+    path: /etc/pve-exporter
+    state: directory
+    owner: root
+    group: "{{ pve_exporter_user }}"
+    mode: "0750"
+  tags: [pve_exporter]
+
+# Root over SSH on the Proxmox host (no sudo there).
+- name: PVE exporter | Read the Proxmox cluster CA
+  ansible.builtin.slurp:
+    src: /etc/pve/pve-root-ca.pem
+  delegate_to: "{{ groups['proxmox_hosts'][0] }}"
+  become: false
+  register: pve_exporter_cluster_ca
+  when:
+    - pve_exporter_trust_cluster_ca | bool
+    - groups['proxmox_hosts'] | default([]) | length > 0
+  tags: [pve_exporter]
+
+- name: PVE exporter | Trust the Proxmox cluster CA
+  ansible.builtin.copy:
+    dest: "/etc/pki/ca-trust/source/anchors/proxmox-{{ env_name }}-root-ca.pem"
+    content: "{{ pve_exporter_cluster_ca.content | b64decode }}"
+    owner: root
+    group: root
+    mode: "0644"
+  register: pve_exporter_ca_anchor
+  when: pve_exporter_cluster_ca is not skipped
+  tags: [pve_exporter]
+
+- name: PVE exporter | Rebuild the system trust store  # noqa: no-handler
+  ansible.builtin.command: update-ca-trust extract
+  changed_when: true
+  when: pve_exporter_ca_anchor is changed
+  notify: PVE exporter | Restart
+  tags: [pve_exporter]
+
+- name: PVE exporter | Write the API token
+  ansible.builtin.template:
+    src: pve.yml.j2
+    dest: /etc/pve-exporter/pve.yml
+    owner: root
+    group: "{{ pve_exporter_user }}"
+    mode: "0640"
+  no_log: true
+  notify: PVE exporter | Restart
+  tags: [pve_exporter]
+
+- name: PVE exporter | Install the service
+  ansible.builtin.template:
+    src: pve_exporter.service.j2
+    dest: /etc/systemd/system/pve_exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: PVE exporter | Restart
+  tags: [pve_exporter]
+
+- name: PVE exporter | Start and enable
+  ansible.builtin.systemd:
+    name: pve_exporter
+    enabled: true
+    state: started
+    daemon_reload: true
+  tags: [pve_exporter]

@@ -1,0 +1,23 @@
+# {{ ansible_managed }} (roles/syslog_receiver)
+# Syslog from the Proxmox hosts and the iDRACs (firewalld limits who may send), one file per
+# sender and program: {{ syslog_receiver_dir }}/<sender IP>/<program>.log
+
+{% if 'udp' in syslog_receiver_protocols %}
+module(load="imudp")
+{% endif %}
+{% if 'tcp' in syslog_receiver_protocols %}
+module(load="imtcp")
+{% endif %}
+
+template(name="TuningforkRemoteFile" type="string"
+         string="{{ syslog_receiver_dir }}/%FROMHOST-IP%/%PROGRAMNAME:::secpath-replace%.log")
+
+ruleset(name="tuningfork_remote") {
+  action(type="omfile" dynaFile="TuningforkRemoteFile"
+         dirCreateMode="0750" fileCreateMode="0640")
+  stop
+}
+
+{% for proto in syslog_receiver_protocols %}
+input(type="im{{ proto }}" port="{{ syslog_receiver_port }}" ruleset="tuningfork_remote")
+{% endfor %}

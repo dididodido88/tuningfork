@@ -1,0 +1,21 @@
+---
+# Prometheus node_exporter (operating system metrics) from the checked release tarball
+# (siem_versions.yml). Prometheus on the SIEM VM scrapes it. Guide: docs/siem.md.
+
+# On the SIEM VM Prometheus scrapes it locally; elsewhere it listens on every address and the
+# firewall lets only the SIEM VM in.
+node_exporter_listen_address: "{{ '127.0.0.1' if inventory_hostname in groups['siem_servers'] | default([]) else '0.0.0.0' }}"
+node_exporter_port: 9100
+
+# Collectors added to node_exporter's defaults.
+node_exporter_extra_collectors: [systemd]
+
+# Other roles drop <name>.prom files here (Postfix queue, pending reboot, ...).
+node_exporter_textfile_dir: /var/lib/node_exporter/textfile
+
+node_exporter_user: node_exporter
+
+node_exporter_manage_firewall: "{{ node_exporter_listen_address != '127.0.0.1' }}"
+node_exporter_firewall_zone: "{{ rhel9cis_default_zone | default('public') }}"
+# Who may scrape it: the SIEM VM.
+node_exporter_scrapers: "{{ [siem_server_ip] if siem_server_ip is defined else [] }}"

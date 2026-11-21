@@ -1,18 +1,40 @@
 ---
+# Names what is wrong without ever printing a password.
 - name: Wazuh | Check the passwords and settings
   ansible.builtin.assert:
-    that:
-      - wazuh_server_admin_password is match(wazuh_server_password_pattern)
-      - wazuh_server_api_password is match(wazuh_server_password_pattern)
-      - wazuh_server_indexer_heap is match('^[0-9]+[mg]$')
-      - siem_server_name | default('') | length > 0
-    fail_msg: >-
-      Set vault_wazuh_indexer_admin_password and vault_wazuh_api_password in group_vars/all/vault.yml
-      (8 to 64 characters from A-Z a-z 0-9 . * + ? - with at least one upper-case letter, one
-      lower-case letter, one digit and one symbol), wazuh_server_indexer_heap like 4g, and
-      siem_server_name in group_vars/all/siem.yml.
+    that: wazuh_server_problems | length == 0
+    fail_msg: "{{ wazuh_server_problems | join(' | ') }}"
     quiet: true
-  no_log: true
+  vars:
+    wazuh_server_problems: >-
+      {%- set p = [] -%}
+      {%- for key, pw in [('vault_wazuh_indexer_admin_password', wazuh_server_admin_password),
+                          ('vault_wazuh_api_password', wazuh_server_api_password)] -%}
+      {%-   set why = [] -%}
+      {%-   if pw | length == 0 -%}
+      {%-     set _ = why.append('not set in group_vars/all/vault.yml') -%}
+      {%-   else -%}
+      {%-     if pw | length < 8 or pw | length > 64 -%}{%- set _ = why.append('length must be 8 to 64') -%}{%- endif -%}
+      {%-     if pw is not search('[A-Z]') -%}{%- set _ = why.append('no upper-case letter') -%}{%- endif -%}
+      {%-     if pw is not search('[a-z]') -%}{%- set _ = why.append('no lower-case letter') -%}{%- endif -%}
+      {%-     if pw is not search('[0-9]') -%}{%- set _ = why.append('no digit') -%}{%- endif -%}
+      {%-     if pw is not search('[.*+?-]') -%}{%- set _ = why.append('no symbol from . * + ? -') -%}{%- endif -%}
+      {%-     if pw is search('[^A-Za-z0-9.*+?-]') -%}
+      {%-       set _ = why.append('has characters Wazuh does not accept (only A-Z a-z 0-9 . * + ? -)') -%}
+      {%-     endif -%}
+      {%-   endif -%}
+      {%-   if why -%}{%- set _ = p.append(key ~ ': ' ~ (why | join(', '))) -%}{%- endif -%}
+      {%- endfor -%}
+      {%- if wazuh_server_indexer_heap is not match('^[0-9]+[mg]$') -%}
+      {%-   set _ = p.append('wazuh_server_indexer_heap must look like 4g') -%}
+      {%- endif -%}
+      {%- if wazuh_server_enrollment_password | length < 8 or ' ' in wazuh_server_enrollment_password -%}
+      {%-   set _ = p.append('vault_wazuh_enrollment_password: at least 8 characters, no spaces') -%}
+      {%- endif -%}
+      {%- if siem_server_name | default('') | length == 0 -%}
+      {%-   set _ = p.append('siem_server_name is not set in group_vars/all/siem.yml') -%}
+      {%- endif -%}
+      {{ p }}
 
 - name: Wazuh | Check the firewall networks
   ansible.builtin.assert:

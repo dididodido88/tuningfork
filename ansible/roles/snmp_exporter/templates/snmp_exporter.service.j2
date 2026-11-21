@@ -1,0 +1,24 @@
+# {{ ansible_managed }} (roles/snmp_exporter)
+[Unit]
+Description=Prometheus snmp_exporter
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User={{ snmp_exporter_user }}
+Group={{ snmp_exporter_user }}
+ExecStart=/usr/local/bin/snmp_exporter \
+  --config.file=/etc/snmp_exporter/snmp.yml \
+{% if snmp_exporter_credentials_set | bool %}
+  --config.file=/etc/snmp_exporter/auth.yml \
+{% endif %}
+  --web.listen-address={{ snmp_exporter_listen_address }}
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

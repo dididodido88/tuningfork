@@ -1,7 +1,7 @@
 ---
 # Full run, in layer order:
 #   certificates -> repositories -> data disks -> retire cloud-init -> 1. CIS hardening -> 2. common OS config + CLI tools + AD logins -> 3. server roles
-#   -> 4. SIEM VM (siem.yml)
+#   -> 4. SIEM VM (siem.yml) -> 5. SIEM agents and exporters (siem_agents.yml)
 #
 #   ansible-playbook -i inventories/CRGS00 playbooks/site.yml    (run from the ansible/ directory)
 #
@@ -63,3 +63,6 @@
 # (host certificate, mirror, data disks).
 - name: SIEM and observability stack
   ansible.builtin.import_playbook: siem.yml
+
+- name: SIEM agents and exporters on the monitored hosts
+  ansible.builtin.import_playbook: siem_agents.yml

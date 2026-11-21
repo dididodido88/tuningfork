@@ -1,0 +1,11 @@
+---
+galaxy_info:
+  author: tuningfork
+  description: snmp_exporter on the SIEM VM polling the iDRACs with the release's stock dell module
+  license: proprietary
+  min_ansible_version: "2.14"
+  platforms:
+    - name: EL
+      versions:
+        - "9"
+dependencies: []

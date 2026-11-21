@@ -1,0 +1,10 @@
+---
+# Proxmox VE hosts (Debian 13). Ansible logs in as root with the control node's SSH key (the
+# usual Proxmox setup; no sudo). They get only the SIEM agent and exporters (docs/siem.md).
+ansible_user: root
+ansible_become: false
+
+# node_exporter listens on the management address only. The Proxmox firewall isn't managed here
+# (docs/siem.md, open items), so there is no host firewall rule for it.
+node_exporter_listen_address: "{{ ansible_host }}"
+node_exporter_manage_firewall: false

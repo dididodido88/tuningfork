@@ -6,3 +6,6 @@
 # Wazuh indexer JVM heap. The SIEM VM has 16 GB, shared with the manager, the dashboard,
 # Prometheus and Grafana.
 wazuh_server_indexer_heap: 4g
+
+# Prometheus keeps 90 days, or less if this size is reached first (the lab disk is 40 GB).
+prometheus_retention_size: 32GB

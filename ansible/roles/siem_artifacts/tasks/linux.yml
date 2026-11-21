@@ -20,6 +20,20 @@
     mode: "0644"
     timeout: 600
   loop: "{{ siem_artifacts_keys }}"
+  when: not siem_artifacts_use_curl | bool
+
+# ansible-core 2.14's get_url fails on Python 3.12+ targets (Proxmox VE 9 / Debian 13): it passes
+# cert_file, which Python 3.12 removed. There, curl downloads and the sha256 is checked the same way.
+- name: Artifacts | Download and check each artifact with curl (Python 3.12+ target)
+  ansible.builtin.include_tasks: curl_one.yml
+  loop: "{{ siem_artifacts_keys }}"
+  loop_control:
+    loop_var: siem_artifact_key
+  vars:
+    siem_curl_dest: "{{ siem_artifacts_cache_dir }}/{{ siem_artifacts_rel_paths[siem_artifact_key] }}"
+    siem_curl_url: "{{ siem_mirror_url }}/{{ siem_artifacts_rel_paths[siem_artifact_key] }}"
+    siem_curl_sha256: "{{ siem_artifacts[siem_artifact_key].sha256 | lower }}"
+  when: siem_artifacts_use_curl | bool
 
 - name: Artifacts | Record the checked local paths
   ansible.builtin.set_fact:
