@@ -21,6 +21,7 @@ After four preparation steps, each host gets three layers, and the SIEM VM a fou
 | 3. Server role | What the host is for | `nas_servers`, `db_servers`, `registry_servers` | `nas_server.yml`, `database_server.yml`, `harbor.yml` | `nas_server`, `database_server`, `harbor` |
 | 3. Kubernetes clients | kubectl on `kubectl_hosts`; bastion tools (helm, k9s, kubectx/kubens), shared cluster contexts | `kubectl_hosts`, `k8s_bastions` | `kubectl.yml`, `k8s_bastion.yml` | `kubectl`, `k8s_bastion` |
 | 3. Rancher cluster | Load balancer (keepalived virtual IP, HAProxy round robin with health checks); RKE2 from the mirror, images from Harbor. Rancher Server itself: Terraform (`terraform/k8s`), by hand | `lb_rancher`, `rke2_rancher` | `load_balancer.yml`, `rke2_rancher.yml` | `load_balancer`, `rke2_server` |
+| 3. Application cluster | RKE2 for the application workloads, with a `/scratch` disk: standalone (Ansible installs RKE2) or managed by Rancher (`app_cluster_rancher_managed`), behind `lb-app` | `lb_app`, `rke2_app` | `load_balancer.yml`, `rke2_app.yml` | `load_balancer`, `rke2_server` |
 | 4. SIEM VM | Loopback-only mail relay; Wazuh indexer, manager and dashboard from checked artifacts | `siem_servers` | `siem.yml` (`postfix_relay.yml`, `wazuh_server.yml`) | `postfix_relay`, `wazuh_server`, `siem_artifacts` |
 
 Membership in an inventory group decides what runs; roles don't check the OS themselves.
@@ -231,6 +232,20 @@ balancer (`lb_rancher`), at `https://rancher.<domain>`.
 
 Downloads, images, prerequisites, run order, checks and upgrades: [docs/rancher.md](docs/rancher.md).
 
+## Application cluster (`load_balancer`, `rke2_server`)
+
+The application workloads run on a second RKE2 cluster of 1 or 3 nodes (`rke2_app`) behind
+`lb-app`, at `command.<domain>`. Each node has a `/scratch` disk, labelled for containers. One
+setting in `group_vars/all/main.yml`, `app_cluster_rancher_managed`, chooses the mode:
+
+- `false`, standalone: `playbooks/rke2_app.yml` installs RKE2 as for the Rancher cluster, and
+  `lb-app` carries 80, 443, 6443 and 9345. The kubeconfig lands at `~/.kube/<ENV>-app-cluster.yaml`.
+- `true`, managed by Rancher: the play prepares the hosts only, and `lb-app` carries 80, 443 and
+  6443 (Authorized Cluster Endpoint). The join through Rancher is the next phase.
+
+Modes, load-balancing choices, the scratch disk and the run order:
+[docs/app-cluster.md](docs/app-cluster.md).
+
 ## SIEM and observability stack
 
 Wazuh, Prometheus, Grafana and their collectors on a dedicated SIEM VM per environment, with agents and
@@ -351,7 +366,7 @@ role's README ("Common tasks", "When the play stops").
 ```
 ansible.cfg                  roles_path, vendored collections_path, no default inventory
 requirements.yml             record of vendored versions (used only to refresh them)
-docs/                        longer guides (active-directory.md, harbor.md, kubernetes-clients.md, rancher.md, siem.md)
+docs/                        longer guides (active-directory.md, app-cluster.md, harbor.md, kubernetes-clients.md, rancher.md, siem.md)
 scripts/                     repository checks (check-no-requirement-ids.sh)
 collections/                 VENDORED collections
 roles/
@@ -372,7 +387,7 @@ roles/
   kubectl/                   pinned kubectl from the mirror (any host in kubectl_hosts)
   k8s_bastion/               Kubernetes bastion: helm, k9s, kubectx/kubens, shared cluster contexts
   load_balancer/             keepalived virtual IP and HAProxy in front of an RKE2 cluster; haproxy-status (docs/rancher.md)
-  rke2_server/               RKE2 server nodes from the mirror, images from Harbor (docs/rancher.md)
+  rke2_server/               RKE2 server nodes from the mirror, images from Harbor (docs/rancher.md, docs/app-cluster.md)
   siem_artifacts/            download SIEM artifacts from the mirror and check their SHA-256 (docs/siem.md)
   postfix_relay/             SIEM VM: loopback-only Postfix relay, best-effort email (docs/siem.md)
   wazuh_server/              SIEM VM: Wazuh indexer, manager and dashboard, offline all-in-one (docs/siem.md)
@@ -418,7 +433,7 @@ and an example.
 | [kubectl](roles/kubectl/README.md) | Pinned kubectl from the mirror | `kubectl_hosts` |
 | [k8s_bastion](roles/k8s_bastion/README.md) | Kubernetes bastion tools, shared cluster contexts | `k8s_bastions` |
 | [load_balancer](roles/load_balancer/README.md) | keepalived virtual IP, HAProxy round robin with health checks, `haproxy-status` | `load_balancers` |
-| [rke2_server](roles/rke2_server/README.md) | RKE2 server nodes from the mirror, images from Harbor | `rke2_rancher` |
+| [rke2_server](roles/rke2_server/README.md) | RKE2 server nodes from the mirror, images from Harbor | `rke2_rancher`, `rke2_app` |
 | [siem_artifacts](roles/siem_artifacts/README.md) | Download and check SIEM artifacts | `siem_servers` |
 | [postfix_relay](roles/postfix_relay/README.md) | Loopback-only mail relay on the SIEM VM | `siem_servers` |
 | [wazuh_server](roles/wazuh_server/README.md) | Wazuh indexer, manager and dashboard | `siem_servers` |
@@ -467,7 +482,7 @@ ansible-playbook -i inventories/CRGS01 playbooks/site.yml --limit nas_servers
 
 Every role has a tag with its own name: `certificates`, `repositories`, `filesystems`, `cloud_init_cleanup`, `linux_common`, `cli_tools`,
 `sssd_ad`, `windows_common`, `nas_server`, `database_server`, `harbor`, `kubectl`, `k8s_bastion`, `postfix_relay`,
-`wazuh_server`, `siem_artifacts`, `load_balancer`, `rke2_server` (and `rke2_rancher` for the Rancher cluster play). The CIS role uses `cis`, plus a tag per rule (e.g. `rule_5.1.1`) and per level
+`wazuh_server`, `siem_artifacts`, `load_balancer`, `rke2_server` (and `rke2_rancher` or `rke2_app` for each cluster's play). The CIS role uses `cis`, plus a tag per rule (e.g. `rule_5.1.1`) and per level
 (`level1-server`).
 
 Tags for one area across roles: `ntp`, `banner`, `ipv6`, `journald`, `prompt` (the common roles), and `firewall` (the firewall

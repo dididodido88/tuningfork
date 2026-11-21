@@ -1,0 +1,25 @@
+---
+# CRGS00: the load balancer of the application cluster (roles/load_balancer/defaults/main.yml lists
+# every option; docs/app-cluster.md). The virtual IP is keepalived_vip, set in
+# terraform/live/CRGS00/lb-app.
+
+# This load balancer's own group (keepalived peers: any other host in it).
+load_balancer_group: lb_app
+
+# Endpoints: every host of this group, so 1 application node gives 1 endpoint and 3 give 3.
+load_balancer_backend_group: rke2_app
+
+# VRRP router ID: unique among the load balancers on the same network (lb-rancher uses 51).
+load_balancer_vrrp_router_id: 52
+
+# Frontends, by mode (app_cluster_rancher_managed in group_vars/all/main.yml):
+#   standalone:        80, 443 (applications), 6443 (kubectl), 9345 (RKE2 registration)
+#   managed by Rancher: 80, 443, 6443 (Authorized Cluster Endpoint); Rancher handles node joins
+# 80/443 are checked with TCP: there is no application host name to ask for yet. Once there is,
+# switch them to an HTTP check (roles/load_balancer/README.md).
+load_balancer_frontends: >-
+  {{ [{'name': 'app_http', 'port': 80, 'check': 'tcp'},
+      {'name': 'app_https', 'port': 443, 'check': 'tcp'},
+      {'name': 'kube_api', 'port': 6443, 'check': 'kube_api'}]
+     + ([] if app_cluster_rancher_managed | default(false) | bool
+        else [{'name': 'rke2_supervisor', 'port': 9345, 'check': 'rke2_supervisor', 'allow_from': 'backends'}]) }}

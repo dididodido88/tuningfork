@@ -1,6 +1,5 @@
 ---
-# A load balancer whose group has no backend group yet (e.g. lb-app before its cluster exists)
-# is left alone.
+# A load balancer whose group has no backend group configured is left alone.
 - name: LB | Skip a load balancer that isn't configured yet
   when: load_balancer_backend_group | length == 0
   tags: [load_balancer]

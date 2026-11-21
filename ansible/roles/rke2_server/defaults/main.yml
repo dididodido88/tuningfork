@@ -9,6 +9,11 @@
 # Inventory group that forms this cluster. Its first host, sorted by name, creates the cluster;
 # the others join it through rke2_registration_host.
 rke2_cluster_group: ""
+# false: standalone; this role installs RKE2 and builds the cluster.
+# true:  managed by Rancher Server, which installs RKE2 on the node when it registers. This role
+#        then only prepares the host (firewall, forwarding, SELinux policy, disks); the join
+#        through Rancher is the next phase (docs/app-cluster.md).
+rke2_rancher_managed: false
 # Number of nodes a cluster may have (etcd needs an odd number).
 rke2_allowed_server_counts: [1, 3]
 # Short name of the cluster: names the kubeconfig copied to the control node.
@@ -63,6 +68,10 @@ rke2_registry_ca_file: /etc/pki/tls/certs/ca-bundle.crt
 # Each must be its own mounted filesystem (a data disk from Terraform, mounted by roles/filesystems).
 # The play stops before installing if one isn't.
 rke2_required_mounts: [/var/lib/rancher, /var/lib/kubelet]
+# Local paths workloads mount as hostPath volumes (the app cluster: /scratch). Labelled
+# container_file_t for SELinux, so pods can read and write them, owned by root with this mode.
+rke2_container_paths: []
+rke2_container_paths_mode: "0755"
 # Stop and mask firewalld (RKE2's documented setup; see playbooks/group_vars/rke2_servers.yml).
 rke2_disable_firewalld: true
 rke2_packages: [container-selinux, tar]

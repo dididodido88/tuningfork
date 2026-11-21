@@ -8,9 +8,9 @@ and 3 give 3. Includes `haproxy-status`, a command that shows health and traffic
 | | |
 |---|---|
 | Playbook | `playbooks/load_balancer.yml` (before `rke2_rancher.yml` in `site.yml`) |
-| Hosts | `load_balancers`. A host whose group has no `load_balancer_backend_group` (today `lb-app`) is skipped. |
+| Hosts | `load_balancers`: `lb-rancher` and `lb-app`. A host whose group has no `load_balancer_backend_group` is skipped. |
 | Tags | `load_balancer`, `firewall` |
-| Set variables in | `inventories/<ENV>/group_vars/lb_rancher.yml`; the virtual IP in the Terraform `lb-rancher` unit; the stats password in the vault |
+| Set variables in | `inventories/<ENV>/group_vars/lb_rancher.yml`, `lb_app.yml`; the virtual IP in the Terraform `lb-*` units; the stats password in the vault |
 | Longer guide | [docs/rancher.md](../../docs/rancher.md) |
 
 ## What it does
@@ -105,16 +105,14 @@ Optional:
 | `load_balancer_admin_networks` | `siem_admin_networks` | Networks allowed to open the statistics page. |
 | `load_balancer_packages` | `[haproxy, keepalived, socat]` | Packages installed. |
 
-## Adding the application cluster
+## The application cluster: lb-app
 
-When the application cluster exists, give `lb-app` its own group file,
-`inventories/<ENV>/group_vars/lb_app.yml`:
+`inventories/<ENV>/group_vars/lb_app.yml` configures `lb-app` in front of `rke2_app`, with VRRP
+router ID 52. Its frontends follow `app_cluster_rancher_managed` (docs/app-cluster.md):
 
-```yaml
-load_balancer_group: lb_app
-load_balancer_backend_group: rke2_app
-load_balancer_vrrp_router_id: 52
-load_balancer_health_host: "<name of the application's ingress>"
-```
+- standalone: 80, 443, 6443, 9345;
+- managed by Rancher: 80, 443, 6443 (Authorized Cluster Endpoint).
 
-Adjust `load_balancer_frontends` if the application's health check differs from Rancher's.
+80/443 use a TCP check, because no application host name exists yet. Once one does, switch them
+to an HTTP check: the `rancher` check type asks `GET /healthz` with `load_balancer_health_host`.
+For an application with another health path, add a check type to the template.

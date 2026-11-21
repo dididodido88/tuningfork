@@ -68,6 +68,10 @@
 - name: Rancher RKE2 cluster
   ansible.builtin.import_playbook: rke2_rancher.yml
 
+# Standalone, or prepared for Rancher to manage (app_cluster_rancher_managed in group_vars/all).
+- name: Application RKE2 cluster
+  ansible.builtin.import_playbook: rke2_app.yml
+
 # SIEM VM (Wazuh, monitoring and log collectors): after the common layers, which it needs
 # (host certificate, mirror, data disks).
 - name: SIEM and observability stack

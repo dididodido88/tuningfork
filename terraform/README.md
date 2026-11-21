@@ -19,7 +19,7 @@ Environments: **lab**, **CRGS00**, **CRGS01**, **CRGS02**. Each has the same ten
 | `rancher-cluster` | 1 or 3 | RKE2 cluster that runs Rancher Server | 4 / 8 GB per node | `/var/lib/rancher` 50, `/var/lib/kubelet` 20 |
 | `bastion` | 1 | kubectl, helm and k9s for every cluster | 2 / 4 GB | none |
 | `support` | 1 | Keycloak and the basemap server (Docker) | 8 / 32 GB | `/var/lib/containerd` 50, `/kcdata` 10, `/basemap` 20 |
-| `app-cluster` | 1 or 3 | RKE2 cluster for the application, managed by Rancher | 8 / 32 GB per node | `/var/lib/rancher` 100, `/var/lib/kubelet` 50 |
+| `app-cluster` | 1 or 3 | RKE2 cluster for the application, standalone or managed by Rancher | 8 / 32 GB per node | `/var/lib/rancher` 100, `/var/lib/kubelet` 50, `/scratch` 20 (ext4; size and filesystem set in the unit) |
 | `lb-rancher` | 1 | HAProxy and keepalived for the Rancher cluster | 4 / 4 GB | none |
 | `lb-app` | 1 | HAProxy and keepalived for the application cluster | 4 / 4 GB | none |
 
@@ -205,6 +205,23 @@ installation (up to 150 clusters) is 4 vCPU and 16 GB per node. Change `cores` a
 
 The cluster is configured by Ansible (`ansible/playbooks/rke2_rancher.yml`), and the load
 balancer's endpoints follow the number of nodes automatically. Guide: `ansible/docs/rancher.md`.
+
+## Scratch disk on the application nodes
+
+Every application node has a local disk at `/scratch` for workloads (a `hostPath` volume; Ansible
+labels it for containers). It is the last data disk, so the other disks keep their slots. Set its
+size and filesystem in the unit:
+
+```hcl
+# live/<ENV>/app-cluster/terragrunt.hcl
+scratch_size_gb = 500        # default 20; raise it whenever needed
+scratch_fstype  = "ext4"     # or "xfs"; only applies when the disk is first formatted
+```
+
+Growing it works like any data disk: raise `scratch_size_gb` and apply, then grow the filesystem
+on each node (see "Managing disks"). Changing the filesystem of an existing disk needs a new disk.
+The defaults live in `_envcommon/roles/rke2-app.hcl` (`scratch_disk`). The application cluster
+itself is described in `ansible/docs/app-cluster.md`.
 
 ## Load balancers
 

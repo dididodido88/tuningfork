@@ -1,5 +1,6 @@
 ---
-# Nothing is changed until these pass.
+# Pre-checks for both modes. Nothing is changed until these pass. A standalone cluster has more
+# (preflight_standalone.yml).
 
 - name: RKE2 | Check the settings
   ansible.builtin.assert:
@@ -8,11 +9,8 @@
       - rke2_cluster_group in groups
       - inventory_hostname in groups[rke2_cluster_group]
       - groups[rke2_cluster_group] | length in rke2_allowed_server_counts
-      - rke2_version is match('^v[0-9]+[.][0-9]+[.][0-9]+[+]rke2r[0-9]+$')
-      - rke2_install_sh_checksum is match('^sha256:[0-9a-fA-F]{64}$')
       - rke2_selinux_rpm is match('^rke2-selinux-.+[.]rpm$')
       - rke2_selinux_checksum is match('^sha256:[0-9a-fA-F]{64}$')
-      - rke2_token | length >= 32
       - rke2_registration_host | length > 0
       - rke2_registry_password | length > 0
       - (env_repo_base_url | default('')) is match('^https://')
@@ -20,9 +18,8 @@
       Set in inventories/<ENV>/group_vars/{{ rke2_cluster_group | default('<cluster group>', true) }}.yml:
       rke2_cluster_group (this host must be in it; the cluster has
       {{ groups[rke2_cluster_group] | default([]) | length }} node(s), allowed {{ rke2_allowed_server_counts }}),
-      rke2_version (e.g. v1.33.5+rke2r1), rke2_install_sh_checksum, rke2_selinux_rpm and
-      rke2_selinux_checksum (sha256:<hash>), rke2_registration_host. In the vault: the cluster
-      token (at least 32 characters) and vault_harbor_robot_secrets['k8s-pull']. Guide: docs/rancher.md.
+      rke2_selinux_rpm and rke2_selinux_checksum (sha256:<hash>), rke2_registration_host. In the
+      vault: vault_harbor_robot_secrets['k8s-pull']. Guide: docs/rancher.md.
     quiet: true
 
 # --- RKE2's data on its own disks ----------------------------------------------------------------
@@ -74,80 +71,3 @@
     validate_certs: true
     timeout: 15
   check_mode: false
-
-# --- What is already on this node ------------------------------------------------------------
-- name: RKE2 | Look for an installed RKE2
-  ansible.builtin.stat:
-    path: /usr/local/bin/rke2
-    get_checksum: false
-  register: rke2_binary
-
-- name: RKE2 | Read the installed version
-  ansible.builtin.command:
-    argv: [/usr/local/bin/rke2, --version]
-  register: rke2_version_installed
-  changed_when: false
-  check_mode: false
-  when: rke2_binary.stat.exists
-
-- name: RKE2 | Record what is installed
-  ansible.builtin.set_fact:
-    rke2_already_installed: "{{ rke2_binary.stat.exists }}"
-    rke2_installed_version: "{{ (rke2_version_installed.stdout | default('')) | regex_search('v[0-9]+[.][0-9]+[.][0-9]+[+]rke2r[0-9]+') | default('', true) }}"
-    # The first host by name creates the cluster (the play also runs in name order).
-    rke2_init_node: "{{ groups[rke2_cluster_group] | sort | first }}"
-
-# Upgrades replace the binaries node by node and need a plan (docs/rancher.md, "Upgrading").
-- name: RKE2 | Stop if another version is installed
-  ansible.builtin.fail:
-    msg: >-
-      RKE2 {{ rke2_installed_version }} is installed on {{ inventory_hostname }}, but rke2_version is
-      {{ rke2_version }}. This role doesn't upgrade; follow docs/rancher.md, "Upgrading".
-  when:
-    - rke2_already_installed | bool
-    - rke2_installed_version != rke2_version
-
-# --- Create the cluster, or join it --------------------------------------------------------------
-# Only the first host creates the cluster, and only when no cluster answers yet. If the first
-# host is rebuilt while the others run, it joins them instead of creating a second cluster.
-- name: RKE2 | Read the existing RKE2 configuration
-  ansible.builtin.slurp:
-    src: /etc/rancher/rke2/config.yaml
-  register: rke2_existing_config
-  failed_when: false
-  no_log: true
-
-- name: RKE2 | Check whether the cluster already answers on the registration address
-  ansible.builtin.uri:
-    url: "https://{{ rke2_registration_host }}:9345/ping"
-    validate_certs: false
-    status_code: [200]
-    timeout: 5
-  register: rke2_registration_ping
-  failed_when: false
-  check_mode: false
-
-- name: RKE2 | Decide whether this node joins
-  ansible.builtin.set_fact:
-    rke2_join: >-
-      {%- if inventory_hostname != rke2_init_node -%}True
-      {%- elif rke2_existing_config.content is defined -%}{{ (rke2_existing_config.content | b64decode) is search('(?m)^server:') }}
-      {%- elif rke2_already_installed | bool -%}False
-      {%- else -%}{{ (rke2_registration_ping.status | default(0)) == 200 }}
-      {%- endif -%}
-
-# Nodes join through the load balancer: wait until it has a healthy server behind 9345.
-- name: RKE2 | Wait for the cluster to accept new nodes
-  ansible.builtin.uri:
-    url: "https://{{ rke2_registration_host }}:9345/ping"
-    validate_certs: false
-    status_code: [200]
-    timeout: 5
-  register: rke2_registration_ready
-  until: rke2_registration_ready.status == 200
-  retries: 30
-  delay: 10
-  check_mode: false
-  when:
-    - rke2_join | bool
-    - not (rke2_already_installed | bool)

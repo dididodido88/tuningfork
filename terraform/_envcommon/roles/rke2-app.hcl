@@ -1,7 +1,7 @@
-# One node of the RKE2 cluster that runs the application workload. The cluster is managed by
-# Rancher Server in the other RKE2 cluster. It has 1 node or 3; the unit sets the count.
-# Every node is an RKE2 server (control plane, etcd and workload).
-# Ansible groups: rke2_servers, rke2_app.
+# One node of the RKE2 cluster that runs the application workload. The cluster is either
+# standalone or managed by Rancher Server (app_cluster_rancher_managed in the Ansible inventory,
+# ansible/docs/app-cluster.md). It has 1 node or 3; the unit sets the count. Every node is an
+# RKE2 server (control plane, etcd and workload). Ansible groups: rke2_servers, rke2_app.
 
 locals {
   profile = {
@@ -24,4 +24,10 @@ locals {
       { size_gb = 50, mount = "/var/lib/kubelet", fstype = "xfs" },
     ]
   }
+
+  # Local scratch space for workloads (hostPath /scratch), appended by the unit as the last data
+  # disk. The unit sets its size and filesystem (scratch_size_gb, scratch_fstype); these are the
+  # defaults. The size can be raised later; the filesystem only applies when the disk is first
+  # formatted (ext4 or xfs, the types the Ansible filesystems role supports).
+  scratch_disk = { mount = "/scratch", size_gb = 20, fstype = "ext4" }
 }

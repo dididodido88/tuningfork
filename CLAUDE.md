@@ -30,6 +30,11 @@ Terraform/Terragrunt (bpg/proxmox) creates the Rocky 9 VMs, and Ansible hardens 
   that handles a secret.
 - **Keep the hardening on.** SELinux stays enforcing and firewalld stays enabled. Open ports with firewalld rich rules
   limited to the networks that need them.
+  - One exception, decided by the user: firewalld is off on RKE2 nodes (`rke2_servers`), as RKE2 and Rancher document,
+    because it conflicts with RKE2's network plugin. The CIS firewall rules are off there
+    (`playbooks/group_vars/rke2_servers.yml`), and network segmentation is the compensating control
+    (`ansible/docs/rancher.md`, "Firewall exception and segmentation"). Every other host, load balancers included,
+    keeps firewalld.
 - **Refer to audit requirements by title only.** Never write a requirement identifier in square brackets, anywhere.
   `ansible/scripts/check-no-requirement-ids.sh` must pass.
 - **Email is best effort** and must never block or fail a service.
@@ -46,9 +51,10 @@ Terraform/Terragrunt (bpg/proxmox) creates the Rocky 9 VMs, and Ansible hardens 
   - Tasks carry the role's tag.
   - `defaults/main.yml` documents every option in plain prose at the top.
   - Internal values go in `vars/main.yml`.
-- **Playbooks.** There is one playbook per role in `ansible/playbooks/`. `site.yml` imports them in layer order:
-  certificates, repositories, filesystems, cloud-init cleanup, CIS, common, server roles, `siem.yml` (SIEM VM),
-  `siem_agents.yml` (monitored hosts).
+- **Playbooks.** There is one playbook per role in `ansible/playbooks/` (`rke2_server` has one per cluster:
+  `rke2_rancher.yml`, `rke2_app.yml`). `site.yml` imports them in layer order: certificates, repositories,
+  filesystems, cloud-init cleanup, CIS, common, server roles, load balancers, the RKE2 clusters (Rancher, then
+  application), `siem.yml` (SIEM VM), `siem_agents.yml` (monitored hosts).
 - **Mirror downloads.** Playbooks that download from the mirror run `certificates` `verify_trust` as a pre_task, on
   RedHat hosts only.
 - **Firewall.** Each role that opens a port has `<role>_manage_firewall` and uses

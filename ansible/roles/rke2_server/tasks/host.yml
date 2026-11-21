@@ -62,7 +62,6 @@
   loop:
     - {path: /etc/rancher/rke2, mode: "0755"}
     - {path: "{{ rke2_artifacts_dir }}", mode: "0700"}
-    - {path: "{{ rke2_artifacts_dir }}/{{ rke2_version }}", mode: "0700"}
     - {path: "{{ rke2_artifacts_dir }}/rke2-selinux", mode: "0700"}
   loop_control:
     label: "{{ item.path }}"
@@ -82,6 +81,31 @@
     name: "{{ rke2_artifacts_dir }}/rke2-selinux/{{ rke2_selinux_rpm }}"
     state: present
     disable_gpg_check: true
+
+# --- Local paths workloads mount (hostPath), e.g. /scratch ------------------------------------
+# Labelled container_file_t, so containers can read and write them while SELinux is enforcing.
+- name: RKE2 | Label the container paths for SELinux
+  community.general.sefcontext:
+    target: "{{ item }}(/.*)?"
+    setype: container_file_t
+    state: present
+  loop: "{{ rke2_container_paths }}"
+
+- name: RKE2 | Set owner and mode of the container paths
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ rke2_container_paths_mode }}"
+  loop: "{{ rke2_container_paths }}"
+
+- name: RKE2 | Apply the SELinux label to the container paths
+  ansible.builtin.command:
+    argv: "{{ ['restorecon', '-R', '-v'] + rke2_container_paths }}"
+  register: rke2_container_restorecon
+  changed_when: rke2_container_restorecon.stdout | length > 0
+  when: rke2_container_paths | length > 0
 
 # --- Shell environment for administrators -----------------------------------------------------
 - name: RKE2 | Put RKE2's kubectl and crictl on the PATH

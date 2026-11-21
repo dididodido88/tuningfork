@@ -7,12 +7,22 @@ today that is the Rancher cluster (`rke2_rancher`).
 
 | | |
 |---|---|
-| Playbook | `playbooks/rke2_rancher.yml` (one node at a time, in name order) |
-| Hosts | `rke2_rancher` |
-| Tags | `rke2_server`, `rke2_rancher` |
+| Playbooks | `playbooks/rke2_rancher.yml`, `playbooks/rke2_app.yml` (one node at a time, in name order) |
+| Hosts | `rke2_rancher` (Rancher cluster), `rke2_app` (application cluster) |
+| Tags | `rke2_server`, and `rke2_rancher` or `rke2_app` |
 | Needs first | The common layers (certificates, repositories, data disks, CIS), Harbor with the images, `playbooks/load_balancer.yml` |
-| Set variables in | `inventories/<ENV>/group_vars/rke2_rancher.yml`; secrets in the vault |
-| Longer guide | [docs/rancher.md](../../docs/rancher.md): downloads, images, run order, checks, upgrades |
+| Set variables in | `inventories/<ENV>/group_vars/rke2_rancher.yml`, `rke2_app.yml`; secrets in the vault |
+| Longer guides | [docs/rancher.md](../../docs/rancher.md): downloads, images, run order, checks, upgrades; [docs/app-cluster.md](../../docs/app-cluster.md): the application cluster, its two modes and `/scratch` |
+
+## Two modes
+
+| `rke2_rancher_managed` | What the role does |
+|---|---|
+| `false` (default): standalone | Everything below: installs RKE2, creates or joins the cluster, writes the kubeconfig. |
+| `true`: managed by Rancher Server | Pre-checks (both modes), host preparation and the container paths only. Rancher installs RKE2 when the node runs its registration command; that join is the next phase. |
+
+The Rancher cluster is always standalone. The application cluster follows
+`app_cluster_rancher_managed` in `group_vars/all/main.yml`.
 
 ## What it does
 
@@ -77,7 +87,10 @@ Optional:
 | `rke2_registry_username` | `robot$k8s-pull` | Login to the registry. |
 | `rke2_registry_password` | `vault_harbor_robot_secrets['k8s-pull']` | Its password. |
 | `rke2_registry_ca_file` | `/etc/pki/tls/certs/ca-bundle.crt` | CA bundle the registry's certificate is checked against (holds the internal CA). |
-| `rke2_required_mounts` | `[/var/lib/rancher, /var/lib/kubelet]` | Paths that must be their own filesystems before installing. |
+| `rke2_required_mounts` | `[/var/lib/rancher, /var/lib/kubelet]` | Paths that must be their own filesystems before installing (the application cluster adds `/scratch`). |
+| `rke2_container_paths` | `[]` | Local paths workloads mount as `hostPath` volumes (the application cluster: `[/scratch]`). Labelled `container_file_t`, so pods can use them with SELinux enforcing. |
+| `rke2_container_paths_mode` | `"0755"` | Mode of those paths (owned by root). |
+| `rke2_rancher_managed` | `false` | Managed by Rancher Server: prepare the host only (see "Two modes"). |
 | `rke2_disable_firewalld` | `true` | Stop and mask firewalld. |
 | `rke2_packages` | `[container-selinux, tar]` | Packages installed first. |
 | `rke2_start_timeout` | `1800` | Seconds `rke2-server` may take to start. |
@@ -93,6 +106,7 @@ Optional:
 | `/etc/sysctl.d/90-rke2.conf` | `net.ipv4.ip_forward = 1` |
 | `/etc/NetworkManager/conf.d/rke2-canal.conf` | `cali*` and `flannel*` unmanaged |
 | `/etc/profile.d/rke2.sh` | RKE2's `kubectl`, `crictl` and `ctr` on the PATH |
+| SELinux file context for each container path | `<path>(/.*)?` labelled `container_file_t` (`semanage fcontext -l` shows it) |
 
 ## CIS exceptions
 

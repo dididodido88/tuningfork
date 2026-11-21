@@ -37,3 +37,14 @@ kubectl_version: v1.36.5
 # (keepalived_vip in terraform/live/<ENV>/lb-rancher). Used by roles/load_balancer and
 # roles/rke2_server; the Terraform unit terraform/k8s/<ENV>/rancher-server uses the same default.
 rancher_hostname: "rancher.{{ env_domain }}"
+
+# Application cluster (docs/app-cluster.md). One name for its Kubernetes API (6443) and, when
+# standalone, RKE2 registration (9345); applications use the same virtual IP for 80/443. DNS A
+# record to the virtual IP of lb-app (keepalived_vip in terraform/live/<ENV>/lb-app).
+app_cluster_hostname: "command.{{ env_domain }}"
+# false: standalone RKE2, installed by Ansible (playbooks/rke2_app.yml), reached with its admin
+#        kubeconfig; lb-app carries 80, 443, 6443 and 9345.
+# true:  managed by Rancher Server, which installs RKE2 on the nodes and handles node joins;
+#        lb-app carries 80, 443 and 6443 (Authorized Cluster Endpoint). The join through Rancher
+#        is the next phase: today the play only prepares the hosts in this mode.
+app_cluster_rancher_managed: false

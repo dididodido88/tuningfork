@@ -1,20 +1,42 @@
 ---
+# Two modes (rke2_rancher_managed):
+#   false  standalone: this role installs RKE2, creates or joins the cluster, writes the kubeconfig
+#   true   managed by Rancher Server: Rancher installs RKE2 when the node runs Rancher's
+#          registration command. This role prepares the host only; the join is the next phase.
+
 - name: RKE2 | Pre-checks
   ansible.builtin.import_tasks: preflight.yml
+  tags: [rke2_server]
+
+- name: RKE2 | Pre-checks for a standalone cluster
+  ansible.builtin.import_tasks: preflight_standalone.yml
+  when: not (rke2_rancher_managed | bool)
   tags: [rke2_server]
 
 - name: RKE2 | Prepare the host
   ansible.builtin.import_tasks: host.yml
   tags: [rke2_server]
 
+- name: RKE2 | Report that the join through Rancher isn't built yet
+  ansible.builtin.debug:
+    msg: >-
+      {{ inventory_hostname }} is prepared for RKE2 and managed by Rancher Server
+      (rke2_rancher_managed). Joining it to the Rancher cluster comes in the next phase
+      (docs/app-cluster.md); RKE2 isn't installed by this play.
+  when: rke2_rancher_managed | bool
+  tags: [rke2_server]
+
 - name: RKE2 | Install
   ansible.builtin.import_tasks: install.yml
+  when: not (rke2_rancher_managed | bool)
   tags: [rke2_server]
 
 - name: RKE2 | Start and wait for the node
   ansible.builtin.import_tasks: start.yml
+  when: not (rke2_rancher_managed | bool)
   tags: [rke2_server]
 
 - name: RKE2 | Copy the kubeconfig to the control node
   ansible.builtin.import_tasks: kubeconfig.yml
+  when: not (rke2_rancher_managed | bool)
   tags: [rke2_server]

@@ -1,4 +1,14 @@
 ---
+# Standalone mode only: RKE2 installed by this role (rke2_rancher_managed: false).
+
+- name: RKE2 | Create the directory for this version's artifacts
+  ansible.builtin.file:
+    path: "{{ rke2_artifacts_dir }}/{{ rke2_version }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
 # --- Artifacts from the mirror, each checked -------------------------------------------------
 # The list of checksums published with the release; it checks the tarball below.
 - name: RKE2 | Download the release checksums

@@ -8,7 +8,7 @@ load_balancer_group: lb_rancher
 # Endpoints: every host of this group, so 1 Rancher node gives 1 endpoint and 3 give 3.
 load_balancer_backend_group: rke2_rancher
 
-# VRRP router ID: unique among the load balancers on the same network (lb-app uses another).
+# VRRP router ID: unique among the load balancers on the same network (lb-app uses 52).
 load_balancer_vrrp_router_id: 51
 
 # Host name the 80/443 health check asks Rancher for (Host header and TLS SNI).

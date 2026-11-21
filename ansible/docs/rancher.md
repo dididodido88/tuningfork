@@ -1,6 +1,7 @@
 # Rancher Server cluster
 
 Rancher Server runs on its own RKE2 Kubernetes cluster of 1 or 3 nodes, behind one load balancer.
+The application cluster is built the same way: see [app-cluster.md](app-cluster.md).
 Everything is air-gapped: RKE2 is installed from files on the internal mirror, and every container
 image comes from Harbor.
 
