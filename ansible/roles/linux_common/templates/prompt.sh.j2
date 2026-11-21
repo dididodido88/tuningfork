@@ -1,0 +1,50 @@
+{% set c = linux_common_prompt_colours %}
+# {{ ansible_managed }} (roles/linux_common)
+# Bash prompt and ls directory colour for interactive shells. A PS1 or LS_COLORS set in a
+# user's own ~/.bashrc is read later and still wins.
+#   [14:02:11 dido@nas /home/dido/repo] (main) $
+[ -n "$BASH_VERSION" ] && [ -n "$PS1" ] || return 0
+
+# " (branch)" inside a git repository; nothing elsewhere, or where git isn't installed.
+# \001 and \002 mark the colour codes as zero-width, like \[ \] in PS1.
+__tf_ps1_git() {
+  command -v git >/dev/null 2>&1 || return 0
+  local b
+  b=$(git branch --show-current 2>/dev/null)
+  [ -n "$b" ] && printf ' \001\033[38;5;{{ c.git_paren }}m\002(\001\033[38;5;{{ c.git_branch }}m\002%s\001\033[38;5;{{ c.git_paren }}m\002)\001\033[0m\002' "$b"
+  return 0
+}
+
+# Colour on every colour terminal (xterm, PuTTY, Windows Terminal, tmux, screen), plain on the
+# Linux console (the VM console in the Proxmox web UI) and on terminals without colour.
+case "$TERM" in
+  linux | dumb | vt* | "") __tf_colour=no ;;
+  *) [ "$(tput colors 2>/dev/null || echo 0)" -ge 8 ] && __tf_colour=yes || __tf_colour=no ;;
+esac
+
+if [ "$__tf_colour" = yes ]; then
+  __tf_r='\[\e[0m\]'
+  __tf_frame='\[\e[38;5;{{ c.frame }}m\]'
+  __tf_time='\[\e[38;5;{{ c.time }}m\]'
+  __tf_at='\[\e[38;5;{{ c.at }}m\]'
+  __tf_host='\[\e[38;5;{{ c.host }}m\]'
+  if [ "$EUID" -eq 0 ]; then
+    __tf_user='\[\e[1;38;5;{{ c.root }}m\]'
+    __tf_mark='\[\e[1;38;5;{{ c.root }}m\]'
+  else
+    __tf_user='\[\e[38;5;{{ c.user }}m\]'
+    __tf_mark='\[\e[38;5;{{ c.mark }}m\]'
+  fi
+  PS1="${__tf_frame}[${__tf_time}\t ${__tf_user}\u${__tf_at}@${__tf_host}\h ${__tf_frame}\w]${__tf_r}\$(__tf_ps1_git) ${__tf_mark}\\\$${__tf_r} "
+  unset __tf_r __tf_frame __tf_time __tf_at __tf_host __tf_user __tf_mark
+
+  # ls: directories in a lighter blue than the default (di=01;34). Added after the LS_COLORS
+  # that colorls.sh sets; for a repeated entry, ls uses the last one.
+  if [ -n "$LS_COLORS" ]; then
+    LS_COLORS="${LS_COLORS}:di=01;38;5;{{ c.directory }}"
+    export LS_COLORS
+  fi
+else
+  PS1='[\t \u@\h \w]\$ '
+fi
+unset __tf_colour

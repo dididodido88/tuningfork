@@ -1,0 +1,27 @@
+---
+# Proxmox VE hosts keep their own shell setup.
+- name: Prompt | Check whether this host runs Proxmox VE
+  ansible.builtin.stat:
+    path: /usr/bin/pveversion
+    get_checksum: false
+  register: linux_common_prompt_pve
+
+- name: Prompt | Install the bash prompt and directory colour
+  ansible.builtin.template:
+    src: prompt.sh.j2
+    dest: "{{ linux_common_prompt_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - linux_common_prompt_enabled | bool
+    - not linux_common_prompt_pve.stat.exists
+
+# Turning the area off removes the prompt, so shells go back to the Rocky default.
+- name: Prompt | Remove the bash prompt when turned off
+  ansible.builtin.file:
+    path: "{{ linux_common_prompt_file }}"
+    state: absent
+  when:
+    - not (linux_common_prompt_enabled | bool)
+    - not linux_common_prompt_pve.stat.exists

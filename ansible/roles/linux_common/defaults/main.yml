@@ -41,3 +41,23 @@ linux_common_journald_system_keep_free: 1G
 linux_common_journald_runtime_max_use: 128M
 # Named "zz-" so it is read after the CIS drop-ins and its values win.
 linux_common_journald_dropin: /etc/systemd/journald.conf.d/zz-tuningfork.conf
+
+# --- Bash prompt and directory colour --------------------------------------------------------
+# A coloured prompt for interactive bash shells, and directories in a lighter blue in ls:
+#   [14:02:11 dido@nas /home/dido/repo] (main) $
+# Root gets a red user name and #. Never installed on a host that runs Proxmox VE.
+linux_common_prompt_enabled: true
+# Sorts after Rocky's colorls.sh, which sets LS_COLORS first.
+linux_common_prompt_file: /etc/profile.d/tuningfork-prompt.sh
+# Colours, as numbers of the 256-colour palette (0-255).
+linux_common_prompt_colours:
+  frame: 51         # [ ] and the path: cyan
+  time: 75          # time: light blue
+  user: 207         # user name: magenta
+  at: 87            # @: light cyan
+  host: 213         # host name: light magenta
+  mark: 46          # $ of a normal user: green
+  root: 196         # user name and # of root: red (bold)
+  git_paren: 203    # ( ) around the git branch: coral
+  git_branch: 220   # git branch: yellow
+  directory: 75     # directories in ls: light blue (bold), instead of the default dark blue

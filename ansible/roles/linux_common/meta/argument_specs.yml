@@ -34,3 +34,8 @@ argument_specs:
       linux_common_journald_system_keep_free: {type: str, default: 1G}
       linux_common_journald_runtime_max_use: {type: str, default: 128M}
       linux_common_journald_dropin: {type: path, default: /etc/systemd/journald.conf.d/zz-tuningfork.conf}
+      linux_common_prompt_enabled: {type: bool, default: true}
+      linux_common_prompt_file: {type: path, default: /etc/profile.d/tuningfork-prompt.sh}
+      linux_common_prompt_colours:
+        type: dict
+        description: 256-colour palette numbers for frame, time, user, at, host, mark, root, git_paren, git_branch and directory.

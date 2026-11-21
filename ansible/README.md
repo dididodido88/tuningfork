@@ -35,6 +35,7 @@ see [Role documentation](#role-documentation).
 | Banner | `/etc/motd`, `/etc/issue`, `/etc/issue.net` | `linux_common_banner_text` |
 | IPv6 | Enabled or disabled through `/etc/sysctl.d/70-tuningfork-ipv6.conf` | `linux_common_ipv6_enabled` |
 | journald | Persistent logs across reboots; retention period and size limits | `linux_common_journald_storage`, `linux_common_journald_max_retention` |
+| Bash prompt | Coloured prompt (time, user, host, path, git branch; red for root) and lighter-blue directories in `ls`. Not on Proxmox VE hosts | `linux_common_prompt_enabled`, `linux_common_prompt_colours` |
 
 Each area has an on/off switch (`linux_common_<area>_enabled`; for IPv6, `linux_common_ipv6_manage`).
 
@@ -441,7 +442,7 @@ Every role has a tag with its own name: `certificates`, `repositories`, `filesys
 `wazuh_server`, `siem_artifacts`. The CIS role uses `cis`, plus a tag per rule (e.g. `rule_5.1.1`) and per level
 (`level1-server`).
 
-Tags for one area across roles: `ntp`, `banner`, `ipv6`, `journald` (the common roles), and `firewall` (the firewall
+Tags for one area across roles: `ntp`, `banner`, `ipv6`, `journald`, `prompt` (the common roles), and `firewall` (the firewall
 tasks of `nas_server`, `database_server`, `harbor` and `wazuh_server`).
 
 ### Secrets

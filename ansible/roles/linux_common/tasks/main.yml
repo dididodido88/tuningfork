@@ -18,3 +18,8 @@
   ansible.builtin.import_tasks: journald.yml
   when: linux_common_journald_enabled | bool
   tags: [linux_common, journald]
+
+# Always imported: with the switch off, the tasks remove the prompt again.
+- name: Configure the bash prompt
+  ansible.builtin.import_tasks: prompt.yml
+  tags: [linux_common, prompt]
