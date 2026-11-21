@@ -44,8 +44,8 @@
 - name: Common Windows configuration
   ansible.builtin.import_playbook: windows_common.yml
 
-- name: NFS servers
-  ansible.builtin.import_playbook: nfs_server.yml
+- name: NAS servers (NFS exports)
+  ansible.builtin.import_playbook: nas_server.yml
 
 - name: Database servers
   ansible.builtin.import_playbook: database_server.yml

@@ -1,9 +1,9 @@
 ---
-# NFS server: exports, the nfs-server service and the firewall.
+# NAS server: NFS exports, the nfs-server service and the firewall.
 #
-# Set per environment in inventories/<ENV>/group_vars/nfs_servers.yml.
+# Set per environment in inventories/<ENV>/group_vars/nas_servers.yml.
 
-nfs_server_packages:
+nas_server_packages:
   - nfs-utils
 
 # One entry per export. Directories are created if missing.
@@ -14,11 +14,11 @@ nfs_server_packages:
 #     clients:
 #       - host: 10.0.0.0/24
 #         options: rw,sync,root_squash
-nfs_server_exports: []
+nas_server_exports: []
 
 # firewalld services opened in the default zone.
-nfs_server_manage_firewall: true
-nfs_server_firewall_services:
+nas_server_manage_firewall: true
+nas_server_firewall_services:
   - nfs
   - mountd
   - rpc-bind

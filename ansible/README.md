@@ -18,7 +18,7 @@ After four preparation steps, each host gets three layers, and the SIEM VM a fou
 | 2. Common OS | Settings every host of an OS family gets | `linux`, `windows`, `windows_server`, `windows_desktop` | `linux_common.yml`, `windows_common.yml` | `linux_common`, `windows_common`, `windows_server_common`, `windows_desktop_common` |
 | 2. CLI tools | btop, htop, jq, yq, tree, ripgrep, fd, bat, SELinux utilities (semanage, audit2allow) | `rocky9` | `cli_tools.yml` | `cli_tools` |
 | 2. AD logins | Join Active Directory; AD + local logins, home directories, SSH and sudo by AD group (when `sssd_ad_enabled`) | `rocky9` | `sssd_ad.yml` | `sssd_ad` |
-| 3. Server role | What the host is for | `nfs_servers`, `db_servers`, `registry_servers` | `nfs_server.yml`, `database_server.yml`, `harbor.yml` | `nfs_server`, `database_server`, `harbor` |
+| 3. Server role | What the host is for | `nas_servers`, `db_servers`, `registry_servers` | `nas_server.yml`, `database_server.yml`, `harbor.yml` | `nas_server`, `database_server`, `harbor` |
 | 3. Kubernetes clients | kubectl on `kubectl_hosts`; bastion tools (helm, k9s, kubectx/kubens), shared cluster contexts | `kubectl_hosts`, `k8s_bastions` | `kubectl.yml`, `k8s_bastion.yml` | `kubectl`, `k8s_bastion` |
 | 4. SIEM VM | Loopback-only mail relay; Wazuh indexer, manager and dashboard from checked artifacts | `siem_servers` | `siem.yml` (`postfix_relay.yml`, `wazuh_server.yml`) | `postfix_relay`, `wazuh_server`, `siem_artifacts` |
 
@@ -342,7 +342,7 @@ roles/
   windows_common/            all Windows
   windows_server_common/     Windows Server only
   windows_desktop_common/    Windows 11 Desktop only
-  nfs_server/  database_server/
+  nas_server/  database_server/
   harbor/                    Harbor registry: Docker CE, offline installer, API initialisation (docs/harbor.md)
   kubectl/                   pinned kubectl from the mirror (any host in kubectl_hosts)
   k8s_bastion/               Kubernetes bastion: helm, k9s, kubectx/kubens, shared cluster contexts
@@ -377,7 +377,7 @@ and an example.
 | [windows_common](roles/windows_common/README.md) | Time and logon banner | `windows` |
 | [windows_server_common](roles/windows_server_common/README.md) | Windows Server only (no tasks yet) | `windows_server` |
 | [windows_desktop_common](roles/windows_desktop_common/README.md) | Windows 11 Desktop only (no tasks yet) | `windows_desktop` |
-| [nfs_server](roles/nfs_server/README.md) | NFS exports | `nfs_servers` |
+| [nas_server](roles/nas_server/README.md) | NFS exports | `nas_servers` |
 | [database_server](roles/database_server/README.md) | PostgreSQL | `db_servers` |
 | [harbor](roles/harbor/README.md) | Harbor registry for images and Helm charts | `registry_servers` |
 | [kubectl](roles/kubectl/README.md) | Pinned kubectl from the mirror | `kubectl_hosts` |
@@ -397,7 +397,7 @@ Where to put a value, from lowest to highest precedence:
 | `inventories/<ENV>/group_vars/<group>.yml` | Environment-specific settings for a group. |
 | `inventories/<ENV>/group_vars/all/vault.yml` | Secrets (ansible-vault encrypted). |
 | `inventories/<ENV>/host_vars/<host>.yml` | Per-host exceptions. |
-| `playbooks/group_vars/<group>.yml` | Rules that must hold in **every** environment (the CIS ↔ `linux_common` handover, the CIS exceptions NFS servers need). Overrides inventory group_vars, so keep it small. |
+| `playbooks/group_vars/<group>.yml` | Rules that must hold in **every** environment (the CIS ↔ `linux_common` handover, the CIS exceptions NAS servers need). Overrides inventory group_vars, so keep it small. |
 
 Define the `linux_common_*` settings in `inventories/<ENV>/group_vars/linux.yml`, not only in
 role defaults: the CIS play reads them and doesn't load the `linux_common` role.
@@ -425,16 +425,16 @@ ansible-playbook -i inventories/CRGS00 playbooks/linux_common.yml
 ansible-playbook -i inventories/CRGS00 playbooks/site.yml --tags journald
 
 # Only some hosts
-ansible-playbook -i inventories/CRGS01 playbooks/site.yml --limit nfs_servers
+ansible-playbook -i inventories/CRGS01 playbooks/site.yml --limit nas_servers
 ```
 
 Every role has a tag with its own name: `certificates`, `repositories`, `filesystems`, `cloud_init_cleanup`, `linux_common`, `cli_tools`,
-`sssd_ad`, `windows_common`, `nfs_server`, `database_server`, `harbor`, `kubectl`, `k8s_bastion`, `postfix_relay`,
+`sssd_ad`, `windows_common`, `nas_server`, `database_server`, `harbor`, `kubectl`, `k8s_bastion`, `postfix_relay`,
 `wazuh_server`, `siem_artifacts`. The CIS role uses `cis`, plus a tag per rule (e.g. `rule_5.1.1`) and per level
 (`level1-server`).
 
 Tags for one area across roles: `ntp`, `banner`, `ipv6`, `journald` (the common roles), and `firewall` (the firewall
-tasks of `nfs_server`, `database_server`, `harbor` and `wazuh_server`).
+tasks of `nas_server`, `database_server`, `harbor` and `wazuh_server`).
 
 ### Secrets
 
@@ -476,7 +476,7 @@ These checks haven't been run yet. Run them on the control node:
    `inventories/<ENV>/group_vars/web_servers.yml`.
 3. `playbooks/<name>.yml` targeting that group, imported from `playbooks/site.yml`.
 4. If CIS would remove or mask something the role needs, set that exception in
-   `playbooks/group_vars/<group>.yml` (see `nfs_servers.yml`).
+   `playbooks/group_vars/<group>.yml` (see `nas_servers.yml`).
 
 **A new environment**: copy an existing `inventories/CRGSxx` directory, replace the environment
 name, hosts and values, and create a new vault for it.

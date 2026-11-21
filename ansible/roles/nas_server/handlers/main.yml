@@ -1,4 +1,4 @@
 ---
-- name: NFS | Re-export shares
+- name: NAS | Re-export NFS shares
   ansible.builtin.command: exportfs -ra
   changed_when: true

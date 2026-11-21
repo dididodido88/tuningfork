@@ -13,7 +13,7 @@ Environments: **lab**, **CRGS00**, **CRGS01**, **CRGS02**. Each has the same ten
 | Unit | VMs | Purpose | Cores / RAM | Data disks (GB) |
 |---|---|---|---|---|
 | `registry` | 1 | Harbor: container images and Helm charts | 4 / 8 GB | `/var/lib/containerd` 100, `/opt` 20, `/srv` 200 |
-| `nfs` | 1 | NFS exports for persistent cluster data | 4 / 8 GB | `/export/pvcdata` 50, `/export/cfr` 10, `/export/testdata` 100, `/export/deliveries` 40, `/export/backups` 30 |
+| `nas` | 1 | NAS: NFS exports for persistent cluster data | 4 / 8 GB | `/export/pvcdata` 50, `/export/cfr` 10, `/export/testdata` 100, `/export/deliveries` 40, `/export/backups` 30 |
 | `siem` | 1 | Logging and observability (Wazuh, Prometheus, Grafana) | 8 / 16 GB | `/var/lib/wazuh-indexer` 100, `/var/ossec` 40, `/var/lib/prometheus` 40, `/var/log/remote` 20, `/var/cache/tuningfork` 20 |
 | `database` | 1 | PostgreSQL | 4 / 4 GB | `/dbdata` 100 |
 | `rancher-cluster` | 1 or 3 | RKE2 cluster that runs Rancher Server | 2 / 4 GB per node | `/var/lib/rancher` 50, `/var/lib/kubelet` 20 |
@@ -297,15 +297,15 @@ Two settings guard against losing a VM's disks by accident.
 
 **`protection`** is the Proxmox protection flag. While it is on, Proxmox itself refuses to remove
 the VM or any of its disks, whoever asks: Terraform, the web interface or the API. It is on in the
-role profiles of the VMs that hold data (`registry`, `nfs`, `siem`, `database`, `support` and both
+role profiles of the VMs that hold data (`registry`, `nas`, `siem`, `database`, `support` and both
 RKE2 node types) and off for the bastion and the load balancers, which hold none.
 
 To destroy a protected VM on purpose, turn the flag off first:
 
 ```hcl
 # live/<ENV>/<unit>/terragrunt.hcl
-"nfs" = merge(local.role, {
-  ipv4_cidr  = "192.168.70.73/24"
+"nas" = merge(local.role, {
+  ipv4_cidr  = "192.168.70.70/24"
   protection = false        # 1. add this line and apply
 })                          # 2. then remove the VM, or run terragrunt destroy
 ```
@@ -335,8 +335,8 @@ all:
       children:
         rocky9:
           hosts:
-            nfs.lab.local:
-              ansible_host: 192.168.70.73
+            nas.lab.local:
+              ansible_host: 192.168.70.70
               proxmox_vm_id: 105
               proxmox_node: pve-lab
               filesystems_volumes__terraform:
@@ -348,9 +348,9 @@ all:
                   disk: /dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsi3
                   min_size_gb: 50
                   fstype: xfs
-    nfs_servers:
+    nas_servers:
       hosts:
-        nfs.lab.local: {}
+        nas.lab.local: {}
 ```
 
 Ansible loads every file in the inventory directory, so these files merge with `hosts.yml`.
@@ -364,7 +364,7 @@ Inventory groups per unit:
 | Unit | Groups (besides `linux` and `rocky9`) |
 |---|---|
 | `registry` | `registry_servers` |
-| `nfs` | `nfs_servers` |
+| `nas` | `nas_servers` |
 | `siem` | `siem_servers` |
 | `database` | `db_servers` |
 | `bastion` | `k8s_bastions` |

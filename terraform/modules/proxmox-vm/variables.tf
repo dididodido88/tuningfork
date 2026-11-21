@@ -198,7 +198,7 @@ variable "vms" {
                         fstype        optional; xfs or ext4 (the role's default is ext4)
                         label         optional; filesystem label
                         datastore_id  optional; put this one disk on another storage volume
-      ansible_groups  optional; extra inventory groups (server roles), e.g. ["nfs_servers"]
+      ansible_groups  optional; extra inventory groups (server roles), e.g. ["nas_servers"]
       host_vars       optional; extra variables for this host in the generated inventory
       tags            optional; extra Proxmox tags
       description     optional; Proxmox VM notes

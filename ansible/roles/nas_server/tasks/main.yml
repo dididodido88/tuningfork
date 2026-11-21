@@ -1,45 +1,45 @@
 ---
-- name: NFS | Install packages
+- name: NAS | Install packages
   ansible.builtin.dnf:
-    name: "{{ nfs_server_packages }}"
+    name: "{{ nas_server_packages }}"
     state: present
-  tags: [nfs_server]
+  tags: [nas_server]
 
-- name: NFS | Create export directories
+- name: NAS | Create export directories
   ansible.builtin.file:
     path: "{{ item.path }}"
     state: directory
     owner: "{{ item.owner | default('root') }}"
     group: "{{ item.group | default('root') }}"
     mode: "{{ item.mode | default('0755') }}"
-  loop: "{{ nfs_server_exports }}"
+  loop: "{{ nas_server_exports }}"
   loop_control:
     label: "{{ item.path }}"
-  tags: [nfs_server]
+  tags: [nas_server]
 
-- name: NFS | Write /etc/exports
+- name: NAS | Write /etc/exports
   ansible.builtin.template:
     src: exports.j2
     dest: /etc/exports
     owner: root
     group: root
     mode: "0644"
-  notify: NFS | Re-export shares
-  tags: [nfs_server]
+  notify: NAS | Re-export NFS shares
+  tags: [nas_server]
 
-- name: NFS | Enable and start nfs-server
+- name: NAS | Enable and start nfs-server
   ansible.builtin.systemd:
     name: nfs-server
     enabled: true
     state: started
-  tags: [nfs_server]
+  tags: [nas_server]
 
-- name: NFS | Open the firewall
+- name: NAS | Open the firewall
   ansible.posix.firewalld:
     service: "{{ item }}"
     permanent: true
     immediate: true
     state: enabled
-  loop: "{{ nfs_server_firewall_services }}"
-  when: nfs_server_manage_firewall | bool
-  tags: [nfs_server, firewall]
+  loop: "{{ nas_server_firewall_services }}"
+  when: nas_server_manage_firewall | bool
+  tags: [nas_server, firewall]

@@ -1,15 +1,15 @@
-# NFS server: persistent data for the clusters. One disk per export.
-# Ansible: roles/nfs_server, group nfs_servers.
+# NAS server: persistent data for the clusters, exported over NFS. One disk per export.
+# Ansible: roles/nas_server, group nas_servers.
 #
-# To add an export, append a disk here and add the export to nfs_server_exports in
-# ansible/inventories/<ENV>/group_vars/nfs_servers.yml.
+# To add an export, append a disk here and add the export to nas_server_exports in
+# ansible/inventories/<ENV>/group_vars/nas_servers.yml.
 
 locals {
   profile = {
     cores          = 4
     memory_mb      = 8192
-    ansible_groups = ["nfs_servers"]
-    tags           = ["nfs"]
+    ansible_groups = ["nas_servers"]
+    tags           = ["nas"]
 
     # Holds data: Proxmox refuses to remove this VM or its disks until protection is turned off
     # (terraform/README.md, "Protection").

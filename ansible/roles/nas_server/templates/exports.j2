@@ -1,5 +1,5 @@
 # {{ ansible_managed }}
-{% for export in nfs_server_exports %}
+{% for export in nas_server_exports %}
 {{ export.path }} {% for client in export.clients %}{{ client.host }}({{ client.options | default('rw,sync,root_squash') }}){% if not loop.last %} {% endif %}{% endfor %}
 
 {% endfor %}

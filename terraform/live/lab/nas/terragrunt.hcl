@@ -1,8 +1,8 @@
-# lab: NFS server (persistent data for the clusters, one disk per export).
-#   cd terraform/live/lab/nfs && terragrunt plan
+# lab: NAS server (persistent data for the clusters, exported over NFS, one disk per export).
+#   cd terraform/live/lab/nas && terragrunt plan
 #
-# Sizing: terraform/_envcommon/roles/nfs.hcl. Every field: terraform/modules/proxmox-vm/variables.tf.
-# Applying writes ansible/inventories/lab/terraform_nfs.yml.
+# Sizing: terraform/_envcommon/roles/nas.hcl. Every field: terraform/modules/proxmox-vm/variables.tf.
+# Applying writes ansible/inventories/lab/terraform_nas.yml.
 
 include "root" {
   path = find_in_parent_folders("root.hcl")
@@ -15,7 +15,7 @@ include "os" {
 }
 
 locals {
-  role = read_terragrunt_config("${dirname(find_in_parent_folders("root.hcl"))}/_envcommon/roles/nfs.hcl").locals.profile
+  role = read_terragrunt_config("${dirname(find_in_parent_folders("root.hcl"))}/_envcommon/roles/nas.hcl").locals.profile
 }
 
 inputs = {
