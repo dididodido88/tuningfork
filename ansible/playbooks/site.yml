@@ -59,6 +59,15 @@
 - name: Kubernetes bastion hosts
   ansible.builtin.import_playbook: k8s_bastion.yml
 
+# Before the Rancher cluster: its nodes after the first join through the load balancer.
+- name: Load balancers (keepalived and HAProxy)
+  ansible.builtin.import_playbook: load_balancer.yml
+
+# After Harbor (every image comes from it). Rancher Server itself is deployed afterwards, by hand:
+# terraform/k8s/<ENV>/rancher-server.
+- name: Rancher RKE2 cluster
+  ansible.builtin.import_playbook: rke2_rancher.yml
+
 # SIEM VM (Wazuh, monitoring and log collectors): after the common layers, which it needs
 # (host certificate, mirror, data disks).
 - name: SIEM and observability stack

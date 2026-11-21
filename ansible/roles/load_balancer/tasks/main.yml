@@ -1,0 +1,32 @@
+---
+# A load balancer whose group has no backend group yet (e.g. lb-app before its cluster exists)
+# is left alone.
+- name: LB | Skip a load balancer that isn't configured yet
+  when: load_balancer_backend_group | length == 0
+  tags: [load_balancer]
+  block:
+    - name: LB | Report the skip
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }}: load_balancer_backend_group isn't set for its group, so it isn't
+          configured. Set it in inventories/<ENV>/group_vars/<lb group>.yml.
+
+    - name: LB | End this host
+      ansible.builtin.meta: end_host
+
+- name: LB | Pre-checks
+  ansible.builtin.import_tasks: preflight.yml
+  tags: [load_balancer]
+
+- name: LB | HAProxy and keepalived
+  ansible.builtin.import_tasks: configure.yml
+  tags: [load_balancer]
+
+- name: LB | Firewall
+  ansible.builtin.import_tasks: firewall.yml
+  when: load_balancer_manage_firewall | bool
+  tags: [load_balancer, firewall]
+
+- name: LB | Check
+  ansible.builtin.import_tasks: verify.yml
+  tags: [load_balancer]

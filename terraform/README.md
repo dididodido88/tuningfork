@@ -16,7 +16,7 @@ Environments: **lab**, **CRGS00**, **CRGS01**, **CRGS02**. Each has the same ten
 | `nas` | 1 | NAS: NFS exports for persistent cluster data | 4 / 8 GB | `/export/pvcdata` 50, `/export/cfr` 10, `/export/testdata` 100, `/export/deliveries` 40, `/export/backups` 30 |
 | `siem` | 1 | Logging and observability (Wazuh, Prometheus, Grafana) | 8 / 16 GB | `/var/lib/wazuh-indexer` 100, `/var/ossec` 40, `/var/lib/prometheus` 40, `/var/log/remote` 20, `/var/cache/tuningfork` 20 |
 | `database` | 1 | PostgreSQL | 4 / 4 GB | `/dbdata` 100 |
-| `rancher-cluster` | 1 or 3 | RKE2 cluster that runs Rancher Server | 2 / 4 GB per node | `/var/lib/rancher` 50, `/var/lib/kubelet` 20 |
+| `rancher-cluster` | 1 or 3 | RKE2 cluster that runs Rancher Server | 4 / 8 GB per node | `/var/lib/rancher` 50, `/var/lib/kubelet` 20 |
 | `bastion` | 1 | kubectl, helm and k9s for every cluster | 2 / 4 GB | none |
 | `support` | 1 | Keycloak and the basemap server (Docker) | 8 / 32 GB | `/var/lib/containerd` 50, `/kcdata` 10, `/basemap` 20 |
 | `app-cluster` | 1 or 3 | RKE2 cluster for the application, managed by Rancher | 8 / 32 GB per node | `/var/lib/rancher` 100, `/var/lib/kubelet` 50 |
@@ -44,11 +44,15 @@ three-node clusters, on the environment's storage volume unless you move disks e
 root.hcl                           shared: local state, provider block, air-gapped provider install, environment inputs
 providers/                         bpg/proxmox and hashicorp/local, supplied by you (git-ignored)
 modules/proxmox-vm/                generic "clone VMs from a template" module (not tied to an OS or a role)
+modules/rancher-server/            Rancher Server from its Helm chart, onto the Rancher RKE2 cluster
 _envcommon/rocky9.hcl              Rocky 9 settings shared by every unit: template, CPU type, inventory file
 _envcommon/roles/<role>.hcl        sizing of one role: cores, memory, data disks, Ansible groups
 live/
   <ENV>/env.hcl                    Proxmox endpoint, node, storage volume, bridge, DNS, template name, SSH keys
   <ENV>/<unit>/terragrunt.hcl      host names, addresses, cluster size, per-environment overrides
+k8s/                               deployments onto clusters Ansible built, applied by hand (never by run --all in live/)
+  root.hcl                         shared: local state, plugin directory, environment from live/<ENV>/env.hcl
+  <ENV>/rancher-server/            Rancher Server (Helm), see "Rancher Server"
 state/                             local state, one file per unit (git-ignored; back it up)
 ```
 
@@ -87,8 +91,11 @@ A value set in one place applies everywhere below it:
 
   Then copy the result into `terraform/providers/`. That gives
   `providers/registry.terraform.io/bpg/proxmox/0.122.0/<os_arch>/...` and the same for
-  `hashicorp/local`. `terragrunt init` passes `-plugin-dir=terraform/providers`, so nothing is
-  downloaded from the registry.
+  `hashicorp/local`. `terragrunt init` passes `-plugin-dir` (set in `root.hcl` and
+  `k8s/root.hcl`), so nothing is downloaded from the registry.
+
+  The `k8s/` units also need `hashicorp/helm` and `hashicorp/kubernetes`: mirror them the same
+  way, from `modules/rancher-server/versions.tf`, into the same plugin directory.
 - A Proxmox API token with a role on the target nodes, storage volumes and the template that
   includes `VM.Allocate`, `VM.Clone`, `VM.Config.*`, `VM.PowerMgmt`, `VM.Audit`,
   `Datastore.AllocateSpace`, `Datastore.Audit` and `SDN.Use` (Proxmox 8). `VM.Audit` is also what
@@ -187,14 +194,17 @@ server_ipv4_cidrs = [             # one address per node, in order
 ]
 ```
 
-Lab starts with one node per cluster, the CRGS environments with three. Going from 1 to 3 adds
+Lab has three Rancher nodes and one application node; the CRGS environments have three of each. Going from 1 to 3 adds
 nodes 02 and 03 and leaves node 01 alone. Going from 3 to 1 destroys nodes 02 and 03; the nodes
 are protected, so that fails until `protection` is turned off (see "Protection").
 
-Every node is an RKE2 server (control plane, etcd and workload). The Rancher nodes are sized at
-2 cores and 4 GB as specified; that is the RKE2 minimum, and Rancher's own guidance for a small
-installation is 4 vCPU and 16 GB per node. Change `cores` and `memory_mb` in
+Every node is an RKE2 server (control plane, etcd and workload). The Rancher nodes have 4 cores
+and 8 GB, enough for RKE2 plus Rancher managing a few clusters; Rancher's guidance for a small
+installation (up to 150 clusters) is 4 vCPU and 16 GB per node. Change `cores` and `memory_mb` in
 `_envcommon/roles/rke2-rancher.hcl` if Rancher is short of memory.
+
+The cluster is configured by Ansible (`ansible/playbooks/rke2_rancher.yml`), and the load
+balancer's endpoints follow the number of nodes automatically. Guide: `ansible/docs/rancher.md`.
 
 ## Load balancers
 
@@ -394,9 +404,37 @@ repositories, data disks, CIS, common configuration).
 don't use cloud-init or SSH need module options for that (`bootstrap_enabled = false` turns the
 SSH bootstrap off).
 
+## Rancher Server (`k8s/<ENV>/rancher-server`)
+
+Rancher Server is deployed onto the Rancher RKE2 cluster with the Helm provider, by hand, after
+Ansible has built the cluster:
+
+```sh
+export TF_VAR_rancher_bootstrap_password='<first admin password>'
+cd terraform/k8s/lab/rancher-server
+terragrunt init      # first time
+terragrunt apply
+```
+
+- **Cluster access:** the kubeconfig Ansible wrote on the control node,
+  `~/.kube/<ENV>-rancher-cluster.yaml`, through the load balancer on 6443.
+- **Chart:** the downloaded `.tgz` (`chart_path` in the unit; `REPLACE` it with your version).
+- **TLS:** the `rancher` certificate and key from the certificate tree, plus the internal root CA,
+  as Kubernetes secrets. Rancher uses them directly, so no cert-manager is needed.
+- **Images:** from Harbor, `registry.<domain>/rancher/...`; the nodes are already logged in.
+- **Replicas:** one Rancher pod per cluster node, read from the cluster (1 or 3).
+
+Kept out of `live/` on purpose: `terragrunt run --all` there builds VMs, and this unit needs a
+running cluster. **Its state holds the certificate's private key and the bootstrap password**:
+protect `terraform/state/` like the Ansible vault. The bootstrap password only matters for the
+first login; Rancher asks for a new one then.
+
+All inputs: `modules/rancher-server/variables.tf`. Full procedure: `ansible/docs/rancher.md`.
+
 ## State
 
-State is local: `terraform/state/live/<ENV>/<unit>/terraform.tfstate`, one file per unit. It is
+State is local: `terraform/state/live/<ENV>/<unit>/terraform.tfstate`, one file per unit (and
+`terraform/state/k8s/<ENV>/<unit>/` for the `k8s/` units). It is
 git-ignored. Back it up, and run Terraform for an environment from one place at a time, because
 local state has no locking between machines. Losing it means importing the VMs again
 (`terragrunt import 'proxmox_virtual_environment_vm.this["<name>"]' <node>/<vm_id>`).

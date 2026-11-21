@@ -1,0 +1,17 @@
+# {{ ansible_managed }} (roles/rke2_server). Local changes are overwritten.
+# containerd pulls every image from the private registry ({{ rke2_registry }}), logged in as a
+# Harbor robot, trusting the system CA bundle (which holds the internal CA).
+mirrors:
+  docker.io:
+    endpoint:
+      - "https://{{ rke2_registry }}"
+  "{{ rke2_registry }}":
+    endpoint:
+      - "https://{{ rke2_registry }}"
+configs:
+  "{{ rke2_registry }}":
+    auth:
+      username: {{ rke2_registry_username | to_json }}
+      password: {{ rke2_registry_password | to_json }}
+    tls:
+      ca_file: {{ rke2_registry_ca_file }}

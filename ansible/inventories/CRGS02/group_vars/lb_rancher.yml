@@ -1,0 +1,15 @@
+---
+# CRGS02: the load balancer of the Rancher cluster (roles/load_balancer/defaults/main.yml lists
+# every option). The virtual IP is keepalived_vip, set in terraform/live/CRGS02/lb-rancher.
+
+# This load balancer's own group (keepalived peers: any other host in it).
+load_balancer_group: lb_rancher
+
+# Endpoints: every host of this group, so 1 Rancher node gives 1 endpoint and 3 give 3.
+load_balancer_backend_group: rke2_rancher
+
+# VRRP router ID: unique among the load balancers on the same network (lb-app uses another).
+load_balancer_vrrp_router_id: 51
+
+# Host name the 80/443 health check asks Rancher for (Host header and TLS SNI).
+load_balancer_health_host: "{{ rancher_hostname }}"

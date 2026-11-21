@@ -1,0 +1,93 @@
+---
+# --- Firewall: off on RKE2 nodes --------------------------------------------------------------
+# firewalld conflicts with RKE2's network plugin (Canal); RKE2's documented setup turns it off.
+# The CIS firewall rules are off for these hosts (playbooks/group_vars/rke2_servers.yml); the
+# compensating control is network segmentation (docs/rancher.md).
+- name: RKE2 | Gather service facts
+  ansible.builtin.service_facts:
+  when: rke2_disable_firewalld | bool
+
+- name: RKE2 | Stop firewalld
+  ansible.builtin.systemd:
+    name: firewalld
+    state: stopped
+    enabled: false
+  when:
+    - rke2_disable_firewalld | bool
+    - "'firewalld.service' in ansible_facts.services"
+
+# Masked, so nothing starts it again.
+- name: RKE2 | Mask firewalld
+  ansible.builtin.systemd:
+    name: firewalld
+    masked: true
+  when: rke2_disable_firewalld | bool
+
+# --- Kernel and network ----------------------------------------------------------------------
+# Read after the CIS sysctl files (60-*), so it wins (CIS 3.3.1 is off for these hosts).
+- name: RKE2 | Allow IP forwarding for pods and services
+  ansible.posix.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    sysctl_file: /etc/sysctl.d/90-rke2.conf
+    sysctl_set: true
+    state: present
+
+# Canal creates cali* and flannel* interfaces; NetworkManager must not manage them.
+- name: RKE2 | Keep NetworkManager away from the Canal interfaces
+  ansible.builtin.copy:
+    dest: /etc/NetworkManager/conf.d/rke2-canal.conf
+    content: |
+      # Managed by Ansible (roles/rke2_server). Interfaces created by RKE2's Canal network plugin.
+      [keyfile]
+      unmanaged-devices=interface-name:cali*;interface-name:flannel*
+    owner: root
+    group: root
+    mode: "0644"
+  notify: RKE2 | Reload NetworkManager
+
+# --- Packages and SELinux -----------------------------------------------------------------------
+- name: RKE2 | Install the packages RKE2 needs
+  ansible.builtin.dnf:
+    name: "{{ rke2_packages }}"
+    state: present
+
+- name: RKE2 | Create the directories
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "{{ item.mode }}"
+  loop:
+    - {path: /etc/rancher/rke2, mode: "0755"}
+    - {path: "{{ rke2_artifacts_dir }}", mode: "0700"}
+    - {path: "{{ rke2_artifacts_dir }}/{{ rke2_version }}", mode: "0700"}
+    - {path: "{{ rke2_artifacts_dir }}/rke2-selinux", mode: "0700"}
+  loop_control:
+    label: "{{ item.path }}"
+
+- name: RKE2 | Download the SELinux policy for RKE2
+  ansible.builtin.get_url:
+    url: "{{ rke2_mirror_url }}/rke2-selinux/{{ rke2_selinux_rpm }}"
+    dest: "{{ rke2_artifacts_dir }}/rke2-selinux/{{ rke2_selinux_rpm }}"
+    checksum: "{{ rke2_selinux_checksum }}"
+    owner: root
+    group: root
+    mode: "0644"
+
+# A local file, so dnf has no repository key for it; its sha256 is pinned above instead.
+- name: RKE2 | Install the SELinux policy for RKE2
+  ansible.builtin.dnf:
+    name: "{{ rke2_artifacts_dir }}/rke2-selinux/{{ rke2_selinux_rpm }}"
+    state: present
+    disable_gpg_check: true
+
+# --- Shell environment for administrators -----------------------------------------------------
+- name: RKE2 | Put RKE2's kubectl and crictl on the PATH
+  ansible.builtin.copy:
+    src: rke2-profile.sh
+    dest: /etc/profile.d/rke2.sh
+    owner: root
+    group: root
+    mode: "0644"

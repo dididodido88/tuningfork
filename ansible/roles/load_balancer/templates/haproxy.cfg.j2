@@ -1,0 +1,70 @@
+# {{ ansible_managed }} (roles/load_balancer). Local changes are overwritten.
+# Endpoints: the hosts of the inventory group {{ load_balancer_backend_group }}
+# ({{ load_balancer_backends | length }}). TCP passthrough: TLS ends on the nodes.
+{% set vip = load_balancer_vip %}
+
+global
+    log stdout format raw local0
+    chroot /var/lib/haproxy
+    user haproxy
+    group haproxy
+    maxconn 20000
+    # Read by haproxy-status (root only).
+    stats socket {{ load_balancer_stats_socket }} mode 600 level operator
+    stats timeout 30s
+
+defaults
+    mode tcp
+    log global
+    option tcplog
+    option dontlognull
+    retries 3
+    timeout connect {{ load_balancer_timeout_connect }}
+    timeout client {{ load_balancer_timeout_client }}
+    timeout server {{ load_balancer_timeout_server }}
+    timeout tunnel {{ load_balancer_timeout_tunnel }}
+    timeout check 5s
+    default-server inter {{ load_balancer_check_interval }} fall {{ load_balancer_check_fall }} rise {{ load_balancer_check_rise }}
+
+# Read-only statistics page on this host's own address.
+listen stats
+    bind {{ ansible_facts.default_ipv4.address }}:{{ load_balancer_stats_port }}
+    mode http
+    no log
+    stats enable
+    stats uri /
+    stats refresh 10s
+    stats show-legends
+    stats auth "{{ load_balancer_stats_user }}:{{ load_balancer_stats_password | replace('\\', '\\\\') | replace('"', '\\"') }}"
+{% for fe in load_balancer_frontends %}
+
+frontend {{ fe.name }}
+    bind {{ vip }}:{{ fe.port }}
+    default_backend {{ fe.name }}
+
+backend {{ fe.name }}
+    balance roundrobin
+{% if fe.check == 'rancher' %}
+    # Rancher answers through the ingress (checked on 443 for both 80 and 443).
+    option httpchk
+    http-check send meth GET uri /healthz ver HTTP/1.1 hdr Host {{ load_balancer_health_host }}
+    http-check expect status 200
+{% elif fe.check == 'kube_api' %}
+    # The API server answers over TLS. 401: RKE2 refuses anonymous requests, the server is up.
+    option httpchk
+    http-check send meth GET uri /readyz
+    http-check expect rstatus ^(200|401)$
+{% elif fe.check == 'rke2_supervisor' %}
+    # RKE2's registration service.
+    option httpchk
+    http-check send meth GET uri /ping
+    http-check expect status 200
+{% endif %}
+{% for host in load_balancer_backends %}
+    server {{ hostvars[host].inventory_hostname_short }} {{ hostvars[host].ansible_host | default(host) }}:{{ fe.port }} check
+{%- if fe.check == 'rancher' %} port 443 check-ssl verify none check-sni {{ load_balancer_health_host }}
+{%- elif fe.check in ['kube_api', 'rke2_supervisor'] %} check-ssl verify none
+{%- endif %}
+
+{% endfor %}
+{% endfor %}

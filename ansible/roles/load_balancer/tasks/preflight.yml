@@ -1,0 +1,53 @@
+---
+# Nothing is changed until these pass.
+
+# The endpoints: every host of the backend group, sorted, so the order is stable.
+- name: LB | Work out the endpoints
+  ansible.builtin.set_fact:
+    load_balancer_backends: "{{ groups[load_balancer_backend_group] | default([]) | sort }}"
+
+- name: LB | Check the settings
+  ansible.builtin.assert:
+    that:
+      - load_balancer_group | length > 0
+      - load_balancer_group in groups
+      - inventory_hostname in groups[load_balancer_group]
+      - load_balancer_backends | length > 0
+      - load_balancer_vip is match('^[0-9]{1,3}([.][0-9]{1,3}){3}$')
+      - load_balancer_interface | length > 0
+      - load_balancer_vrrp_router_id | int >= 1 and load_balancer_vrrp_router_id | int <= 255
+      - load_balancer_stats_password | length >= 12
+      - >-
+        load_balancer_frontends | selectattr('check', 'equalto', 'rancher') | list | length == 0
+        or load_balancer_health_host | length > 0
+    fail_msg: >-
+      Set in inventories/<ENV>/group_vars/<lb group>.yml: load_balancer_group (this host's group),
+      load_balancer_backend_group (it has {{ load_balancer_backends | length }} host(s)),
+      load_balancer_vrrp_router_id (1-255) and load_balancer_health_host. The virtual IP
+      (keepalived_vip, now '{{ load_balancer_vip }}') comes from the Terraform lb-* unit. In the
+      vault: vault_haproxy_stats_password (at least 12 characters).
+    quiet: true
+
+# Clients reach the cluster by name, so the name must point at the virtual IP.
+- name: LB | Look up the cluster name
+  ansible.builtin.command:
+    argv: [getent, ahostsv4, "{{ load_balancer_health_host }}"]
+  register: load_balancer_dns
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: load_balancer_health_host | length > 0
+
+- name: LB | Check the cluster name resolves to the virtual IP
+  ansible.builtin.assert:
+    that:
+      - load_balancer_dns.rc == 0
+      - load_balancer_vip in load_balancer_dns_ips
+    fail_msg: >-
+      {{ load_balancer_health_host }} must resolve to the virtual IP {{ load_balancer_vip }}; it
+      resolves to [{{ load_balancer_dns_ips | join(', ') }}]. Create the DNS A record
+      (docs/rancher.md, "Prerequisites").
+    quiet: true
+  vars:
+    load_balancer_dns_ips: "{{ load_balancer_dns.stdout_lines | default([]) | map('split') | map('first') | unique | list }}"
+  when: load_balancer_health_host | length > 0

@@ -1,0 +1,32 @@
+---
+# CRGS01: the Rancher RKE2 cluster (roles/rke2_server/defaults/main.yml lists every option;
+# docs/rancher.md covers the downloads, the images in Harbor and the run order).
+# The nodes are the hosts of this group, written by terraform/live/CRGS01/rancher-cluster
+# (terraform_rancher-cluster.yml): 1 or 3.
+
+rke2_cluster_group: rke2_rancher
+# Kubeconfig on the control node: ~/.kube/CRGS01-rancher-cluster.yaml (used by
+# terraform/k8s/CRGS01/rancher-server).
+rke2_cluster_name: rancher-cluster
+
+# --- Version and artifacts on the mirror ---------------------------------------------------
+# <env_repo_base_url>/rke2/<rke2_version>/: install.sh, rke2.linux-amd64.tar.gz, sha256sum-amd64.txt
+# Pick a version Rancher supports for the Rancher version you deploy (Rancher support matrix).
+rke2_version: ""                     # REPLACE, e.g. v1.33.5+rke2r1
+rke2_install_sh_checksum: ""         # REPLACE: sha256:<hash> of install.sh, recorded when downloading
+# <env_repo_base_url>/rke2/rke2-selinux/<rke2_selinux_rpm>
+rke2_selinux_rpm: ""                 # REPLACE, e.g. rke2-selinux-0.20-1.el9.noarch.rpm
+rke2_selinux_checksum: ""            # REPLACE: sha256:<hash>
+
+# --- Cluster ---------------------------------------------------------------------------------
+# Join secret shared by the nodes: a long random string in the vault (openssl rand -hex 32).
+rke2_token: "{{ vault_rke2_rancher_token | default('') }}"
+
+# Nodes after the first join through the load balancer: https://<rancher_hostname>:9345.
+rke2_registration_host: "{{ rancher_hostname }}"
+# The virtual IP of lb-rancher (keepalived_vip, from terraform_lb-rancher.yml).
+rke2_registration_vip: >-
+  {{ groups['lb_rancher'] | default([]) | map('extract', hostvars)
+     | selectattr('keepalived_vip', 'defined') | map(attribute='keepalived_vip') | first | default('') }}
+# Names and addresses the Kubernetes API certificate must cover.
+rke2_tls_san: "{{ [rancher_hostname, rke2_registration_vip] | select | list }}"

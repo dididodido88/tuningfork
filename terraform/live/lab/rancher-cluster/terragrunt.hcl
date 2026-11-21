@@ -20,7 +20,7 @@ locals {
 
   # Cluster size: 1 (single node) or 3 (highly available). Any other number fails the plan.
   # Going from 3 to 1 destroys nodes 02 and 03.
-  server_count = 1
+  server_count = 3
 
   # Nodes are named <name_prefix>01, 02, 03.
   name_prefix = "rancher"

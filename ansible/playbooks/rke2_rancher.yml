@@ -1,0 +1,30 @@
+---
+# The Rancher RKE2 cluster: 1 or 3 RKE2 server nodes that run only Rancher Server. Installs RKE2
+# from the pre-downloaded artifacts on the mirror; every image comes from Harbor.
+# Needs first: the common layers (certificates, repositories, data disks, CIS, common Linux
+# config), Harbor with the images in the project rancher, and playbooks/load_balancer.yml (nodes
+# after the first join through the load balancer). site.yml runs them in that order.
+# Settings: inventories/<ENV>/group_vars/rke2_rancher.yml. Guide: docs/rancher.md.
+#
+# Rancher Server itself is deployed afterwards, by hand, with Terraform:
+#   terraform/k8s/<ENV>/rancher-server
+
+- name: Rancher RKE2 cluster
+  hosts: rke2_rancher
+  become: true
+  gather_facts: true
+  # One node at a time, first node first: it creates the cluster, the others join in turn, and a
+  # restart never takes more than one etcd member down. Any failure stops the rest.
+  serial: 1
+  order: sorted
+  max_fail_percentage: 0
+  # The mirror (env_repo_base_url) and Harbor use certificates from the internal CA.
+  pre_tasks:
+    - name: Check the internal CA is trusted (playbooks/certificates.yml ran)
+      ansible.builtin.import_role:
+        name: certificates
+        tasks_from: verify_trust
+      tags: [always]
+  roles:
+    - role: rke2_server
+      tags: [rke2_server, rke2_rancher]

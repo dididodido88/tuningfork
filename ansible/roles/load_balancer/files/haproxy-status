@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+# haproxy-status: health and traffic distribution of every HAProxy frontend, backend and server.
+#
+#   sudo haproxy-status              show once
+#   sudo haproxy-status -w [SECONDS] refresh every SECONDS (default 2); Ctrl-C stops
+#
+# SHARE is each server's part of its backend's sessions since HAProxy last started.
+# Managed by Ansible (roles/load_balancer).
+set -euo pipefail
+
+SOCKET="${HAPROXY_SOCKET:-/var/lib/haproxy/stats}"
+INTERVAL=""
+
+usage() {
+  sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'
+  exit "${1:-0}"
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -w | --watch)
+      INTERVAL=2
+      if [ $# -gt 1 ] && [[ "$2" =~ ^[0-9]+$ ]] && [ "$2" -gt 0 ]; then
+        INTERVAL="$2"
+        shift
+      fi
+      ;;
+    -h | --help) usage 0 ;;
+    *) echo "haproxy-status: unknown option $1" >&2; usage 2 ;;
+  esac
+  shift
+done
+
+# HAPROXY_STATS_FILE: read a saved "show stat" output instead of the socket (for testing).
+read_stats() {
+  if [ -n "${HAPROXY_STATS_FILE:-}" ]; then
+    cat "$HAPROXY_STATS_FILE"
+    return
+  fi
+  echo "show stat" | socat stdio "unix-connect:$SOCKET"
+}
+
+render() {
+  local color=0
+  if [ -z "${HAPROXY_STATS_FILE:-}" ] && [ ! -S "$SOCKET" ]; then
+    echo "haproxy-status: no stats socket at $SOCKET. Is haproxy running? Run with sudo." >&2
+    exit 1
+  fi
+  [ -t 1 ] && color=1
+  read_stats | awk -F, -v now="$(date '+%Y-%m-%d %H:%M:%S')" -v host="$(hostname -s 2>/dev/null || hostname)" -v color="$color" '
+    function human(b,   u, i) {
+      split("B KB MB GB TB", u, " ")
+      i = 1
+      while (b >= 1024 && i < 5) { b /= 1024; i++ }
+      return (i == 1) ? sprintf("%d%s", b, u[i]) : sprintf("%.1f%s", b, u[i])
+    }
+    function ago(s) {
+      if (s == "") return "-"
+      if (s < 60) return s "s"
+      if (s < 3600) return int(s / 60) "m"
+      if (s < 86400) return int(s / 3600) "h"
+      return int(s / 86400) "d"
+    }
+    # Pad first, then colour, so the columns stay aligned.
+    function status(s, width,   out) {
+      out = sprintf("%-" width "s", s)
+      if (!color) return out
+      if (s ~ /^(UP|OPEN)/) return "\033[32m" out "\033[0m"
+      if (s ~ /^(DOWN|NOLB|MAINT)/) return "\033[31m" out "\033[0m"
+      return "\033[33m" out "\033[0m"
+    }
+    NR == 1 { sub(/^# */, ""); for (i = 1; i <= NF; i++) col[$i] = i; next }
+    NF < 2 { next }
+    {
+      px = $col["pxname"]; sv = $col["svname"]
+      if (px == "stats") next
+      if (sv == "FRONTEND") {
+        fe[++nf] = px; fst[px] = $col["status"]; fcur[px] = $col["scur"]; ftot[px] = $col["stot"]
+        fin[px] = $col["bin"]; fout[px] = $col["bout"]
+        next
+      }
+      if (sv == "BACKEND") { bst[px] = $col["status"]; next }
+      if (!(px in seen)) { seen[px] = 1; be[++nb] = px }
+      k = px SUBSEP (++ns[px])
+      sname[k] = sv; sst[k] = $col["status"]; scur[k] = $col["scur"]; stot[k] = $col["stot"]
+      kin[k] = $col["bin"]; kout[k] = $col["bout"]; schk[k] = $col["check_status"]
+      scode[k] = $col["check_code"]; sdur[k] = $col["check_duration"]; schg[k] = $col["lastchg"]
+      sum[px] += $col["stot"]
+    }
+    END {
+      printf "HAProxy on %s   %s\n\n", host, now
+      printf "%-18s %-6s %8s %10s %9s %9s\n", "FRONTEND", "STATUS", "CURRENT", "SESSIONS", "IN", "OUT"
+      for (i = 1; i <= nf; i++) {
+        p = fe[i]
+        printf "%-18s %s %8s %10s %9s %9s\n", p, status(fst[p], 6), fcur[p], ftot[p], human(fin[p]), human(fout[p])
+      }
+      for (i = 1; i <= nb; i++) {
+        p = be[i]; up = 0
+        for (j = 1; j <= ns[p]; j++) if (sst[p, j] ~ /^UP/) up++
+        printf "\nBACKEND %s: %s, %d of %d servers up, %d sessions\n", p, bst[p], up, ns[p], sum[p]
+        printf "  %-14s %-9s %-18s %7s %9s %7s %9s %9s %8s\n", "SERVER", "STATUS", "LAST CHECK", "CURRENT", "SESSIONS", "SHARE", "IN", "OUT", "CHANGED"
+        for (j = 1; j <= ns[p]; j++) {
+          k = p SUBSEP j
+          chk = schk[k]
+          if (scode[k] != "") chk = chk "/" scode[k]
+          if (sdur[k] != "") chk = chk " " sdur[k] "ms"
+          share = (sum[p] > 0) ? sprintf("%.1f%%", 100 * stot[k] / sum[p]) : "-"
+          printf "  %-14s %s %-18s %7s %9s %7s %9s %9s %8s\n", sname[k], status(sst[k], 9), chk, scur[k], stot[k], share, human(kin[k]), human(kout[k]), ago(schg[k])
+        }
+      }
+    }'
+}
+
+if [ -z "$INTERVAL" ]; then
+  render
+  exit 0
+fi
+
+trap 'printf "\n"; exit 0' INT TERM
+while true; do
+  output="$(render)"
+  printf '\033[H\033[2J%s\n\n(refresh every %ss, Ctrl-C to stop)\n' "$output" "$INTERVAL"
+  sleep "$INTERVAL"
+done

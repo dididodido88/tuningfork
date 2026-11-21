@@ -1,0 +1,37 @@
+# {{ ansible_managed }} (roles/load_balancer). Local changes are overwritten.
+# Holds the virtual IP {{ load_balancer_vip }} on {{ load_balancer_interface }} while HAProxy runs.
+{% set members = groups[load_balancer_group] | sort %}
+{% set index = members.index(inventory_hostname) %}
+{% set peers = members | reject('equalto', inventory_hostname) | map('extract', hostvars) | map(attribute='ansible_host') | list %}
+
+global_defs {
+    router_id {{ inventory_hostname_short }}
+}
+
+# If HAProxy isn't running, this host releases the virtual IP (FAULT state).
+vrrp_track_process track_haproxy {
+    process haproxy
+    delay 2
+}
+
+vrrp_instance {{ load_balancer_group }} {
+    state {{ 'MASTER' if index == 0 else 'BACKUP' }}
+    interface {{ load_balancer_interface }}
+    virtual_router_id {{ load_balancer_vrrp_router_id }}
+    priority {{ 150 - index * 10 }}
+    advert_int 1
+{% if peers | length > 0 %}
+    unicast_src_ip {{ ansible_facts.default_ipv4.address }}
+    unicast_peer {
+{% for peer in peers %}
+        {{ peer }}
+{% endfor %}
+    }
+{% endif %}
+    virtual_ipaddress {
+        {{ load_balancer_vip }}/{{ load_balancer_vip_prefix }} dev {{ load_balancer_interface }}
+    }
+    track_process {
+        track_haproxy
+    }
+}

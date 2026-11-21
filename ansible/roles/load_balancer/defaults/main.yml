@@ -1,0 +1,63 @@
+---
+# Load balancer in front of one RKE2 cluster: keepalived holds the virtual IP, HAProxy spreads
+# connections round robin over the cluster's nodes, with health checks. TLS isn't terminated
+# here (TCP passthrough): the nodes serve their own certificates. Guide: docs/rancher.md.
+#
+# Set per load balancer group in inventories/<ENV>/group_vars/<group>.yml (the Rancher cluster:
+# lb_rancher.yml). The virtual IP comes from Terraform (keepalived_vip in the lb-* unit).
+
+# This load balancer's inventory group. Other hosts in it become keepalived peers (none today).
+load_balancer_group: ""
+# Inventory group whose hosts are the endpoints, so the endpoints always match the cluster's
+# nodes (1 or 3). Empty: this host isn't configured yet, and the play skips it.
+load_balancer_backend_group: ""
+
+# --- Virtual IP (keepalived) ---------------------------------------------------------------------
+load_balancer_vip: "{{ keepalived_vip | default('') }}"
+load_balancer_vip_prefix: "{{ ansible_facts.default_ipv4.prefix | default('24') }}"
+load_balancer_interface: "{{ ansible_facts.default_ipv4.interface | default('') }}"
+# VRRP router ID, 1-255: unique for each load balancer group on the same network. Required.
+load_balancer_vrrp_router_id: 0
+
+# --- Endpoints and health checks (HAProxy) --------------------------------------------------
+# Each frontend listens on the virtual IP and forwards to the same port on every endpoint.
+#   check: rancher          HTTPS GET /healthz on port 443 with Host and SNI load_balancer_health_host,
+#                           expect 200 (Rancher itself answers through the ingress)
+#          kube_api         TLS, GET /readyz, expect 200 or 401 (the API server answers; RKE2 refuses
+#                           anonymous requests, hence 401)
+#          rke2_supervisor  TLS, GET /ping, expect 200 (RKE2's registration service)
+#          tcp              the port accepts connections
+#   allow_from: backends    open in the firewall to the endpoints only (default: to everyone)
+load_balancer_frontends:
+  - {name: rancher_http, port: 80, check: rancher}
+  - {name: rancher_https, port: 443, check: rancher}
+  - {name: kube_api, port: 6443, check: kube_api}
+  - {name: rke2_supervisor, port: 9345, check: rke2_supervisor, allow_from: backends}
+# Host name for the "rancher" check. Required when a frontend uses it.
+load_balancer_health_host: ""
+# A server is marked down after `fall` failed checks and up again after `rise` good ones.
+load_balancer_check_interval: 5s
+load_balancer_check_fall: 3
+load_balancer_check_rise: 2
+
+load_balancer_timeout_connect: 5s
+load_balancer_timeout_client: 1m
+load_balancer_timeout_server: 1m
+# Established connections (kubectl watches, Rancher websockets) stay open this long while idle.
+load_balancer_timeout_tunnel: 1h
+
+# --- Statistics ---------------------------------------------------------------------------------
+# Read-only web page on this host's own address: http://<host>:<port>/
+load_balancer_stats_port: 8404
+load_balancer_stats_user: admin
+load_balancer_stats_password: "{{ vault_haproxy_stats_password | default('') }}"
+# Local socket read by /usr/local/sbin/haproxy-status.
+load_balancer_stats_socket: /var/lib/haproxy/stats
+
+# --- Firewall (firewalld; CIS keeps it on here) ---------------------------------------------
+load_balancer_manage_firewall: true
+load_balancer_firewall_zone: "{{ rhel9cis_default_zone | default('public') }}"
+# Networks allowed to open the statistics page.
+load_balancer_admin_networks: "{{ siem_admin_networks | default([]) }}"
+
+load_balancer_packages: [haproxy, keepalived, socat]

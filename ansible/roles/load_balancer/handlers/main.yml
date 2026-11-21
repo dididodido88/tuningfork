@@ -1,0 +1,11 @@
+---
+# A reload keeps established connections (kubectl watches, Rancher sessions) open.
+- name: LB | Reload HAProxy
+  ansible.builtin.systemd:
+    name: haproxy
+    state: reloaded
+
+- name: LB | Restart keepalived
+  ansible.builtin.systemd:
+    name: keepalived
+    state: restarted

@@ -2,13 +2,13 @@
 # The cluster has 1 node or 3; the unit sets the count. Every node is an RKE2 server
 # (control plane, etcd and workload). Ansible groups: rke2_servers, rke2_rancher.
 #
-# 2 cores and 4 GB is the minimum for an RKE2 server and leaves little for Rancher itself.
-# The Rancher guidance for a small installation is 4 vCPU and 16 GB per node.
+# 4 cores and 8 GB: an RKE2 server (etcd, API server) plus Rancher managing a few downstream
+# clusters. Rancher's guidance for a small installation (up to 150 clusters) is 4 vCPU and 16 GB.
 
 locals {
   profile = {
-    cores          = 2
-    memory_mb      = 4096
+    cores          = 4
+    memory_mb      = 8192
     ansible_groups = ["rke2_servers", "rke2_rancher"]
     tags           = ["rke2", "rancher"]
 

@@ -1,0 +1,71 @@
+---
+# --- Artifacts from the mirror, each checked -------------------------------------------------
+# The list of checksums published with the release; it checks the tarball below.
+- name: RKE2 | Download the release checksums
+  ansible.builtin.get_url:
+    url: "{{ rke2_version_url }}/sha256sum-amd64.txt"
+    dest: "{{ rke2_artifacts_dir }}/{{ rke2_version }}/sha256sum-amd64.txt"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: RKE2 | Download the RKE2 tarball
+  ansible.builtin.get_url:
+    url: "{{ rke2_version_url }}/rke2.linux-amd64.tar.gz"
+    dest: "{{ rke2_artifacts_dir }}/{{ rke2_version }}/rke2.linux-amd64.tar.gz"
+    checksum: "sha256:{{ rke2_version_url }}/sha256sum-amd64.txt"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: RKE2 | Download install.sh
+  ansible.builtin.get_url:
+    url: "{{ rke2_version_url }}/install.sh"
+    dest: "{{ rke2_artifacts_dir }}/{{ rke2_version }}/install.sh"
+    checksum: "{{ rke2_install_sh_checksum }}"
+    owner: root
+    group: root
+    mode: "0700"
+
+# --- Configuration, before the first start --------------------------------------------------------
+# Holds the cluster token.
+- name: RKE2 | Write config.yaml
+  ansible.builtin.template:
+    src: config.yaml.j2
+    dest: /etc/rancher/rke2/config.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  diff: false
+  notify: RKE2 | Restart rke2-server
+
+# Holds the registry robot's secret.
+- name: RKE2 | Write registries.yaml (pull every image from the private registry)
+  ansible.builtin.template:
+    src: registries.yaml.j2
+    dest: /etc/rancher/rke2/registries.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  diff: false
+  notify: RKE2 | Restart rke2-server
+
+# --- Install ---------------------------------------------------------------------------------------
+# install.sh checks the tarball against sha256sum-amd64.txt itself, unpacks it under /usr/local
+# and installs the rke2-server unit. Nothing is downloaded.
+- name: RKE2 | Install RKE2 {{ rke2_version }} from the downloaded artifacts
+  ansible.builtin.command:
+    argv: [sh, "{{ rke2_artifacts_dir }}/{{ rke2_version }}/install.sh"]
+  environment:
+    INSTALL_RKE2_ARTIFACT_PATH: "{{ rke2_artifacts_dir }}/{{ rke2_version }}"
+    INSTALL_RKE2_METHOD: tar
+    INSTALL_RKE2_TYPE: server
+  args:
+    creates: /usr/local/bin/rke2
+
+# The SELinux policy above defines labels for these paths; apply them.
+- name: RKE2 | Apply the SELinux labels
+  ansible.builtin.command:
+    argv: [restorecon, -R, -v, /usr/local/bin, /usr/local/lib/systemd/system, /etc/rancher, /var/lib/rancher, /var/lib/kubelet]
+  register: rke2_restorecon
+  changed_when: rke2_restorecon.stdout | length > 0

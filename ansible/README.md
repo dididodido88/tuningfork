@@ -20,6 +20,7 @@ After four preparation steps, each host gets three layers, and the SIEM VM a fou
 | 2. AD logins | Join Active Directory; AD + local logins, home directories, SSH and sudo by AD group (when `sssd_ad_enabled`) | `rocky9` | `sssd_ad.yml` | `sssd_ad` |
 | 3. Server role | What the host is for | `nas_servers`, `db_servers`, `registry_servers` | `nas_server.yml`, `database_server.yml`, `harbor.yml` | `nas_server`, `database_server`, `harbor` |
 | 3. Kubernetes clients | kubectl on `kubectl_hosts`; bastion tools (helm, k9s, kubectx/kubens), shared cluster contexts | `kubectl_hosts`, `k8s_bastions` | `kubectl.yml`, `k8s_bastion.yml` | `kubectl`, `k8s_bastion` |
+| 3. Rancher cluster | Load balancer (keepalived virtual IP, HAProxy round robin with health checks); RKE2 from the mirror, images from Harbor. Rancher Server itself: Terraform (`terraform/k8s`), by hand | `lb_rancher`, `rke2_rancher` | `load_balancer.yml`, `rke2_rancher.yml` | `load_balancer`, `rke2_server` |
 | 4. SIEM VM | Loopback-only mail relay; Wazuh indexer, manager and dashboard from checked artifacts | `siem_servers` | `siem.yml` (`postfix_relay.yml`, `wazuh_server.yml`) | `postfix_relay`, `wazuh_server`, `siem_artifacts` |
 
 Membership in an inventory group decides what runs; roles don't check the OS themselves.
@@ -207,6 +208,29 @@ Trivy: [docs/harbor.md](docs/harbor.md).
 
 Files to download, versions and checksums, and using the bastion: [docs/kubernetes-clients.md](docs/kubernetes-clients.md).
 
+## Rancher cluster (`load_balancer`, `rke2_server`)
+
+Rancher Server runs on its own RKE2 cluster of 1 or 3 nodes (`rke2_rancher`) behind one load
+balancer (`lb_rancher`), at `https://rancher.<domain>`.
+
+- `playbooks/load_balancer.yml`:
+  - keepalived holds the virtual IP;
+  - HAProxy spreads 80/443 (Rancher UI), 6443 (Kubernetes API) and 9345 (RKE2 registration)
+    round robin over exactly the nodes of `rke2_rancher`, each with a health check;
+  - `sudo haproxy-status` on the load balancer shows health and the share of traffic per node.
+- `playbooks/rke2_rancher.yml`, one node at a time:
+  - installs RKE2 from the artifacts on the mirror, with every image pulled from Harbor's
+    `rancher` project;
+  - keeps its data on the `/var/lib/rancher` and `/var/lib/kubelet` disks;
+  - writes the admin kubeconfig to `~/.kube/<ENV>-rancher-cluster.yaml` on the control node.
+- Rancher Server is then deployed by hand with Terraform's Helm provider:
+  `terraform/k8s/<ENV>/rancher-server`.
+- **firewalld is off on RKE2 nodes** (RKE2's documented setup). The CIS firewall rules are off for
+  `rke2_servers` (`playbooks/group_vars/rke2_servers.yml`), and network segmentation is the
+  compensating control.
+
+Downloads, images, prerequisites, run order, checks and upgrades: [docs/rancher.md](docs/rancher.md).
+
 ## SIEM and observability stack
 
 Wazuh, Prometheus, Grafana and their collectors on a dedicated SIEM VM per environment, with agents and
@@ -327,7 +351,7 @@ role's README ("Common tasks", "When the play stops").
 ```
 ansible.cfg                  roles_path, vendored collections_path, no default inventory
 requirements.yml             record of vendored versions (used only to refresh them)
-docs/                        longer guides (active-directory.md, harbor.md, kubernetes-clients.md, siem.md)
+docs/                        longer guides (active-directory.md, harbor.md, kubernetes-clients.md, rancher.md, siem.md)
 scripts/                     repository checks (check-no-requirement-ids.sh)
 collections/                 VENDORED collections
 roles/
@@ -347,6 +371,8 @@ roles/
   harbor/                    Harbor registry: Docker CE, offline installer, API initialisation (docs/harbor.md)
   kubectl/                   pinned kubectl from the mirror (any host in kubectl_hosts)
   k8s_bastion/               Kubernetes bastion: helm, k9s, kubectx/kubens, shared cluster contexts
+  load_balancer/             keepalived virtual IP and HAProxy in front of an RKE2 cluster; haproxy-status (docs/rancher.md)
+  rke2_server/               RKE2 server nodes from the mirror, images from Harbor (docs/rancher.md)
   siem_artifacts/            download SIEM artifacts from the mirror and check their SHA-256 (docs/siem.md)
   postfix_relay/             SIEM VM: loopback-only Postfix relay, best-effort email (docs/siem.md)
   wazuh_server/              SIEM VM: Wazuh indexer, manager and dashboard, offline all-in-one (docs/siem.md)
@@ -391,6 +417,8 @@ and an example.
 | [harbor](roles/harbor/README.md) | Harbor registry for images and Helm charts | `registry_servers` |
 | [kubectl](roles/kubectl/README.md) | Pinned kubectl from the mirror | `kubectl_hosts` |
 | [k8s_bastion](roles/k8s_bastion/README.md) | Kubernetes bastion tools, shared cluster contexts | `k8s_bastions` |
+| [load_balancer](roles/load_balancer/README.md) | keepalived virtual IP, HAProxy round robin with health checks, `haproxy-status` | `load_balancers` |
+| [rke2_server](roles/rke2_server/README.md) | RKE2 server nodes from the mirror, images from Harbor | `rke2_rancher` |
 | [siem_artifacts](roles/siem_artifacts/README.md) | Download and check SIEM artifacts | `siem_servers` |
 | [postfix_relay](roles/postfix_relay/README.md) | Loopback-only mail relay on the SIEM VM | `siem_servers` |
 | [wazuh_server](roles/wazuh_server/README.md) | Wazuh indexer, manager and dashboard | `siem_servers` |
@@ -439,11 +467,11 @@ ansible-playbook -i inventories/CRGS01 playbooks/site.yml --limit nas_servers
 
 Every role has a tag with its own name: `certificates`, `repositories`, `filesystems`, `cloud_init_cleanup`, `linux_common`, `cli_tools`,
 `sssd_ad`, `windows_common`, `nas_server`, `database_server`, `harbor`, `kubectl`, `k8s_bastion`, `postfix_relay`,
-`wazuh_server`, `siem_artifacts`. The CIS role uses `cis`, plus a tag per rule (e.g. `rule_5.1.1`) and per level
+`wazuh_server`, `siem_artifacts`, `load_balancer`, `rke2_server` (and `rke2_rancher` for the Rancher cluster play). The CIS role uses `cis`, plus a tag per rule (e.g. `rule_5.1.1`) and per level
 (`level1-server`).
 
 Tags for one area across roles: `ntp`, `banner`, `ipv6`, `journald`, `prompt` (the common roles), and `firewall` (the firewall
-tasks of `nas_server`, `database_server`, `harbor` and `wazuh_server`).
+tasks of `nas_server`, `database_server`, `harbor`, `wazuh_server` and `load_balancer`).
 
 ### Secrets
 

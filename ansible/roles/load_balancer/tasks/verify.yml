@@ -1,0 +1,35 @@
+---
+- name: LB | Check HAProxy and keepalived are running
+  ansible.builtin.command:
+    argv: [systemctl, is-active, haproxy, keepalived]
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+# The first host of the group is MASTER and holds the virtual IP.
+- name: LB | Check this host holds the virtual IP
+  ansible.builtin.command:
+    argv: [ip, -4, -o, addr, show, dev, "{{ load_balancer_interface }}"]
+  register: load_balancer_addresses
+  until: (' ' ~ load_balancer_vip ~ '/') in load_balancer_addresses.stdout
+  retries: 10
+  delay: 3
+  changed_when: false
+  check_mode: false
+  when:
+    - not ansible_check_mode
+    - inventory_hostname == (groups[load_balancer_group] | sort | first)
+
+# Endpoints that are down are expected until the cluster (80/443: Rancher) is deployed.
+- name: LB | Read the health of the endpoints
+  ansible.builtin.command:
+    argv: [/usr/local/sbin/haproxy-status]
+  register: load_balancer_status
+  changed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: LB | Report the health of the endpoints
+  ansible.builtin.debug:
+    msg: "{{ load_balancer_status.stdout_lines }}"
+  when: not ansible_check_mode

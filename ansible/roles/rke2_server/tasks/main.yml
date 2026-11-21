@@ -1,0 +1,20 @@
+---
+- name: RKE2 | Pre-checks
+  ansible.builtin.import_tasks: preflight.yml
+  tags: [rke2_server]
+
+- name: RKE2 | Prepare the host
+  ansible.builtin.import_tasks: host.yml
+  tags: [rke2_server]
+
+- name: RKE2 | Install
+  ansible.builtin.import_tasks: install.yml
+  tags: [rke2_server]
+
+- name: RKE2 | Start and wait for the node
+  ansible.builtin.import_tasks: start.yml
+  tags: [rke2_server]
+
+- name: RKE2 | Copy the kubeconfig to the control node
+  ansible.builtin.import_tasks: kubeconfig.yml
+  tags: [rke2_server]

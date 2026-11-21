@@ -1,0 +1,26 @@
+---
+# RKE2 nodes (Rancher cluster and application cluster), in every environment.
+#
+# --- CIS exception: no host firewall --------------------------------------------------------
+# firewalld conflicts with RKE2's network plugin (Canal), and RKE2's documented setup is to turn
+# it off; roles/rke2_server stops and masks it. The CIS firewall rules are therefore off here.
+#
+# Compensating control: network segmentation. The RKE2 nodes sit in their own VLAN or subnet,
+# and the perimeter firewall or router filters what reaches them; the required flows are listed
+# in docs/rancher.md, "Firewall exception and segmentation". Open item: these nodes produce no
+# host-firewall connection log for the SIEM.
+rhel9cis_rule_4_1_1: false
+rhel9cis_rule_4_1_2: false
+rhel9cis_rule_4_2_1: false
+rhel9cis_rule_4_2_2: false
+rhel9cis_rule_4_3_1: false
+rhel9cis_rule_4_3_2: false
+rhel9cis_rule_4_3_3: false
+rhel9cis_rule_4_3_4: false
+# The lockout pre-checks don't open SSH in a firewall that isn't running.
+cis_safeguards_manage_firewall_ssh: false
+
+# --- CIS exception: IP forwarding ----------------------------------------------------------
+# Pods and services are routed through the node, so net.ipv4.ip_forward must stay 1 (CIS 3.3.1
+# sets 0). roles/rke2_server sets it in /etc/sysctl.d/90-rke2.conf.
+rhel9cis_rule_3_3_1: false

@@ -1,0 +1,47 @@
+---
+# Frontends open to everyone (clients, administrators, Rancher-managed clusters).
+- name: LB | Open the frontend ports
+  ansible.posix.firewalld:
+    zone: "{{ load_balancer_firewall_zone }}"
+    port: "{{ item.port }}/tcp"
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ load_balancer_frontends | rejectattr('allow_from', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.name }} {{ item.port }}/tcp"
+
+# Frontends only the endpoints use (RKE2 registration: nodes joining the cluster).
+- name: LB | Open the endpoint-only ports to the endpoints
+  ansible.posix.firewalld:
+    zone: "{{ load_balancer_firewall_zone }}"
+    rich_rule: >-
+      rule family="ipv4" source address="{{ hostvars[item.1].ansible_host | default(item.1) }}"
+      port port="{{ item.0.port }}" protocol="tcp" accept
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: >-
+    {{ load_balancer_frontends | selectattr('allow_from', 'defined') | selectattr('allow_from', 'equalto', 'backends')
+       | product(load_balancer_backends) | list }}
+  loop_control:
+    label: "{{ item.0.name }} {{ item.0.port }}/tcp from {{ item.1 }}"
+
+- name: LB | Open the statistics page to the admin networks
+  ansible.posix.firewalld:
+    zone: "{{ load_balancer_firewall_zone }}"
+    rich_rule: 'rule family="ipv4" source address="{{ item }}" port port="{{ load_balancer_stats_port }}" protocol="tcp" accept'
+    permanent: true
+    immediate: true
+    state: enabled
+  loop: "{{ load_balancer_admin_networks }}"
+
+# VRRP between keepalived peers; only needed with more than one load balancer in the group.
+- name: LB | Allow VRRP between load balancers
+  ansible.posix.firewalld:
+    zone: "{{ load_balancer_firewall_zone }}"
+    rich_rule: 'rule protocol value="vrrp" accept'
+    permanent: true
+    immediate: true
+    state: enabled
+  when: groups[load_balancer_group] | length > 1

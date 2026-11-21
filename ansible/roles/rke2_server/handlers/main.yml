@@ -1,0 +1,15 @@
+---
+- name: RKE2 | Reload NetworkManager
+  ansible.builtin.systemd:
+    name: NetworkManager
+    state: reloaded
+
+# Only on a node that was already running: a new node is started by tasks/start.yml. The play
+# runs one node at a time (serial: 1), so etcd keeps its quorum.
+- name: RKE2 | Restart rke2-server
+  ansible.builtin.systemd:
+    name: rke2-server
+    state: restarted
+  async: "{{ rke2_start_timeout }}"
+  poll: 15
+  when: rke2_already_installed | bool

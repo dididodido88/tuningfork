@@ -1,0 +1,25 @@
+# {{ ansible_managed }} (roles/rke2_server). Local changes are overwritten.
+# RKE2 server configuration. Changes take effect when rke2-server restarts.
+token: {{ rke2_token | to_json }}
+{% if rke2_join | bool %}
+# Join the existing cluster through the load balancer (fixed registration address).
+server: https://{{ rke2_registration_host }}:9345
+{% endif %}
+node-name: {{ inventory_hostname }}
+{% if rke2_tls_san | length > 0 %}
+tls-san:
+{% for san in rke2_tls_san %}
+  - {{ san }}
+{% endfor %}
+{% endif %}
+selinux: true
+# Every system image from the private registry: <registry>/rancher/<image>.
+system-default-registry: {{ rke2_registry }}
+cluster-cidr: {{ rke2_cluster_cidr }}
+service-cidr: {{ rke2_service_cidr }}
+write-kubeconfig-mode: "0600"
+etcd-snapshot-schedule-cron: {{ rke2_etcd_snapshot_schedule | to_json }}
+etcd-snapshot-retention: {{ rke2_etcd_snapshot_retention }}
+{% if rke2_config_extra | length > 0 %}
+{{ rke2_config_extra | to_nice_yaml(indent=2) }}
+{% endif %}

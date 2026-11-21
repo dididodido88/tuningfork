@@ -1,0 +1,47 @@
+---
+# The first node creates the cluster; the play brings the others in one at a time (serial: 1).
+# Starting returns once RKE2 is up, which takes a few minutes on a new node.
+- name: RKE2 | Start rke2-server
+  ansible.builtin.systemd:
+    name: rke2-server
+    enabled: true
+    state: started
+    daemon_reload: true
+  async: "{{ rke2_start_timeout }}"
+  poll: 15
+  when: not ansible_check_mode
+
+# A node that was already running restarts here if its configuration changed.
+- name: RKE2 | Apply configuration changes
+  ansible.builtin.meta: flush_handlers
+
+- name: RKE2 | Wait for the node to be Ready
+  ansible.builtin.command:
+    argv:
+      - /var/lib/rancher/rke2/bin/kubectl
+      - --kubeconfig
+      - /etc/rancher/rke2/rke2.yaml
+      - get
+      - node
+      - "{{ inventory_hostname }}"
+      - -o
+      - jsonpath={.status.conditions[?(@.type=="Ready")].status}
+  register: rke2_node_ready
+  until: rke2_node_ready.stdout == 'True'
+  retries: "{{ (rke2_ready_timeout | int / 10) | int }}"
+  delay: 10
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  when: not ansible_check_mode
+
+- name: RKE2 | Stop if the node didn't become Ready
+  ansible.builtin.fail:
+    msg: >-
+      {{ inventory_hostname }} isn't Ready after {{ rke2_ready_timeout }} seconds
+      ({{ rke2_node_ready.stdout | default('') }}{{ rke2_node_ready.stderr | default('') }}). Look at
+      'journalctl -u rke2-server' on the node; on a new node, image pulls from {{ rke2_registry }}
+      are the usual cause (docs/rancher.md, "Troubleshooting"). The remaining nodes weren't touched.
+  when:
+    - not ansible_check_mode
+    - rke2_node_ready.stdout | default('') != 'True'

@@ -1,0 +1,15 @@
+---
+# Load balancers in front of the RKE2 clusters: keepalived holds the virtual IP, HAProxy spreads
+# connections round robin over the cluster nodes, with health checks. A load balancer whose group
+# has no backend group configured yet (lb-app today) is skipped.
+# Runs before playbooks/rke2_rancher.yml in site.yml: nodes after the first join through it.
+# Settings: inventories/<ENV>/group_vars/lb_rancher.yml. Status on the host: sudo haproxy-status.
+# Guide: docs/rancher.md.
+
+- name: Load balancers
+  hosts: load_balancers
+  become: true
+  gather_facts: true
+  roles:
+    - role: load_balancer
+      tags: [load_balancer]

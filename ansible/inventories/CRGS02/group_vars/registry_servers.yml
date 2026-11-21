@@ -39,6 +39,11 @@ harbor_projects:
     members:
       - group: harbor-developers
         role: developer
+  # RKE2 system images and Rancher images (docs/rancher.md): rancher/<image>:<tag>. Private: the
+  # RKE2 nodes pull with the robot k8s-pull (registries.yaml, roles/rke2_server).
+  - name: rancher
+    public: false
+    members: []
 
 # --- Robot accounts: log in as robot$<name>; secrets in vault_harbor_robot_secrets ---
 harbor_robots:

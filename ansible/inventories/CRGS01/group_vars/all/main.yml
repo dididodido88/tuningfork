@@ -31,3 +31,9 @@ certificates_env_dir: crgs01.local
 # version of the clusters. Served from <env_repo_base_url>/kubernetes/<kubectl_version>/ (kubectl,
 # kubectl-convert and their .sha256 files).
 kubectl_version: v1.36.5
+
+# Rancher Server: the one name for its web UI (80/443), the Kubernetes API of the Rancher
+# cluster (6443) and RKE2 registration (9345). DNS A record to the virtual IP of lb-rancher
+# (keepalived_vip in terraform/live/<ENV>/lb-rancher). Used by roles/load_balancer and
+# roles/rke2_server; the Terraform unit terraform/k8s/<ENV>/rancher-server uses the same default.
+rancher_hostname: "rancher.{{ env_domain }}"
