@@ -1,4 +1,6 @@
 ---
+# Common Linux configuration, one file per topic. Settings: linux_common_* in
+# inventories/<ENV>/group_vars/linux.yml (the CIS play reads them too).
 - name: Configure NTP
   ansible.builtin.import_tasks: ntp.yml
   when: linux_common_ntp_enabled | bool

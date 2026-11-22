@@ -1,4 +1,6 @@
 ---
+# Docker CE and the Compose plugin for Harbor: daemon.json (harbor_docker_log_*), IP forwarding,
+# firewall (harbor_manage_firewall).
 - name: Harbor | Install Docker CE and the Compose plugin
   ansible.builtin.dnf:
     name: "{{ harbor_docker_packages }}"

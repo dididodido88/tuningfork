@@ -1,4 +1,5 @@
 ---
+# Common Windows configuration: time (W32Time) and the logon banner.
 - name: Configure time
   ansible.builtin.import_tasks: ntp.yml
   when: windows_common_ntp_enabled | bool

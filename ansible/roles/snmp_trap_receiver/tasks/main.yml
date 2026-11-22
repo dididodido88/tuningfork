@@ -1,4 +1,6 @@
 ---
+# snmptrapd: Dell iDRAC MIB from the mirror, SELinux label for the log folder, the SNMPv3 users
+# allowed to send (siem_snmp_trap_users), firewall rule per sender. README.md has the steps.
 - name: Traps | Download and check the Dell iDRAC MIB
   ansible.builtin.include_role:
     name: siem_artifacts

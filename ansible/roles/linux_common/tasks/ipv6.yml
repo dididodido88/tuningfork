@@ -1,4 +1,5 @@
 ---
+# IPv6 on or off (linux_common_ipv6_*), through sysctl.
 - name: IPv6 | Don't disable IPv6 on hosts managed over IPv6
   ansible.builtin.assert:
     that:

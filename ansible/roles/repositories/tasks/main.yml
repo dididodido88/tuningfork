@@ -1,4 +1,6 @@
 ---
+# DNF repositories on the mirror (env_repo_base_url): GPG keys, the repository files, disable every
+# other repository, then check each enabled one answers.
 - name: Repos | Check the mirror and keys are set
   ansible.builtin.assert:
     that:

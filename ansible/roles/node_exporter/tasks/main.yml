@@ -1,4 +1,6 @@
 ---
+# node_exporter: download and install the release (siem_artifacts), textfile folder, systemd unit,
+# firewall rule for the SIEM VM (node_exporter_scrapers). README.md has the steps.
 - name: Node exporter | Download and check the release
   ansible.builtin.include_role:
     name: siem_artifacts

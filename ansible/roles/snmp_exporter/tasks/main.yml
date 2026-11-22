@@ -1,4 +1,6 @@
 ---
+# snmp_exporter: install the release (siem_artifacts), its own snmp.yml, the SNMPv3 credentials
+# once they are in the vault (auth.yml), systemd unit. README.md has the steps.
 - name: SNMP exporter | Download and check the release
   ansible.builtin.include_role:
     name: siem_artifacts

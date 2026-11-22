@@ -1,4 +1,6 @@
 ---
+# Prometheus: download and install the release (siem_artifacts), alert rules and scrape jobs built
+# from the inventory (templates), systemd unit with the retention limits. README.md has the steps.
 - name: Prometheus | Download and check the release
   ansible.builtin.include_role:
     name: siem_artifacts

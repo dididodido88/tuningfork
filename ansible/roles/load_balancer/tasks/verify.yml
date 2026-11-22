@@ -1,4 +1,5 @@
 ---
+# After a run: both services up, which host holds the virtual IP, and the health of every backend.
 - name: LB | Check HAProxy and keepalived are running
   ansible.builtin.command:
     argv: [systemctl, is-active, haproxy, keepalived]

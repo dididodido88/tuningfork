@@ -1,4 +1,6 @@
 ---
+# Harbor, in order: pre-checks, Docker, installer (first run or reconfigure), then the API setup
+# (LDAP, projects, robots). Settings: group_vars/registry_servers.yml; secrets: vault_harbor_*.
 - name: Harbor | Pre-checks
   ansible.builtin.import_tasks: preflight.yml
   tags: [harbor]

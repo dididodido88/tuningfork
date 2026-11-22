@@ -1,4 +1,6 @@
 ---
+# Linux targets: download each artifact into the cache and check its sha256. Python 3.12+ targets
+# (Proxmox VE 9) use curl (curl_one.yml), because get_url fails there.
 - name: Artifacts | Create the cache directories
   ansible.builtin.file:
     path: "{{ siem_artifacts_cache_dir }}/{{ item }}"

@@ -1,4 +1,5 @@
 ---
+# After a run: services, manager daemons, API, indexer cluster health and dashboard certificate.
 - name: Wazuh | Check the services are running
   ansible.builtin.command:
     argv: "{{ ['systemctl', 'is-active'] + wazuh_server_services }}"

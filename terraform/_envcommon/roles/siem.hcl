@@ -1,5 +1,5 @@
 # Logging and observability VM: the SIEM (Wazuh indexer, manager and dashboard, Prometheus,
-# Grafana, log collectors). Ansible: roles/wazuh_server and roles/postfix_relay, group
+# Grafana, log collectors). Ansible: playbooks/siem.yml (every SIEM role), group
 # siem_servers. Design and sizing: ansible/docs/siem.md and ansible/docs/siem/siem_design.md.
 #
 # The data volumes are separate so one full data store cannot stop the others. The sizes here

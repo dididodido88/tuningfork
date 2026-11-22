@@ -1,4 +1,6 @@
 ---
+# Active Directory logins: DNS and clock checks, Kerberos, domain join (sssd_ad_join_user,
+# vault_sssd_ad_join_password), sssd, sudo for AD admin groups, then login checks. Guide: docs/active-directory.md.
 - name: AD | Join the domain and configure sssd
   when: sssd_ad_enabled | bool
   tags: [sssd_ad]

@@ -1,4 +1,6 @@
 ---
+# Wazuh agent: version check against wazuh_version, install the pinned RPM or DEB, keep the manager
+# address and enrollment password in line, wait until connected. README.md has the steps.
 - name: Wazuh agent | Check the settings
   ansible.builtin.assert:
     that:

@@ -1,4 +1,6 @@
 ---
+# Run the Wazuh installer offline from the checked artifacts. It stops on a partial installation or a
+# version mismatch. The installer is copied, not linked, because it rewrites itself.
 - name: Wazuh | Read the installed packages
   ansible.builtin.package_facts:
     manager: rpm

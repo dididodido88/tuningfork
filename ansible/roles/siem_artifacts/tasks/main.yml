@@ -1,4 +1,6 @@
 ---
+# Entry point: resolve siem_artifacts_required against the manifest (siem_versions.yml), check the
+# names and checksums, then download and check on Linux or Windows. Returns siem_artifact_paths.
 - name: Artifacts | Resolve the artifact list
   ansible.builtin.set_fact:
     siem_artifacts_keys: >-

@@ -1,4 +1,6 @@
 ---
+# Loopback-only Postfix relay on the SIEM VM, from siem_mail_* (group_vars/all/siem.yml). Best effort:
+# mail stays queued while no relay is set, and nothing fails.
 - name: Postfix | Check the settings
   ansible.builtin.assert:
     that:

@@ -8,7 +8,7 @@ siem_server_ip: 198.51.100.14
 
 # Networks allowed to reach the SIEM VM (firewalld on the SIEM VM).
 #   siem_agent_networks: Wazuh agents (1514/tcp, 1515/tcp)
-#   siem_admin_networks: browsers for the Wazuh dashboard (and Grafana, later)
+#   siem_admin_networks: browsers for the Wazuh dashboard and Grafana
 siem_agent_networks:
   - 198.51.100.0/24
 siem_admin_networks:

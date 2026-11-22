@@ -1,4 +1,6 @@
 ---
+# HAProxy and keepalived: packages, non-local bind, SELinux port permission, haproxy.cfg and
+# keepalived.conf from load_balancer_* (group_vars/lb_*.yml), the haproxy-status command.
 - name: LB | Install HAProxy, keepalived and socat
   ansible.builtin.dnf:
     name: "{{ load_balancer_packages }}"

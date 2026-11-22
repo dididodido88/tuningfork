@@ -1,4 +1,6 @@
 ---
+# Harbor offline installer from the mirror: harbor.yml, the systemd unit, first installation, and a
+# reconfigure when the settings or the version change.
 - name: Harbor | Create directories
   ansible.builtin.file:
     path: "{{ item }}"

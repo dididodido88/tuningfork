@@ -1,4 +1,6 @@
 ---
+# Grafana: install the pinned RPM, the host certificate, grafana.ini (vars/main.yml), the data
+# source and dashboard provisioning, the firewall rule, then the admin password (admin.yml).
 - name: Grafana | Check the admin password is set
   ansible.builtin.assert:
     that: grafana_admin_password | length >= 12

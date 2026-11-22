@@ -1,4 +1,5 @@
 ---
+# Dashboard from siem_admin_networks; agent connection and enrollment from the agent networks.
 - name: Wazuh | Allow the dashboard from the admin networks
   ansible.posix.firewalld:
     zone: "{{ wazuh_server_firewall_zone }}"

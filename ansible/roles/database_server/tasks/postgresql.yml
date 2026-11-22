@@ -1,4 +1,6 @@
 ---
+# PostgreSQL from the AppStream module stream: initialise the cluster (encoding, locale), set the
+# time zone, start it and set the postgres password (vault_postgresql_postgres_password).
 - name: PostgreSQL | Check the postgres password is set
   ansible.builtin.assert:
     that:

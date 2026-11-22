@@ -1,4 +1,5 @@
 ---
+# Time service (W32Time) from windows_common_ntp_servers (env_ntp_servers).
 - name: NTP | Check that NTP servers are defined
   ansible.builtin.assert:
     that: windows_common_ntp_servers | length > 0

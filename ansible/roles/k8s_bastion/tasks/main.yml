@@ -1,4 +1,6 @@
 ---
+# Bastion tools from the mirror (k8s_bastion_tools: pinned version and sha256), bash completion,
+# the shared cluster contexts (k8s_bastion_clusters) and the login message.
 - name: Bastion | Check the mirror is set and every tool has a checksum
   ansible.builtin.assert:
     that:

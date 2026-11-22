@@ -1,4 +1,6 @@
 ---
+# journald: persistent storage and size limits (linux_common_journald_*). journald is the only log
+# system on these hosts.
 - name: Journald | Create drop-in directory
   ansible.builtin.file:
     path: "{{ linux_common_journald_dropin | dirname }}"

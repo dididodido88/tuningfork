@@ -1,4 +1,5 @@
 ---
+# Time with chrony, from linux_common_ntp_servers (group_vars/linux.yml: env_ntp_servers).
 - name: NTP | Check that NTP servers are defined
   ansible.builtin.assert:
     that: linux_common_ntp_servers | length > 0

@@ -1,4 +1,6 @@
 ---
+# prometheus-pve-exporter in a virtualenv from the checked wheel bundle (no PyPI), the Proxmox
+# cluster CA, the API token (vault_pve_exporter_token_value), systemd unit. README.md has the steps.
 - name: PVE exporter | Download and check the wheel bundle
   ansible.builtin.include_role:
     name: siem_artifacts

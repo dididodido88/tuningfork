@@ -1,4 +1,6 @@
 ---
+# rsyslog receiver on the SIEM VM: per-sender files under syslog_receiver_dir, log rotation,
+# firewall rules for siem_log_senders. README.md has the steps.
 - name: Syslog | Install rsyslog
   ansible.builtin.dnf:
     name: rsyslog

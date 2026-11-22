@@ -1,4 +1,6 @@
 ---
+# kubectl and kubectl-convert at kubectl_version from <env_repo_base_url>/kubernetes/<version>/,
+# checked by sha256, linked into /usr/local/bin, with bash completion.
 - name: Kubectl | Check the mirror and version are set
   ansible.builtin.assert:
     that:

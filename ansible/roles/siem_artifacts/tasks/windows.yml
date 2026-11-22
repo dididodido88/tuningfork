@@ -1,4 +1,5 @@
 ---
+# Windows targets: download each artifact with win_get_url and check its sha256.
 - name: Artifacts | Create the cache directories
   ansible.windows.win_file:
     path: "{{ siem_artifacts_windows_cache_dir ~ siem_artifacts_win_sep ~ (item | replace('/', siem_artifacts_win_sep)) }}"

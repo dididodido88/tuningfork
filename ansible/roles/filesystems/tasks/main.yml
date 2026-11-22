@@ -1,4 +1,6 @@
 ---
+# Data disks: merge every filesystems_volumes__* variable (Terraform, host_vars), validate all of
+# them before changing anything, then partition, format, migrate and mount each one (volume.yml).
 - name: Storage | Collect volume definitions
   ansible.builtin.set_fact:
     filesystems_volumes_raw: "{{ query('vars', *query('varnames', '^filesystems_volumes__.+')) | flatten }}"

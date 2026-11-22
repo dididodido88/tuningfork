@@ -1,4 +1,6 @@
 ---
+# NFS server: export directories and /etc/exports from nas_server_exports (group_vars/nas_servers.yml),
+# nfs-server, and the firewalld services in nas_server_firewall_services.
 - name: NAS | Install packages
   ansible.builtin.dnf:
     name: "{{ nas_server_packages }}"

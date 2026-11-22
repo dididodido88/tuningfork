@@ -1,4 +1,6 @@
 ---
+# Login banners (/etc/motd, /etc/issue, /etc/issue.net) from linux_common_banner_text, which
+# group_vars/linux.yml sets to env_banner_text.
 - name: Banner | Write /etc/motd
   ansible.builtin.copy:
     content: "{{ linux_common_banner_motd_text }}\n"

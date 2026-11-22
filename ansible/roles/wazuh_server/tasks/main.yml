@@ -1,4 +1,6 @@
 ---
+# Wazuh indexer, manager and dashboard (offline all-in-one installer), one file per stage.
+# Settings: group_vars/siem_servers.yml; secrets: vault_wazuh_*. Guide: docs/siem.md.
 - name: Wazuh | Pre-checks
   ansible.builtin.import_tasks: preflight.yml
   tags: [wazuh_server]

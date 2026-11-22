@@ -1,4 +1,5 @@
 ---
+# Check database_server_engine and run the tasks of that engine (postgresql.yml).
 - name: Database | Check engine is supported
   ansible.builtin.assert:
     that: database_server_engine in ['postgresql']

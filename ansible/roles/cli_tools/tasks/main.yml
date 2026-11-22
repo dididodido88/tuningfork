@@ -1,4 +1,5 @@
 ---
+# Install cli_tools_packages and cli_tools_extra_packages from the mirror.
 - name: Tools | Install common CLI tools
   ansible.builtin.dnf:
     name: "{{ cli_tools_packages + cli_tools_extra_packages }}"
