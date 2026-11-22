@@ -1,3 +1,5 @@
+# Outputs of the module: the created VMs, the template they were cloned from and the path of
+# the generated Ansible inventory. Shown by `terragrunt output` in a unit.
 output "vms" {
   description = "Created VMs: name => { vm_id, node, datastore, fqdn, ipv4 }."
   value = {

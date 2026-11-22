@@ -1,3 +1,4 @@
+# Outputs of the module, shown by `terragrunt output` in terraform/k8s/<ENV>/rancher-server.
 output "url" {
   description = "Rancher Server address."
   value       = "https://${local.hostname}/"

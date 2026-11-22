@@ -43,10 +43,10 @@ three-node clusters, on the environment's storage volume unless you move disks e
 ```
 root.hcl                           shared: local state, provider block, air-gapped provider install, environment inputs
 providers/                         bpg/proxmox and hashicorp/local, supplied by you (git-ignored)
-modules/proxmox-vm/                generic "clone VMs from a template" module (not tied to an OS or a role)
-modules/rancher-server/            Rancher Server from its Helm chart, onto the Rancher RKE2 cluster
+modules/proxmox-vm/                generic "clone VMs from a template" module (not tied to an OS or a role); README.md
+modules/rancher-server/            Rancher Server from its Helm chart, onto the Rancher RKE2 cluster; README.md
 _envcommon/rocky9.hcl              Rocky 9 settings shared by every unit: template, CPU type, inventory file
-_envcommon/roles/<role>.hcl        sizing of one role: cores, memory, data disks, Ansible groups
+_envcommon/roles/<role>.hcl        sizing of one role: cores, memory, data disks, Ansible groups (README.md: all of them)
 live/
   <ENV>/env.hcl                    Proxmox endpoint, node, storage volume, bridge, DNS, template name, SSH keys
   <ENV>/<unit>/terragrunt.hcl      host names, addresses, cluster size, per-environment overrides
@@ -66,6 +66,9 @@ live/<ENV>/<unit>/terragrunt.hcl   host name + address
   -> modules/proxmox-vm
   -> VMs + ansible/inventories/<ENV>/terraform_<unit>.yml
 ```
+
+Module and profile references: [modules/proxmox-vm](modules/proxmox-vm/README.md),
+[modules/rancher-server](modules/rancher-server/README.md), [_envcommon/roles](_envcommon/roles/README.md).
 
 A value set in one place applies everywhere below it:
 

@@ -1,3 +1,4 @@
+{# Login message on the Kubernetes bastions (roles/k8s_bastion): tool versions and cluster contexts. -#}
 Kubernetes bastion: kubectl {{ kubectl_version }}{% for t in k8s_bastion_tools %}, {{ t.name }} {{ t.version }}{% endfor %}
 
 {% if k8s_bastion_clusters | length > 0 %}
