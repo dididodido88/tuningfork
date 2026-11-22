@@ -235,7 +235,7 @@ Downloads, images, prerequisites, run order, checks and upgrades: [docs/rancher.
 ## Application cluster (`load_balancer`, `rke2_server`)
 
 The application workloads run on a second RKE2 cluster of 1 or 3 nodes (`rke2_app`) behind
-`lb-app`, at `command.<domain>`. Each node has a `/scratch` disk, labelled for containers. One
+`lb-app`, at `command-pro.<domain>`. Each node has a `/scratch` disk, labelled for containers. One
 setting in `group_vars/all/main.yml`, `app_cluster_rancher_managed`, chooses the mode:
 
 - `false`, standalone: `playbooks/rke2_app.yml` installs RKE2 as for the Rancher cluster, and

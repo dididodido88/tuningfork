@@ -1,7 +1,7 @@
 # Application cluster
 
 The application cluster runs the application workloads on RKE2, on 1 or 3 nodes behind the load
-balancer `lb-app`, at `command.<domain>`. It comes in two modes, chosen with one setting per
+balancer `lb-app`, at `command-pro.<domain>`. It comes in two modes, chosen with one setting per
 environment. The Rancher cluster ([rancher.md](rancher.md)) is built the same way and its guide
 covers the shared parts: downloads, images in Harbor, the firewall exception and upgrades.
 
@@ -16,15 +16,15 @@ covers the shared parts: downloads, images in Harbor, the firewall exception and
 Set in `inventories/<ENV>/group_vars/all/main.yml`:
 
 ```yaml
-app_cluster_hostname: "command.{{ env_domain }}"
+app_cluster_hostname: "command-pro.{{ env_domain }}"
 app_cluster_rancher_managed: false
 ```
 
 | | Standalone (`false`) | Managed by Rancher (`true`) |
 |---|---|---|
 | Who installs RKE2 | Ansible, from the mirror | Rancher, when the node runs Rancher's registration command |
-| How nodes join | Through `lb-app` on 9345 (`https://command.<domain>:9345`) | Rancher drives the joins |
-| kubectl | Admin kubeconfig `~/.kube/<ENV>-app-cluster.yaml`, through `lb-app` on 6443 | Kubeconfig from Rancher: through the Rancher proxy, plus a direct context to `command.<domain>:6443` (Authorized Cluster Endpoint) that works while Rancher is down |
+| How nodes join | Through `lb-app` on 9345 (`https://command-pro.<domain>:9345`) | Rancher drives the joins |
+| kubectl | Admin kubeconfig `~/.kube/<ENV>-app-cluster.yaml`, through `lb-app` on 6443 | Kubeconfig from Rancher: through the Rancher proxy, plus a direct context to `command-pro.<domain>:6443` (Authorized Cluster Endpoint) that works while Rancher is down |
 | Ports on `lb-app` | 80, 443, 6443, 9345 | 80, 443, 6443 |
 | Status | Built (this phase) | Hosts prepared only. The join through Rancher is the next phase |
 
@@ -44,7 +44,7 @@ app_cluster_rancher_managed: false
 
 | What | Where |
 |---|---|
-| DNS A record `command.<domain>` → the `lb-app` virtual IP (`keepalived_vip` in `terraform/live/<ENV>/lb-app`) | AD DNS. The plays stop if it is missing. |
+| DNS A record `command-pro.<domain>` → the `lb-app` virtual IP (`keepalived_vip` in `terraform/live/<ENV>/lb-app`) | AD DNS. The plays stop if it is missing. |
 | RKE2 artifacts on the mirror and images in Harbor's `rancher` project | As for the Rancher cluster: [rancher.md](rancher.md), section 2. Usually the same RKE2 version. |
 | Version and checksums | `inventories/<ENV>/group_vars/rke2_app.yml` (`REPLACE`) |
 | Vault: `vault_rke2_app_token` (standalone) | A long random string: `openssl rand -hex 32` |
@@ -65,7 +65,7 @@ ansible-playbook -i inventories/lab playbooks/site.yml --limit 'lb_app:rke2_app'
 The RKE2 play works as for the Rancher cluster: one node at a time, and the first node creates
 the cluster. In addition it checks that `/scratch` is its own filesystem and labels it for
 containers. The admin kubeconfig lands at `~/.kube/<ENV>-app-cluster.yaml` and points at
-`https://command.<domain>:6443`.
+`https://command-pro.<domain>:6443`.
 
 ## 4. Check
 
@@ -112,8 +112,8 @@ Not built yet. Today, with `app_cluster_rancher_managed: true`, the play only pr
 1. A Terraform unit `terraform/k8s/<ENV>/app-cluster` with the `rancher2` provider defines the
    cluster in Rancher. It sets:
    - the RKE2 version and Harbor as the registry;
-   - `command.<domain>` and the `lb-app` virtual IP as TLS names;
-   - the Authorized Cluster Endpoint with FQDN `command.<domain>` and the cluster's CA certificate.
+   - `command-pro.<domain>` and the `lb-app` virtual IP as TLS names;
+   - the Authorized Cluster Endpoint with FQDN `command-pro.<domain>` and the cluster's CA certificate.
 2. Ansible runs Rancher's registration command on each node, with the token from the vault.
 
 It is built once the Rancher cluster runs, from the provider version and the registration command

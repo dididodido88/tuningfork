@@ -2,8 +2,8 @@
 
 Installs RKE2 server nodes (control plane, etcd and workloads on every node) from pre-downloaded
 artifacts on the internal mirror, with every image pulled from Harbor. It creates the cluster on
-the first node and joins the others through the load balancer. One cluster per inventory group;
-today that is the Rancher cluster (`rke2_rancher`).
+the first node and joins the others through the load balancer. One cluster per inventory group:
+the Rancher cluster (`rke2_rancher`) and the application cluster (`rke2_app`).
 
 | | |
 |---|---|
@@ -36,7 +36,7 @@ The Rancher cluster is always standalone. The application cluster follows
    from the Canal interfaces, installs `container-selinux` and the RKE2 SELinux policy, and puts
    RKE2's `kubectl` and `crictl` on the PATH (root also gets the node's kubeconfig).
 3. **Install**: downloads `install.sh`, the tarball and its checksum file from
-   `<env_repo_base_url>/rke2/<rke2_version>/` and checks each one. Writes
+   `<env_repo_base_url>/rancher/rke2/<rke2_version>/` and checks each one. Writes
    `/etc/rancher/rke2/config.yaml` and `registries.yaml`, then runs `install.sh` from the
    downloaded files. Nothing is fetched from the internet.
 4. **Start**: starts `rke2-server` and waits until the node is `Ready`. The play runs one node at
