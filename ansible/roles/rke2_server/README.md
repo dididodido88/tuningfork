@@ -60,7 +60,7 @@ Required (per cluster, in `group_vars/<cluster group>.yml` or the vault):
 | Variable | Description |
 |---|---|
 | `rke2_cluster_group` | Inventory group that forms the cluster. |
-| `rke2_version` | RKE2 version, e.g. `v1.33.5+rke2r1`. |
+| `rke2_version` | RKE2 version, e.g. `v1.36.5+rke2r1`. |
 | `rke2_install_sh_checksum` | `sha256:<hash>` of `install.sh`, recorded when downloading. |
 | `rke2_selinux_rpm`, `rke2_selinux_checksum` | File name of the RKE2 SELinux policy RPM on the mirror, and its `sha256:<hash>`. |
 | `rke2_token` | Join secret shared by the nodes, at least 32 characters (Rancher cluster: `vault_rke2_rancher_token`). |
@@ -73,8 +73,9 @@ Optional:
 |---|---|---|
 | `rke2_cluster_name` | `rke2_cluster_group` | Short name of the cluster; names the kubeconfig on the control node. |
 | `rke2_allowed_server_counts` | `[1, 3]` | Node counts the cluster may have. |
-| `rke2_mirror_url` | `<env_repo_base_url>/rke2` | Where the artifacts are on the mirror. |
+| `rke2_mirror_url` | `<env_repo_base_url>/rancher/rke2` | Where the artifacts are on the mirror (maestro: `/repo/rancher/rke2`). |
 | `rke2_version_url` | `<rke2_mirror_url>/<rke2_version>` | Directory of one version's artifacts. |
+| `rke2_selinux_url` | `<rke2_version_url>/rke2-selinux/<rke2_selinux_rpm>` | Where the SELinux policy RPM is. |
 | `rke2_artifacts_dir` | `/var/lib/rancher/rke2-artifacts` | Where the artifacts are kept on the node. |
 | `rke2_registration_vip` | `""` | Virtual IP behind `rke2_registration_host`; the pre-check makes sure the name resolves to it. |
 | `rke2_tls_san` | `[]` | Extra names and addresses the Kubernetes API certificate covers. |

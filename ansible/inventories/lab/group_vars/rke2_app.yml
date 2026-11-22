@@ -12,12 +12,13 @@ rke2_cluster_name: app-cluster
 rke2_rancher_managed: "{{ app_cluster_rancher_managed | default(false) }}"
 
 # --- Version and artifacts on the mirror ---------------------------------------------------
-# <env_repo_base_url>/rke2/<rke2_version>/: install.sh, rke2.linux-amd64.tar.gz, sha256sum-amd64.txt
+# <env_repo_base_url>/rancher/rke2/<rke2_version>/: install.sh, rke2.linux-amd64.tar.gz,
+# sha256sum-amd64.txt, and rke2-selinux/<rke2_selinux_rpm> (maestro: /repo/rancher/rke2/...)
 # Usually the same as the Rancher cluster (group_vars/rke2_rancher.yml).
-rke2_version: ""                     # REPLACE, e.g. v1.33.5+rke2r1
+rke2_version: v1.36.5+rke2r1
 rke2_install_sh_checksum: ""         # REPLACE: sha256:<hash> of install.sh, recorded when downloading
-# <env_repo_base_url>/rke2/rke2-selinux/<rke2_selinux_rpm> (needed in both modes)
-rke2_selinux_rpm: ""                 # REPLACE, e.g. rke2-selinux-0.20-1.el9.noarch.rpm
+# The SELinux policy is needed in both modes.
+rke2_selinux_rpm: rke2-selinux-0.24-1.el9.noarch.rpm
 rke2_selinux_checksum: ""            # REPLACE: sha256:<hash>
 
 # --- Cluster ---------------------------------------------------------------------------------

@@ -68,7 +68,7 @@
 
 - name: RKE2 | Download the SELinux policy for RKE2
   ansible.builtin.get_url:
-    url: "{{ rke2_mirror_url }}/rke2-selinux/{{ rke2_selinux_rpm }}"
+    url: "{{ rke2_selinux_url }}"
     dest: "{{ rke2_artifacts_dir }}/rke2-selinux/{{ rke2_selinux_rpm }}"
     checksum: "{{ rke2_selinux_checksum }}"
     owner: root
