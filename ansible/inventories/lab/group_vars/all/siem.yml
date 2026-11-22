@@ -13,6 +13,7 @@ siem_agent_networks:
   - 192.168.70.0/24
 siem_admin_networks:
   - 192.168.70.0/24
+  - 10.128.35.0/24
 
 # --- Email (best effort) ---------------------------------------------------------------------
 # Services on the SIEM VM send mail to the local Postfix relay (roles/postfix_relay), which
