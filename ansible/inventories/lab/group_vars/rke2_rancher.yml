@@ -11,12 +11,12 @@ rke2_cluster_name: rancher-cluster
 
 # --- Version and artifacts on the mirror ---------------------------------------------------
 # <env_repo_base_url>/rancher/rke2/<rke2_version>/: install.sh, rke2.linux-amd64.tar.gz,
-# sha256sum-amd64.txt, and rke2-selinux/<rke2_selinux_rpm> (maestro: /repo/rancher/rke2/...)
+# sha256sum-amd64.txt and <rke2_selinux_rpm> (maestro: /repo/rancher/rke2/<rke2_version>/)
 # Pick a version Rancher supports for the Rancher version you deploy (Rancher support matrix).
 rke2_version: v1.36.5+rke2r1
-rke2_install_sh_checksum: ""         # REPLACE: sha256:<hash> of install.sh, recorded when downloading
+rke2_install_sh_checksum: "sha256:45f5c14cd04aa3de4b164d5a7412113ab415bebbe5cbaa952448a5dabb57876a"
 rke2_selinux_rpm: rke2-selinux-0.24-1.el9.noarch.rpm
-rke2_selinux_checksum: ""            # REPLACE: sha256:<hash>
+rke2_selinux_checksum: "sha256:6f813a0c8678fb3ea9978131028d0ce58ba355ac0b909422cef0f51bcb7c2a03"
 
 # --- Cluster ---------------------------------------------------------------------------------
 # Join secret shared by the nodes: a long random string in the vault (openssl rand -hex 32).

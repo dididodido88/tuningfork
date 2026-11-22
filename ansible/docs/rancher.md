@@ -47,7 +47,7 @@ the internet-connected download machine:
 | `rke2.linux-amd64.tar.gz` | `https://github.com/rancher/rke2/releases/download/<rke2_version>/` | `rancher/rke2/<rke2_version>/` |
 | `sha256sum-amd64.txt` | same release | `rancher/rke2/<rke2_version>/` |
 | `rke2-images-all.linux-amd64.txt` | same release (the image list, not uploaded to the mirror) | - |
-| `rke2-selinux-<v>.el9.noarch.rpm` | `https://github.com/rancher/rke2-selinux/releases` | `rancher/rke2/<rke2_version>/rke2-selinux/` |
+| `rke2-selinux-<v>.el9.noarch.rpm` | `https://github.com/rancher/rke2-selinux/releases` | `rancher/rke2/<rke2_version>/` |
 | `rancher-<version>.tgz` (the chart) | `https://releases.rancher.com/server-charts/stable/` | `rancher/<version>/`; also copy it to the control node for Terraform |
 | `rancher-images.txt` | `https://github.com/rancher/rancher/releases/download/<version>/` (the image list) | - |
 
@@ -62,11 +62,11 @@ curl -fL https://get.rke2.io -o install.sh
 sha256sum install.sh rke2-selinux-*.rpm           # values for rke2_install_sh_checksum and rke2_selinux_checksum
 ```
 
-Only `rke2-selinux-<v>.el9.noarch.rpm` is used from the `rke2-selinux/` folder. Its dependencies
-(`container-selinux`, `selinux-policy`) are installed from the Rocky repositories on the mirror,
-like every other package. Other RPMs in that folder, such as a dependency set downloaded with it,
-are ignored. The release's `rke2-images.linux-amd64.tar.zst` isn't used either: every image comes
-from Harbor.
+Only the `rke2-selinux` RPM itself goes on the mirror, not a dependency set downloaded with it. Its
+dependencies (`container-selinux >= 2.191`, `selinux-policy-base`, `policycoreutils`,
+`libselinux-utils`) come from the Rocky repositories on the mirror, like every other package;
+check with `rpm -qpR <rpm>`. The release's `rke2-images.linux-amd64.tar.zst` isn't used: every
+image comes from Harbor.
 
 Record in `inventories/<ENV>/group_vars/rke2_rancher.yml`:
 
