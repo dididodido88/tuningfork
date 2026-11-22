@@ -437,6 +437,16 @@ and an example.
 | [siem_artifacts](roles/siem_artifacts/README.md) | Download and check SIEM artifacts | `siem_servers` |
 | [postfix_relay](roles/postfix_relay/README.md) | Loopback-only mail relay on the SIEM VM | `siem_servers` |
 | [wazuh_server](roles/wazuh_server/README.md) | Wazuh indexer, manager and dashboard | `siem_servers` |
+| [syslog_receiver](roles/syslog_receiver/README.md) | rsyslog receiver for the Proxmox hosts and iDRACs | `siem_servers` |
+| [snmp_trap_receiver](roles/snmp_trap_receiver/README.md) | snmptrapd for SNMPv3 traps from the iDRACs | `siem_servers` |
+| [alertmanager](roles/alertmanager/README.md) | Emails Prometheus alerts through the local relay | `siem_servers` |
+| [snmp_exporter](roles/snmp_exporter/README.md) | Polls the iDRACs over SNMPv3 for Prometheus | `siem_servers` |
+| [pve_exporter](roles/pve_exporter/README.md) | Reads the Proxmox API for Prometheus | `siem_servers` |
+| [prometheus](roles/prometheus/README.md) | Metrics, scrape jobs from the inventory, alert rules | `siem_servers` |
+| [grafana](roles/grafana/README.md) | Dashboards over HTTPS, Prometheus data source | `siem_servers` |
+| [proxmox_monitoring](roles/proxmox_monitoring/README.md) | Read-only Proxmox user and API token for the SIEM VM | `proxmox_hosts` (first host) |
+| [wazuh_agent_linux](roles/wazuh_agent_linux/README.md) | Wazuh agent, enrolled with the manager | `wazuh_agents` except `siem_servers` |
+| [node_exporter](roles/node_exporter/README.md) | Operating-system metrics for Prometheus | `node_exporter_hosts` except `k8s_nodes` |
 
 ## Variables
 
