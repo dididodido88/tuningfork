@@ -69,9 +69,10 @@ resource "helm_release" "rancher" {
     replicas          = local.replicas
     bootstrapPassword = var.rancher_bootstrap_password
 
-    # TLS from the secrets above; tell Rancher the CA is private.
+    # TLS from the secrets above; tell Rancher the CA is private. The ingress controller is the
+    # Traefik RKE2 ships (IngressClass "traefik", host ports 80/443, which lb-rancher forwards to).
     ingress = {
-      ingressClassName = "nginx"
+      ingressClassName = "traefik"
       tls              = { source = "secret" }
     }
     privateCA = true
