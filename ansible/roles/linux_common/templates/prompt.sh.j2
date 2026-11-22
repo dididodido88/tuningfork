@@ -15,10 +15,11 @@ __tf_ps1_git() {
   return 0
 }
 
-# Colour on every colour terminal (xterm, PuTTY, Windows Terminal, tmux, screen), plain on the
-# Linux console (the VM console in the Proxmox web UI) and on terminals without colour.
+# Colour on every xterm and linux terminal type and other colour terminals (PuTTY with either
+# type, Windows Terminal, tmux, screen, the VM console); plain on terminals without colour.
 case "$TERM" in
-  linux | dumb | vt* | "") __tf_colour=no ;;
+  xterm* | linux) __tf_colour=yes ;;
+  dumb | vt* | "") __tf_colour=no ;;
   *) [ "$(tput colors 2>/dev/null || echo 0)" -ge 8 ] && __tf_colour=yes || __tf_colour=no ;;
 esac
 

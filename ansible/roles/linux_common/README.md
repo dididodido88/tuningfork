@@ -117,9 +117,13 @@ Override all of them together, since the variable is replaced as a whole.
 Where it applies:
 
 - **Interactive bash shells only.** Scripts and other shells are unaffected.
-- **Colour terminals**: Windows Terminal, PuTTY, VS Code, xterm, tmux and screen. On the Linux
-  console (the VM console in the Proxmox web UI) and terminals without colour, it uses a plain
-  `[time user@host path]$` prompt and leaves `ls` colours alone.
+- **Colour terminals**: every `xterm*` and `linux` terminal type, and other colour terminals:
+  Windows Terminal, PuTTY (with terminal type `xterm` or `linux`), VS Code, tmux and screen. On
+  terminals without colour (`dumb`, `vt*`) it uses a plain `[time user@host path]$` prompt and
+  leaves `ls` colours alone.
+- **The VM console** (a Rocky VM's console opened from the Proxmox web interface) is also
+  `TERM=linux` and gets the coloured prompt. It has only 16 colours, so it may show the nearest
+  basic colours instead of the 256-colour palette.
 - **Not on Proxmox VE hosts** (checked by `/usr/bin/pveversion`), whatever group they are in.
 - A user who sets `PS1` or `LS_COLORS` in their own `~/.bashrc` keeps theirs: it is read later.
 
