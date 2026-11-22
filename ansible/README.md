@@ -456,10 +456,14 @@ Where to put a value, from lowest to highest precedence:
 |---|---|
 | `roles/<role>/defaults/main.yml` | Org-wide defaults. Every option the role has is listed here and described in `roles/<role>/README.md`. |
 | `inventories/<ENV>/group_vars/all/main.yml` | Values shared across groups in one environment: `env_ntp_servers`, `env_banner_text`, `env_repo_base_url`. |
+| `inventories/<ENV>/group_vars/all/vault.yml` | Secrets (ansible-vault encrypted). Same level as `main.yml`; roles read the `vault_*` keys by name. |
 | `inventories/<ENV>/group_vars/<group>.yml` | Environment-specific settings for a group. |
-| `inventories/<ENV>/group_vars/all/vault.yml` | Secrets (ansible-vault encrypted). |
+| `playbooks/group_vars/<group>.yml` | Rules that must hold in **every** environment: the CIS ↔ `linux_common` handover, and the CIS exceptions for NAS, Harbor, RKE2 and SIEM hosts. Overrides inventory group_vars, so keep it small. |
+| `inventories/<ENV>/terraform_<unit>.yml` | Host variables written by Terraform (address, data disks, virtual IP). Generated; never edit. |
 | `inventories/<ENV>/host_vars/<host>.yml` | Per-host exceptions. |
-| `playbooks/group_vars/<group>.yml` | Rules that must hold in **every** environment (the CIS ↔ `linux_common` handover, the CIS exceptions NAS servers need). Overrides inventory group_vars, so keep it small. |
+
+The full map, including the Terraform-generated host variables, the precise precedence and every
+vault key: [docs/variables.md](docs/variables.md).
 
 Define the `linux_common_*` settings in `inventories/<ENV>/group_vars/linux.yml`, not only in
 role defaults: the CIS play reads them and doesn't load the `linux_common` role.
