@@ -55,7 +55,6 @@ change to this repository.
 | Rancher Server v2.15.3, part 1: point `chart_path` at the new chart. It is still `rancher-2.12.3.tgz` in all four `terraform/k8s/*/rancher-server` units and in the `variables.tf` example. | code | Paused at the user's request |
 | Rancher Server v2.15.3, part 2: check the chart. `kubeVersion` in `Chart.yaml` must accept 1.36, and `values.yaml` must still take `ingress.ingressClassName` and `tls.source` | user | The commands are in the paused plan |
 | Rancher Server v2.15.3, part 3: push the images from `rancher-images.txt` to Harbor, then `terragrunt apply` | user | |
-| Application cluster (lab): first run in standalone mode, then the second run | user | DNS `command-pro.lab.local` → 192.168.70.90 exists |
 | Application cluster, managed mode: join through Rancher's registration command with the `rancher2` Terraform provider | code | Not built; `app_cluster_rancher_managed: false` everywhere |
 
 ### Environments
@@ -100,6 +99,9 @@ Fixed since the review:
   got it there: the journald folder mode now matches CIS, the CIS facts file is off, and
   `restorecon` no longer counts container files it leaves alone. The CIS world-writable files
   control is also off on RKE2 nodes.
+- **Application cluster (lab) is installed and idempotent.** On 2026-11-23, in standalone mode,
+  `site.yml --limit 'lb_app:rke2_app'` reported `changed=0` on all four hosts. It took three or
+  four runs to get there, not two, and the cause hasn't been looked at.
 - **Lint exceptions.** The `curl` exception is in `ansible/.ansible-lint-ignore`, because the task
   is inside a block. The `systemctl` one has an inline `noqa`, because its task isn't.
 
