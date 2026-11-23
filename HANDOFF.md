@@ -112,8 +112,7 @@ The brief also asks for detection content mapped to the required audit event gro
    clears the 3 down Prometheus targets.
 2. **Leftover file.** `ansible/roles/siem_artifacts/tasks/manifest.yml` was deleted in `1ff3850` but is back in
    git and is used by nothing. Ask the user, then remove it.
-3. **Stray folder.** There is a stray `roles/RHEL9-CIS/` at the repository root (a tracked `.pyc` file). The real
-   one is `ansible/roles/RHEL9-CIS`. Ask the user, then remove it.
+3. **Stray folder.** Done: the stray `roles/RHEL9-CIS/` at the repository root is removed.
 4. **Lint warning on maestro.** maestro's copy of `ansible/playbooks/site.yml` has a comment without a space at
    line 30 (yamllint warning). It's a local change on maestro, not in git.
 5. **Placeholders (CHANGEME) still to fill:**

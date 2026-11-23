@@ -24,3 +24,7 @@ terraform/state/
 terraform/providers/*
 !terraform/providers/.gitkeep
 # Keep .terraform.lock.hcl files: commit them.
+
+# Python bytecode (Ansible filter plugins compile here when run)
+__pycache__/
+*.pyc

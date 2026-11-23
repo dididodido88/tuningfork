@@ -4,3 +4,7 @@
 # rsync, not synchronize: a copy within the host keeping ACLs, xattrs and SELinux labels
 # (synchronize copies between the control node and a host).
 roles/filesystems/tasks/volume.yml command-instead-of-module
+
+# curl, not get_url: get_url and uri fail against Python 3.12+ targets (Proxmox VE 9), so
+# siem_artifacts falls back to curl there and checks the sha256 itself.
+roles/siem_artifacts/tasks/curl_one.yml command-instead-of-module

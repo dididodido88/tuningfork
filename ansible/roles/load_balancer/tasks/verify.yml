@@ -1,6 +1,7 @@
 ---
 # After a run: both services up, which host holds the virtual IP, and the health of every backend.
-- name: LB | Check HAProxy and keepalived are running
+# systemctl, not service_facts: a read-only check of two units that fails when either is down.
+- name: LB | Check HAProxy and keepalived are running  # noqa: command-instead-of-module
   ansible.builtin.command:
     argv: [systemctl, is-active, haproxy, keepalived]
   changed_when: false
