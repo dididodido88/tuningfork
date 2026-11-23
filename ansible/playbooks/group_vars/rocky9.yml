@@ -67,3 +67,8 @@ rhel9cis_authselect_custom_profile_name: tuningfork-cis
 # GRUB password (1.4.1) would block unattended reboots into other kernels and
 # console recovery without the password; it stays off.
 rhel9cis_set_boot_pass: false
+
+# The CIS role writes /etc/ansible/facts.d/compliance_facts.fact with the run date in it, so the
+# file changes on every run and a second run never reports changed=0. It is a record only, not a
+# control; the file from the last run that wrote it stays in place.
+create_benchmark_facts: false

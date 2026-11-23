@@ -1,13 +1,14 @@
 ---
 # journald: persistent storage and size limits (linux_common_journald_*). journald is the only log
 # system on these hosts.
+# 0750, the mode CIS also sets on this directory: with 0755 the two roles change it on every run.
 - name: Journald | Create drop-in directory
   ansible.builtin.file:
     path: "{{ linux_common_journald_dropin | dirname }}"
     state: directory
     owner: root
     group: root
-    mode: "0755"
+    mode: "0750"
 
 - name: Journald | Create /var/log/journal for persistent storage
   ansible.builtin.file:
