@@ -86,7 +86,7 @@ variables:
 | `rocky9.yml` | How the CIS role and `linux_common` share settings, so they don't fight |
 | `nas_servers.yml` | Keeps CIS from removing the NFS and rpcbind services |
 | `registry_servers.yml` | Keeps IP forwarding on, so Docker can publish Harbor's ports |
-| `rke2_servers.yml` | CIS exceptions for RKE2: firewalld off, IP forwarding on (network segmentation is the compensating control) |
+| `rke2_servers.yml` | CIS exceptions for RKE2: firewalld off, IP forwarding on (network segmentation is the compensating control), world-writable files check off (kubelet and containerd own those files) |
 | `siem_servers.yml` | Lets rsyslog run on the SIEM VM, the designated log host |
 
 ## Vault keys

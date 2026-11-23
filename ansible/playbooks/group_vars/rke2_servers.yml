@@ -24,3 +24,11 @@ cis_safeguards_manage_firewall_ssh: false
 # Pods and services are routed through the node, so net.ipv4.ip_forward must stay 1 (CIS 3.3.1
 # sets 0). roles/rke2_server sets it in /etc/sysctl.d/90-rke2.conf.
 rhel9cis_rule_3_3_1: false
+
+# --- CIS exception: world-writable files ---------------------------------------------------
+# kubelet and containerd create world-writable files and directories under /var/lib/kubelet and
+# /var/lib/rancher (container termination logs are 0666 by design). CIS 7.1.11 would chmod them on
+# every run, changing files kubelet manages, and the role has no exclude path for this control.
+# Decided by the user: the control is off on RKE2 nodes and stays on everywhere else. The CIS
+# unowned-files control already skips the same container paths.
+rhel9cis_rule_7_1_11: false

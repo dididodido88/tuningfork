@@ -192,6 +192,11 @@ subnet, and the perimeter firewall or router only lets these flows through:
 Everything else is denied. Open item: without firewalld, these nodes produce no host-firewall
 connection log for the SIEM; the Proxmox VE firewall could add filtering and logging later.
 
+One more CIS control is off on these nodes: the world-writable files check. kubelet and
+containerd create world-writable files under `/var/lib/kubelet` and `/var/lib/rancher` (container
+termination logs are 0666 by design), and the check would change them on every run. It stays on
+for every other host.
+
 ## 6. Upgrading RKE2
 
 The role never upgrades: with another version installed it stops. Upgrade one node at a time,

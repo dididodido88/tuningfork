@@ -35,6 +35,8 @@ Terraform/Terragrunt (bpg/proxmox) creates the Rocky 9 VMs, and Ansible hardens 
     (`playbooks/group_vars/rke2_servers.yml`), and network segmentation is the compensating control
     (`ansible/docs/rancher.md`, "Firewall exception and segmentation"). Every other host, load balancers included,
     keeps firewalld.
+  - Also decided by the user: the CIS world-writable files control is off on RKE2 nodes, because kubelet and
+    containerd own those files. It stays on everywhere else.
 - **Refer to audit requirements by title only.** Never write a requirement identifier in square brackets, anywhere.
   `ansible/scripts/check-no-requirement-ids.sh` must pass.
 - **Email is best effort** and must never block or fail a service.
