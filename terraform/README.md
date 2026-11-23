@@ -442,7 +442,7 @@ terragrunt apply
   `~/.kube/<ENV>-rancher-cluster.yaml`, through the load balancer on 6443.
 - **Chart:** read from the mirror's folder on the control node,
   `/repo/helm/charts/rancher/rancher-<version>.tgz` (`chart_path` in the unit).
-- **TLS:** the `rancher` certificate and key from the certificate tree, plus the internal root CA,
+- **TLS:** lb-rancher's host certificate (it covers `rancher.<domain>`) and key from the certificate tree, plus the internal root CA,
   as Kubernetes secrets. Rancher uses them directly, so no cert-manager is needed. The same
   certificate is also Traefik's default certificate (a HelmChartConfig for `rke2-traefik`).
 - **Images:** from Harbor, `registry.<domain>/rancher/...`; the nodes are already logged in.

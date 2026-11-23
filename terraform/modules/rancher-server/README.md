@@ -46,7 +46,7 @@ Rancher's ingress either way.
 | Input | Example | Description |
 |---|---|---|
 | `chart_path` | `/repo/helm/charts/rancher/rancher-2.15.3.tgz` | The chart, on the mirror's folder on the control node |
-| `certificate_dir` | `/srv/security/certificates/files/lab.local` | The environment's certificate folder (`certificates_env_dir` in the Ansible inventory). Reads `ca/ca.cert.pem` and `rancher/rancher.{fullchain.crt,key}`. |
+| `certificate_dir` | `/srv/security/certificates/files/lab.local` | The environment's certificate folder (`certificates_env_dir` in the Ansible inventory). Reads `ca/ca.cert.pem` and `lb-rancher/lb-rancher.{fullchain.crt,key}` (`certificate_name`). |
 | `env_name`, `dns_domain` | from `terraform/k8s/root.hcl` | Build the defaults below |
 
 Defaults you can override: `kubeconfig_path` (`~/.kube/<env_name>-rancher-cluster.yaml`, written

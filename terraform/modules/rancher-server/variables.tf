@@ -79,9 +79,9 @@ variable "certificate_dir" {
 }
 
 variable "certificate_name" {
-  description = "Folder and file prefix of the Rancher certificate in certificate_dir. The certificate must cover rancher_hostname."
+  description = "Folder and file prefix of the Rancher certificate in certificate_dir: the load balancer's host certificate, whose names cover rancher_hostname (lb-rancher/lb-rancher.{fullchain.crt,key})."
   type        = string
-  default     = "rancher"
+  default     = "lb-rancher"
 }
 
 # --- Traefik --------------------------------------------------------------------------------
