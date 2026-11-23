@@ -1,7 +1,9 @@
-# Rancher Server on the Rancher RKE2 cluster, from the downloaded Helm chart.
+# Rancher Server on the Rancher RKE2 cluster, from the Helm chart on the mirror, and the default
+# certificate of the Traefik ingress controller RKE2 ships.
 #
 # TLS: Rancher serves a certificate from the internal CA (tls-rancher-ingress) and is told the
-# CA (tls-ca, privateCA), so no cert-manager is needed. Images: every image comes from the
+# CA (tls-ca, privateCA), so no cert-manager is needed. Traefik serves the same certificate to
+# requests that name no known host (for example by address). Images: every image comes from the
 # private registry (Harbor, project rancher/); the nodes log in to it themselves
 # (/etc/rancher/rke2/registries.yaml, written by Ansible), so no image pull secret is needed.
 #
@@ -14,9 +16,58 @@ locals {
   registry   = coalesce(var.registry, "registry.${var.dns_domain}")
   cert_dir   = "${var.certificate_dir}/${var.certificate_name}"
   replicas   = coalesce(var.replicas, length(data.kubernetes_nodes.cluster.nodes))
+
+  # The Rancher certificate (full chain) and key, used by Rancher's ingress and by Traefik.
+  tls_data = {
+    "tls.crt" = file("${local.cert_dir}/${var.certificate_name}.fullchain.crt")
+    "tls.key" = file("${local.cert_dir}/${var.certificate_name}.key")
+  }
 }
 
 data "kubernetes_nodes" "cluster" {}
+
+# --- Traefik: default certificate ---------------------------------------------------------
+# RKE2 installs Traefik from its own HelmChart (kube-system/rke2-traefik). A HelmChartConfig of
+# the same name adds values to it, which is how RKE2 lets you configure the packaged charts. The
+# chart's tlsStore value creates the TLSStore "default" in kube-system, so the secret lives there.
+
+resource "kubernetes_secret_v1" "traefik_default_certificate" {
+  count = var.traefik_default_certificate ? 1 : 0
+
+  metadata {
+    name      = "tls-default-certificate"
+    namespace = "kube-system"
+  }
+
+  type = "kubernetes.io/tls"
+  data = local.tls_data
+}
+
+resource "kubernetes_manifest" "traefik_config" {
+  count = var.traefik_default_certificate ? 1 : 0
+
+  manifest = {
+    apiVersion = "helm.cattle.io/v1"
+    kind       = "HelmChartConfig"
+    metadata = {
+      name      = "rke2-traefik"
+      namespace = "kube-system"
+    }
+    spec = {
+      valuesContent = yamlencode({
+        tlsStore = {
+          default = {
+            defaultCertificate = {
+              secretName = kubernetes_secret_v1.traefik_default_certificate[0].metadata[0].name
+            }
+          }
+        }
+      })
+    }
+  }
+}
+
+# --- Rancher ------------------------------------------------------------------------------
 
 resource "kubernetes_namespace_v1" "cattle_system" {
   metadata {
@@ -37,11 +88,7 @@ resource "kubernetes_secret_v1" "tls_rancher_ingress" {
   }
 
   type = "kubernetes.io/tls"
-
-  data = {
-    "tls.crt" = file("${local.cert_dir}/${var.certificate_name}.fullchain.crt")
-    "tls.key" = file("${local.cert_dir}/${var.certificate_name}.key")
-  }
+  data = local.tls_data
 }
 
 # The internal root CA. Rancher passes it to the agents of managed clusters, so they trust
@@ -69,17 +116,19 @@ resource "helm_release" "rancher" {
     replicas          = local.replicas
     bootstrapPassword = var.rancher_bootstrap_password
 
-    # TLS from the secrets above; tell Rancher the CA is private. The ingress controller is the
-    # Traefik RKE2 ships (IngressClass "traefik", host ports 80/443, which lb-rancher forwards to).
+    # An Ingress (not the Gateway API), served by the Traefik RKE2 ships (IngressClass "traefik",
+    # host ports 80/443, which lb-rancher forwards to). TLS from the secrets above; the CA is
+    # private.
+    networkExposure = { type = "ingress" }
     ingress = {
       ingressClassName = "traefik"
-      tls              = { source = "secret" }
+      tls              = { source = "secret", secretName = "tls-rancher-ingress" }
     }
     privateCA = true
 
-    # Air-gapped: Rancher and every image it deploys come from the private registry, and the
-    # system charts bundled in the Rancher image are used instead of a Git repository.
-    rancherImage          = "${local.registry}/rancher/rancher"
+    # Air-gapped: systemDefaultRegistry puts Harbor in front of every image, Rancher's own
+    # included (the chart's image.repository stays rancher/rancher). The system charts bundled in
+    # the Rancher image are used instead of a Git repository.
     systemDefaultRegistry = local.registry
     useBundledSystemChart = true
   }, var.extra_values))]

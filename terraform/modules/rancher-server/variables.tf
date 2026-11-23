@@ -21,12 +21,12 @@ variable "kubeconfig_path" {
 # --- Rancher ------------------------------------------------------------------------------
 
 variable "chart_path" {
-  description = "Local path of the downloaded Rancher chart, e.g. /srv/rancher/charts/rancher-2.12.3.tgz (docs/rancher.md)."
+  description = "Path of the Rancher chart on the control node, e.g. /repo/helm/charts/rancher/rancher-2.15.3.tgz (the mirror serves /repo, so no copy is needed)."
   type        = string
 
   validation {
     condition     = fileexists(pathexpand(var.chart_path))
-    error_message = "chart_path doesn't point at a file. Download the Rancher chart (.tgz) to the control node first (ansible/docs/rancher.md)."
+    error_message = "chart_path doesn't point at a file. Put the Rancher chart (.tgz) on the mirror first (ansible/docs/rancher.md)."
   }
 }
 
@@ -49,7 +49,7 @@ variable "replicas" {
 }
 
 variable "rancher_bootstrap_password" {
-  description = "Password of Rancher's first admin login. Set it in the shell as TF_VAR_rancher_bootstrap_password, never in a file. Rancher asks for a new one at first login."
+  description = "Password of Rancher's first admin login, kept in the vault as vault_rancher_bootstrap_password. Export it in the shell as TF_VAR_rancher_bootstrap_password, never in a file. The rancher-config unit then sets the lasting admin password."
   type        = string
   sensitive   = true
 
@@ -82,4 +82,12 @@ variable "certificate_name" {
   description = "Folder and file prefix of the Rancher certificate in certificate_dir. The certificate must cover rancher_hostname."
   type        = string
   default     = "rancher"
+}
+
+# --- Traefik --------------------------------------------------------------------------------
+
+variable "traefik_default_certificate" {
+  description = "Make the Rancher certificate the default certificate of RKE2's Traefik (a HelmChartConfig for rke2-traefik and a TLS secret in kube-system). Traefik serves it to requests that name no known host."
+  type        = bool
+  default     = true
 }

@@ -48,7 +48,7 @@ the internet-connected download machine:
 | `sha256sum-amd64.txt` | same release | `rancher/rke2/<rke2_version>/` |
 | `rke2-images-all.linux-amd64.txt` | same release (the image list, not uploaded to the mirror) | - |
 | `rke2-selinux-<v>.el9.noarch.rpm` | `https://github.com/rancher/rke2-selinux/releases` | `rancher/rke2/<rke2_version>/` |
-| `rancher-<version>.tgz` (the chart) | `https://releases.rancher.com/server-charts/stable/` | `rancher/<version>/`; also copy it to the control node for Terraform |
+| `rancher-<version>.tgz` (the chart) | `https://releases.rancher.com/server-charts/stable/` | `helm/charts/rancher/`; Terraform reads it there, on maestro |
 | `rancher-images.txt` | `https://github.com/rancher/rancher/releases/download/<version>/` (the image list) | - |
 
 ```sh
@@ -121,8 +121,9 @@ cd ../rancher-cluster                 && terragrunt apply      # 3 nodes in lab
 ansible-playbook -i inventories/lab playbooks/site.yml --limit 'lb_rancher:rke2_rancher'
 #    or, once the common layers are on: playbooks/load_balancer.yml, then playbooks/rke2_rancher.yml
 
-# 3. Rancher Server (from terraform/)
-export TF_VAR_rancher_bootstrap_password='<first admin password>'
+# 3. Rancher Server (from terraform/). The password is vault_rancher_bootstrap_password.
+read -rsp 'Bootstrap password: ' TF_VAR_rancher_bootstrap_password; echo
+export TF_VAR_rancher_bootstrap_password
 cd terraform/k8s/lab/rancher-server && terragrunt init && terragrunt apply
 ```
 
@@ -141,7 +142,9 @@ What the RKE2 play does, one node at a time (first node by name first):
 
 Terraform then creates the namespace `cattle-system`, the TLS secrets (the `rancher` certificate
 and the internal CA) and installs the chart: one Rancher pod per node, images from Harbor, no
-cert-manager.
+cert-manager. It also makes the `rancher` certificate Traefik's default certificate, the one served
+to a request that names no known host (a HelmChartConfig for `rke2-traefik` and the secret
+`kube-system/tls-default-certificate`).
 
 ## 4. Check
 

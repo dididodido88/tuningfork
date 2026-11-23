@@ -52,9 +52,8 @@ change to this repository.
 
 | Item | Owner | State |
 |---|---|---|
-| Rancher Server v2.15.3, part 1: point `chart_path` at the new chart. It is still `rancher-2.12.3.tgz` in all four `terraform/k8s/*/rancher-server` units and in the `variables.tf` example. | code | Paused at the user's request |
-| Rancher Server v2.15.3, part 2: check the chart. `kubeVersion` in `Chart.yaml` must accept 1.36, and `values.yaml` must still take `ingress.ingressClassName` and `tls.source` | user | The commands are in the paused plan |
-| Rancher Server v2.15.3, part 3: push the images from `rancher-images.txt` to Harbor, then `terragrunt apply` | user | |
+| Rancher Server v2.15.3, phase 1: push the images from `rancher-images.txt` to Harbor, then apply `terraform/k8s/lab/rancher-server` twice. The chart (`kubeVersion: < 1.37.0-0`) and its values were checked; the unit reads `/repo/helm/charts/rancher/rancher-2.15.3.tgz` and sets Traefik's default certificate. | user | Code ready |
+| Rancher configuration, new unit `terraform/k8s/<ENV>/rancher-config` (`rancher2` provider): phase 2 admin password and AD login (`sg-lab-admins` admins, `sg-all-users` read-only on every cluster, the Rancher cluster included); phase 3 Rancher Monitoring; phase 4 the custom cluster `command-pro` | code | Waits for phase 1 and the `rancher2` provider in the plugin directory |
 | Application cluster, managed mode: join through Rancher's registration command with the `rancher2` Terraform provider | code | Not built; `app_cluster_rancher_managed: false` everywhere |
 
 ### Environments

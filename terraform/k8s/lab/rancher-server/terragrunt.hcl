@@ -1,7 +1,9 @@
-# lab: Rancher Server on the Rancher RKE2 cluster, from the downloaded Helm chart.
+# lab: Rancher Server on the Rancher RKE2 cluster, from the Helm chart on the mirror, and the
+# Rancher certificate as the default certificate of RKE2's Traefik.
 # Applied by hand, after Ansible has built the cluster (playbooks/rke2_rancher.yml writes the
 # kubeconfig this unit uses):
-#   export TF_VAR_rancher_bootstrap_password='<first admin password>'
+#   read -rsp "Bootstrap password: " TF_VAR_rancher_bootstrap_password; echo   # vault_rancher_bootstrap_password
+#   export TF_VAR_rancher_bootstrap_password
 #   cd terraform/k8s/lab/rancher-server && terragrunt init && terragrunt apply
 #
 # Every field: terraform/modules/rancher-server/variables.tf. Guide: ansible/docs/rancher.md.
@@ -17,8 +19,8 @@ terraform {
 }
 
 inputs = {
-  # The Rancher chart, copied from the mirror to this machine (docs/rancher.md).
-  chart_path = "/srv/rancher/charts/rancher-2.12.3.tgz" # REPLACE: the version you downloaded
+  # The Rancher chart, read from the mirror's folder on this machine (docs/rancher.md).
+  chart_path = "/repo/helm/charts/rancher/rancher-2.15.3.tgz"
 
   # certificates_env_dir of this environment in the Ansible inventory.
   certificate_dir = "/srv/security/certificates/files/lab.local"
@@ -28,4 +30,5 @@ inputs = {
   #   registry         = "registry.lab.local"
   #   kubeconfig_path  = "~/.kube/lab-rancher-cluster.yaml"
   #   replicas         = one per cluster node
+  #   traefik_default_certificate = true
 }

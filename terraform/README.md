@@ -427,10 +427,12 @@ SSH bootstrap off).
 ## Rancher Server (`k8s/<ENV>/rancher-server`)
 
 Rancher Server is deployed onto the Rancher RKE2 cluster with the Helm provider, by hand, after
-Ansible has built the cluster:
+Ansible has built the cluster. The bootstrap password is `vault_rancher_bootstrap_password` in the
+vault; type it at the prompt so it stays out of the shell history:
 
 ```sh
-export TF_VAR_rancher_bootstrap_password='<first admin password>'
+read -rsp 'Bootstrap password: ' TF_VAR_rancher_bootstrap_password; echo
+export TF_VAR_rancher_bootstrap_password
 cd terraform/k8s/lab/rancher-server
 terragrunt init      # first time
 terragrunt apply
@@ -438,9 +440,11 @@ terragrunt apply
 
 - **Cluster access:** the kubeconfig Ansible wrote on the control node,
   `~/.kube/<ENV>-rancher-cluster.yaml`, through the load balancer on 6443.
-- **Chart:** the downloaded `.tgz` (`chart_path` in the unit; `REPLACE` it with your version).
+- **Chart:** read from the mirror's folder on the control node,
+  `/repo/helm/charts/rancher/rancher-<version>.tgz` (`chart_path` in the unit).
 - **TLS:** the `rancher` certificate and key from the certificate tree, plus the internal root CA,
-  as Kubernetes secrets. Rancher uses them directly, so no cert-manager is needed.
+  as Kubernetes secrets. Rancher uses them directly, so no cert-manager is needed. The same
+  certificate is also Traefik's default certificate (a HelmChartConfig for `rke2-traefik`).
 - **Images:** from Harbor, `registry.<domain>/rancher/...`; the nodes are already logged in.
 - **Replicas:** one Rancher pod per cluster node, read from the cluster (1 or 3).
 

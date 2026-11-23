@@ -112,6 +112,8 @@ stay off until their keys are set.
 | `vault_grafana_admin_password` | `grafana` | Grafana `admin` (at least 12 characters) |
 | `vault_snmp_idrac_auth_password`, `vault_snmp_idrac_priv_password` | `snmp_exporter`, `prometheus` | SNMPv3 polling user on the iDRACs |
 | `vault_pve_exporter_token_value` | `pve_exporter`, `prometheus` | Proxmox API token secret, printed once by `proxmox_monitoring` |
+| `vault_rancher_bootstrap_password` | Terraform `k8s/<ENV>/rancher-server`, typed in as `TF_VAR_rancher_bootstrap_password` | Rancher's first `admin` login (at least 12 characters) |
+| `vault_rancher_admin_password` | Terraform `k8s/<ENV>/rancher-config` (not built yet) | The lasting password of Rancher's `admin` |
 
 The trap senders in `siem_snmp_trap_users` (`group_vars/all/siem.yml`) reference vault keys that you
 name yourself.
@@ -134,5 +136,5 @@ inventory:
 | Size and disks of a role | `terraform/_envcommon/roles/<role>.hcl` ([table](../../terraform/_envcommon/roles/README.md)) |
 | Host names, addresses, cluster size, load balancer virtual IPs | `terraform/live/<ENV>/<unit>/terragrunt.hcl` |
 | Proxmox API token | `PROXMOX_VE_API_TOKEN` in the shell, never in a file |
-| Rancher's first admin password | `TF_VAR_rancher_bootstrap_password` in the shell |
+| Rancher's first admin password | `TF_VAR_rancher_bootstrap_password` in the shell, typed from `vault_rancher_bootstrap_password` |
 | Rancher chart and certificate folder | `terraform/k8s/<ENV>/rancher-server/terragrunt.hcl` |
