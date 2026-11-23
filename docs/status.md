@@ -52,7 +52,6 @@ change to this repository.
 
 | Item | Owner | State |
 |---|---|---|
-| Rancher cluster (lab): run `load_balancer.yml` and `rke2_rancher.yml` a second time and confirm `changed=0` | user | The first run succeeded: 3 nodes `Ready`, kubeconfig at `~/.kube/lab-rancher-cluster.yaml` |
 | Rancher Server v2.15.3, part 1: point `chart_path` at the new chart. It is still `rancher-2.12.3.tgz` in all four `terraform/k8s/*/rancher-server` units and in the `variables.tf` example. | code | Paused at the user's request |
 | Rancher Server v2.15.3, part 2: check the chart. `kubeVersion` in `Chart.yaml` must accept 1.36, and `values.yaml` must still take `ingress.ingressClassName` and `tls.source` | user | The commands are in the paused plan |
 | Rancher Server v2.15.3, part 3: push the images from `rancher-images.txt` to Harbor, then `terragrunt apply` | user | |
@@ -96,6 +95,11 @@ Fixed since the review:
   same networks as the firewall. Every export uses `rw,sync,root_squash`.
 - **Stray folder.** The `roles/` folder at the repository root, which held only a compiled Python
   file, is removed. `.gitignore` now ignores `__pycache__/` and `*.pyc`.
+- **Rancher cluster (lab) is idempotent.** On 2026-11-23 a repeat run of
+  `site.yml --limit 'lb_rancher:rke2_rancher'` reported `changed=0` on all four hosts. Three fixes
+  got it there: the journald folder mode now matches CIS, the CIS facts file is off, and
+  `restorecon` no longer counts container files it leaves alone. The CIS world-writable files
+  control is also off on RKE2 nodes.
 - **Lint exceptions.** The `curl` exception is in `ansible/.ansible-lint-ignore`, because the task
   is inside a block. The `systemctl` one has an inline `noqa`, because its task isn't.
 
