@@ -1,4 +1,4 @@
-# nas_server
+| Needs first | `repositories`, and `filesystems` to mount the data disks Terraform creates (one per export, `terraform/_envcommon/roles/nas.hcl`). |# nas_server
 
 Configures the NAS server, which serves the clusters' persistent data over NFS: installs
 `nfs-utils`, creates the export directories, writes
@@ -9,7 +9,7 @@ Configures the NAS server, which serves the clusters' persistent data over NFS: 
 | Playbook | `playbooks/nas_server.yml` |
 | Hosts | `nas_servers` |
 | Tags | `nas_server`, `firewall` |
-| Needs first | `repositories`. Put the exports on a data disk with `filesystems`. |
+| Needs first | `repositories`, and `filesystems` to mount the data disks Terraform creates (one per export, `terraform/_envcommon/roles/nas.hcl`). |
 | Set variables in | `inventories/<ENV>/group_vars/nas_servers.yml` |
 
 ## What it does
@@ -57,7 +57,7 @@ Optional:
 ```yaml
 # inventories/<ENV>/group_vars/nas_servers.yml
 nas_server_exports:
-  - path: /srv/nfs/share
+  - path: /export/deliveries
     mode: "0775"
     clients:
       - host: 192.0.2.0/24
@@ -68,15 +68,13 @@ nas_server_exports:
 nas_server_firewall_sources:
   - 192.0.2.0/24
   - 198.51.100.40       # backup01
-
-# Data disk for the exports (roles/filesystems)
-filesystems_volumes__nas:
-  - mount: /srv/nfs
-    disk: /dev/disk/by-path/pci-0000:03:00.0-scsi-0:0:8:0
-    fstype: xfs
 ```
 
 ## Good to know
+
+Each export should sit on its own data disk. Terraform creates the disks and writes them into the
+inventory, and `filesystems` mounts them under `/export/`. An export path with no disk behind it
+is created on the root file system.
 
 CIS would remove or mask the NFS and rpcbind services. `playbooks/group_vars/nas_servers.yml`
 keeps them on these hosts in every environment.

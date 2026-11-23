@@ -84,8 +84,7 @@ These are behaviour issues, not documentation issues, so they were recorded and 
 
 | Finding | Where | Suggested fix |
 |---|---|---|
-| Lab NFS exports allow clients from `192.0.2.0/24`, a documentation range, while the lab network is `192.168.70.0/24`. The firewall now admits `192.168.70.0/24`, but `/etc/exports` still refuses those clients. | `ansible/inventories/lab/group_vars/nas_servers.yml` | Set the export `clients` to the lab networks that mount NFS |
-| The exports in every environment point at `/srv/nfs/share`, but Terraform gives the NAS data disks at `/export/pvcdata`, `/export/cfr`, `/export/testdata`, `/export/deliveries` and `/export/backups` | `inventories/<ENV>/group_vars/nas_servers.yml`, `terraform/_envcommon/roles/nas.hcl` | One export per data disk |
+| Lab `terraform_nas.yml` was generated before the rename from NFS to NAS server, so it puts `nas.lab.local` in group `nfs_servers`. `playbooks/nas_server.yml` targets `nas_servers` and so skips the host. | `ansible/inventories/lab/terraform_nas.yml` (generated) | Run `terragrunt apply` in `terraform/live/lab/nas` to regenerate it |
 | `snmp_exporter_module` is defined but no task reads it; the Prometheus `idrac` job names `dell` itself | `ansible/roles/snmp_exporter/defaults/main.yml`, `roles/prometheus/templates/prometheus.yml.j2` | Use the variable in the template, or remove it |
 | `roles/siem_artifacts/tasks/manifest.yml` is not included by anything (also in HANDOFF.md) | `ansible/roles/siem_artifacts/tasks/` | Remove it, after you confirm |
 
@@ -93,6 +92,8 @@ Fixed since the review:
 
 - **NAS firewall.** NFS is now open only to `nas_server_firewall_sources`, with one rich rule per
   source and service. Lab allows `192.168.70.0/24`. The CRGS values are placeholders.
+- **NAS exports.** Each environment exports the five Terraform data disks under `/export/`, to the
+  same networks as the firewall. Every export uses `rw,sync,root_squash`.
 - **Stray folder.** The `roles/` folder at the repository root, which held only a compiled Python
   file, is removed. `.gitignore` now ignores `__pycache__/` and `*.pyc`.
 - **Lint exceptions.** The `curl` exception is in `ansible/.ansible-lint-ignore`, because the task

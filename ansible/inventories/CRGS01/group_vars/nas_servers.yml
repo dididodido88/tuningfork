@@ -1,18 +1,33 @@
 ---
-# CRGS01: NAS servers, NFS exports (roles/nas_server/defaults/main.yml).
+# CRGS01: NAS servers, NFS exports (roles/nas_server/README.md).
+#
+# One export per NAS data disk. Terraform creates and sizes the disks
+# (terraform/_envcommon/roles/nas.hcl) and the filesystems role mounts them, so keep this list in
+# step with that file: a path here that has no disk ends up on the root file system.
 
 nas_server_exports:
-  - path: /srv/nfs/share
+  - path: /export/pvcdata
     clients:
-      - host: 198.51.100.0/24
+      - host: 198.51.100.0/24  # REPLACE
+        options: rw,sync,root_squash
+  - path: /export/cfr
+    clients:
+      - host: 198.51.100.0/24  # REPLACE
+        options: rw,sync,root_squash
+  - path: /export/testdata
+    clients:
+      - host: 198.51.100.0/24  # REPLACE
+        options: rw,sync,root_squash
+  - path: /export/deliveries
+    clients:
+      - host: 198.51.100.0/24  # REPLACE
+        options: rw,sync,root_squash
+  - path: /export/backups
+    clients:
+      - host: 198.51.100.0/24  # REPLACE
         options: rw,sync,root_squash
 
-# Networks or single addresses allowed through the firewall to NFS (roles/nas_server).
+# Networks or single addresses allowed through the firewall to NFS. Keep them in line with the
+# export clients above.
 nas_server_firewall_sources:
   - 198.51.100.0/24  # REPLACE
-
-# Data disk for the exports (see linux.yml for the format).
-# filesystems_volumes__nas:
-#   - mount: /srv/nfs
-#     disk: /dev/disk/by-path/pci-0000:03:00.0-scsi-0:0:8:0
-#     fstype: xfs

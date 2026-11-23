@@ -12,7 +12,7 @@ nas_server_packages:
   - nfs-utils
 
 # One entry per export. Directories are created if missing.
-#   - path: /srv/nfs/share1
+#   - path: /export/share1
 #     owner: root
 #     group: root
 #     mode: "0755"
