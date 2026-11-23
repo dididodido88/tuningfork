@@ -72,7 +72,7 @@ variables:
 | `idrac.yml` | iDRACs | `ansible_connection: local` (Redfish from the control node) |
 | `windows.yml`, `windows_server.yml`, `windows_desktop.yml` | Windows hosts | WinRM connection, Windows role settings |
 | `db_servers.yml` | Database servers | PostgreSQL settings |
-| `nas_servers.yml` | NAS servers | `nas_server_exports` (one per data disk) |
+| `nas_servers.yml` | NAS servers | `nas_server_exports`, `nas_server_firewall_sources` (who may reach NFS) |
 | `registry_servers.yml` | Harbor | Hostname, LDAP, projects, robot accounts |
 | `k8s_bastions.yml` | Bastions | Tools and cluster contexts |
 | `lb_rancher.yml`, `lb_app.yml` | Each load balancer | VRRP ID, backends, frontends, health checks |

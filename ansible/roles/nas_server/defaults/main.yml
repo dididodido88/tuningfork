@@ -2,6 +2,11 @@
 # NAS server: NFS exports, the nfs-server service and the firewall.
 #
 # Set per environment in inventories/<ENV>/group_vars/nas_servers.yml.
+#
+# The firewall opens each service in nas_server_firewall_services to each source in
+# nas_server_firewall_sources only, with one firewalld rich rule per pair. It also removes those
+# services from the zone if an earlier run opened them to every source. The list of sources is
+# required while nas_server_manage_firewall is true: the play stops if it is empty.
 
 nas_server_packages:
   - nfs-utils
@@ -16,8 +21,15 @@ nas_server_packages:
 #         options: rw,sync,root_squash
 nas_server_exports: []
 
-# firewalld services opened in the default zone.
+# Manage the NFS rules in firewalld.
 nas_server_manage_firewall: true
+
+# Networks (CIDR) or single addresses allowed to reach NFS, for example
+#   - 10.0.0.0/24
+#   - 10.0.1.15
+nas_server_firewall_sources: []
+
+# firewalld services opened to nas_server_firewall_sources.
 nas_server_firewall_services:
   - nfs
   - mountd

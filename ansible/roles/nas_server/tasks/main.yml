@@ -1,6 +1,6 @@
 ---
 # NFS server: export directories and /etc/exports from nas_server_exports (group_vars/nas_servers.yml),
-# nfs-server, and the firewalld services in nas_server_firewall_services.
+# nfs-server, and firewalld rich rules opening nas_server_firewall_services to nas_server_firewall_sources.
 - name: NAS | Install packages
   ansible.builtin.dnf:
     name: "{{ nas_server_packages }}"
@@ -36,12 +36,39 @@
     state: started
   tags: [nas_server]
 
-- name: NAS | Open the firewall
+- name: NAS | Check the firewall sources are set
+  ansible.builtin.assert:
+    that: nas_server_firewall_sources | length > 0
+    fail_msg: >-
+      nas_server_firewall_sources is empty. Set the networks or addresses allowed to reach NFS in
+      inventories/<ENV>/group_vars/nas_servers.yml, or set nas_server_manage_firewall to false.
+    quiet: true
+  when: nas_server_manage_firewall | bool
+  tags: [nas_server, firewall]
+
+- name: NAS | Allow NFS from the permitted sources
   ansible.posix.firewalld:
-    service: "{{ item }}"
+    zone: "{{ rhel9cis_default_zone | default('public') }}"
+    rich_rule: >-
+      rule family="{{ 'ipv6' if ':' in item.0 else 'ipv4' }}" source address="{{ item.0 }}"
+      service name="{{ item.1 }}" accept
     permanent: true
     immediate: true
     state: enabled
+  loop: "{{ nas_server_firewall_sources | product(nas_server_firewall_services) | list }}"
+  loop_control:
+    label: "{{ item.1 }} from {{ item.0 }}"
+  when: nas_server_manage_firewall | bool
+  tags: [nas_server, firewall]
+
+# Earlier versions of this role opened the services to every source. Rich rules replace them.
+- name: NAS | Close the services opened to every source
+  ansible.posix.firewalld:
+    zone: "{{ rhel9cis_default_zone | default('public') }}"
+    service: "{{ item }}"
+    permanent: true
+    immediate: true
+    state: disabled
   loop: "{{ nas_server_firewall_services }}"
   when: nas_server_manage_firewall | bool
   tags: [nas_server, firewall]

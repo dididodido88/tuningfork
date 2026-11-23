@@ -18,7 +18,9 @@ Configures the NAS server, which serves the clusters' persistent data over NFS: 
 2. Creates each export directory with its owner, group and mode.
 3. Writes `/etc/exports` and re-exports (`exportfs -ra`) when it changes.
 4. Enables and starts `nfs-server`.
-5. Opens `nas_server_firewall_services` in firewalld (when `nas_server_manage_firewall` is true).
+5. When `nas_server_manage_firewall` is true, stops if `nas_server_firewall_sources` is empty. Then it adds
+   one firewalld rich rule per source and service, so only those sources reach NFS. It also removes
+   the services from the zone, in case an earlier version of this role opened them to every source.
 
 `/etc/exports` is written as a whole: an export that is removed from `nas_server_exports` is
 removed from the file. Its directory and data are left in place.
@@ -30,6 +32,7 @@ Required per environment:
 | Variable | Default | Description |
 |---|---|---|
 | `nas_server_exports` | `[]` | Exports to publish. See the fields below. |
+| `nas_server_firewall_sources` | `[]` | Networks (CIDR) or single addresses allowed through firewalld to NFS. Required while `nas_server_manage_firewall` is true. Keep it in line with the export `clients`. |
 
 Fields of one export:
 
@@ -46,8 +49,8 @@ Optional:
 | Variable | Default | Description |
 |---|---|---|
 | `nas_server_packages` | `[nfs-utils]` | Packages to install. |
-| `nas_server_manage_firewall` | `true` | Open the services below in firewalld. |
-| `nas_server_firewall_services` | `[nfs, mountd, rpc-bind]` | firewalld services opened in the default zone. |
+| `nas_server_manage_firewall` | `true` | Manage the NFS rules in firewalld. |
+| `nas_server_firewall_services` | `[nfs, mountd, rpc-bind]` | firewalld services opened to `nas_server_firewall_sources`, in the default zone. |
 
 ## Example
 
@@ -61,6 +64,10 @@ nas_server_exports:
         options: rw,sync,root_squash
       - host: backup01.example.internal
         options: ro,sync
+
+nas_server_firewall_sources:
+  - 192.0.2.0/24
+  - 198.51.100.40       # backup01
 
 # Data disk for the exports (roles/filesystems)
 filesystems_volumes__nas:

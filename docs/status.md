@@ -84,11 +84,19 @@ These are behaviour issues, not documentation issues, so they were recorded and 
 
 | Finding | Where | Suggested fix |
 |---|---|---|
-| The NAS firewall opens whole firewalld services (`nas_server_firewall_services`) to every source. `CLAUDE.md` asks for rich rules limited to the networks that need them. | `ansible/roles/nas_server/tasks/main.yml` | Rich rules per client network, like the other roles |
+| Lab NFS exports allow clients from `192.0.2.0/24`, a documentation range, while the lab network is `192.168.70.0/24`. The firewall now admits `192.168.70.0/24`, but `/etc/exports` still refuses those clients. | `ansible/inventories/lab/group_vars/nas_servers.yml` | Set the export `clients` to the lab networks that mount NFS |
+| The exports in every environment point at `/srv/nfs/share`, but Terraform gives the NAS data disks at `/export/pvcdata`, `/export/cfr`, `/export/testdata`, `/export/deliveries` and `/export/backups` | `inventories/<ENV>/group_vars/nas_servers.yml`, `terraform/_envcommon/roles/nas.hcl` | One export per data disk |
 | `snmp_exporter_module` is defined but no task reads it; the Prometheus `idrac` job names `dell` itself | `ansible/roles/snmp_exporter/defaults/main.yml`, `roles/prometheus/templates/prometheus.yml.j2` | Use the variable in the template, or remove it |
 | `roles/siem_artifacts/tasks/manifest.yml` is not included by anything (also in HANDOFF.md) | `ansible/roles/siem_artifacts/tasks/` | Remove it, after you confirm |
-| A stray `roles/RHEL9-CIS/filter_plugins/__pycache__/*.pyc` is tracked at the repository root. The real role is `ansible/roles/RHEL9-CIS`. | repository root | `git rm -r roles/`, after you confirm |
-| ansible-lint reports 3 `command-instead-of-module` findings. The `rsync` one is listed in `.ansible-lint-ignore`. The `systemctl` (`load_balancer/tasks/verify.yml`) and `curl` (`siem_artifacts/tasks/curl_one.yml`) ones are accepted but not recorded. | `ansible/` | Add both to `.ansible-lint-ignore` with a one-line reason |
+
+Fixed since the review:
+
+- **NAS firewall.** NFS is now open only to `nas_server_firewall_sources`, with one rich rule per
+  source and service. Lab allows `192.168.70.0/24`. The CRGS values are placeholders.
+- **Stray folder.** The `roles/` folder at the repository root, which held only a compiled Python
+  file, is removed. `.gitignore` now ignores `__pycache__/` and `*.pyc`.
+- **Lint exceptions.** The `curl` exception is in `ansible/.ansible-lint-ignore`, because the task
+  is inside a block. The `systemctl` one has an inline `noqa`, because its task isn't.
 
 ## How the documentation was checked
 
