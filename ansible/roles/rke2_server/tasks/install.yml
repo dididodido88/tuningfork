@@ -73,9 +73,11 @@
   args:
     creates: /usr/local/bin/rke2
 
-# The SELinux policy above defines labels for these paths; apply them.
+# The SELinux policy above defines labels for these paths; apply them. restorecon -v also prints
+# "not reset as customized by admin" for every container file (container_file_t with the pod's own
+# categories), which it leaves alone; only the other lines are real relabels.
 - name: RKE2 | Apply the SELinux labels
   ansible.builtin.command:
     argv: [restorecon, -R, -v, /usr/local/bin, /usr/local/lib/systemd/system, /etc/rancher, /var/lib/rancher, /var/lib/kubelet]
   register: rke2_restorecon
-  changed_when: rke2_restorecon.stdout | length > 0
+  changed_when: rke2_restorecon.stdout_lines | reject('search', 'not reset as customized by admin') | list | length > 0

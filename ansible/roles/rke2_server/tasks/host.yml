@@ -100,11 +100,13 @@
     mode: "{{ rke2_container_paths_mode }}"
   loop: "{{ rke2_container_paths }}"
 
+# Files a pod has written carry its own categories; restorecon leaves them and prints "not reset as
+# customized by admin", which isn't a change.
 - name: RKE2 | Apply the SELinux label to the container paths
   ansible.builtin.command:
     argv: "{{ ['restorecon', '-R', '-v'] + rke2_container_paths }}"
   register: rke2_container_restorecon
-  changed_when: rke2_container_restorecon.stdout | length > 0
+  changed_when: rke2_container_restorecon.stdout_lines | reject('search', 'not reset as customized by admin') | list | length > 0
   when: rke2_container_paths | length > 0
 
 # --- Shell environment for administrators -----------------------------------------------------
