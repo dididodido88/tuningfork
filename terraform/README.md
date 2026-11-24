@@ -45,6 +45,7 @@ root.hcl                           shared: local state, provider block, air-gapp
 providers/                         bpg/proxmox and hashicorp/local, supplied by you (git-ignored)
 modules/proxmox-vm/                generic "clone VMs from a template" module (not tied to an OS or a role); README.md
 modules/rancher-server/            Rancher Server from its Helm chart, onto the Rancher RKE2 cluster; README.md
+modules/rancher-config/            Rancher admin password, AD login and roles (rancher2 provider); README.md
 _envcommon/rocky9.hcl              Rocky 9 settings shared by every unit: template, CPU type, inventory file
 _envcommon/roles/<role>.hcl        sizing of one role: cores, memory, data disks, Ansible groups (README.md: all of them)
 live/
@@ -53,6 +54,7 @@ live/
 k8s/                               deployments onto clusters Ansible built, applied by hand (never by run --all in live/)
   root.hcl                         shared: local state, plugin directory, environment from live/<ENV>/env.hcl
   <ENV>/rancher-server/            Rancher Server (Helm), see "Rancher Server"
+  <ENV>/rancher-config/            Rancher configuration (rancher2), see "Rancher configuration"
 state/                             local state, one file per unit (git-ignored; back it up)
 ```
 
@@ -68,7 +70,8 @@ live/<ENV>/<unit>/terragrunt.hcl   host name + address
 ```
 
 Module and profile references: [modules/proxmox-vm](modules/proxmox-vm/README.md),
-[modules/rancher-server](modules/rancher-server/README.md), [_envcommon/roles](_envcommon/roles/README.md).
+[modules/rancher-server](modules/rancher-server/README.md), [modules/rancher-config](modules/rancher-config/README.md),
+[_envcommon/roles](_envcommon/roles/README.md).
 
 A value set in one place applies everywhere below it:
 
@@ -97,8 +100,9 @@ A value set in one place applies everywhere below it:
   `hashicorp/local`. `terragrunt init` passes `-plugin-dir` (set in `root.hcl` and
   `k8s/root.hcl`), so nothing is downloaded from the registry.
 
-  The `k8s/` units also need `hashicorp/helm` and `hashicorp/kubernetes`: mirror them the same
-  way, from `modules/rancher-server/versions.tf`, into the same plugin directory.
+  The `k8s/` units also need `hashicorp/helm` and `hashicorp/kubernetes` (from
+  `modules/rancher-server/versions.tf`), and `rancher/rancher2` 15.x (from
+  `modules/rancher-config/versions.tf`). Mirror them the same way into the same plugin directory.
 - A Proxmox API token with a role on the target nodes, storage volumes and the template that
   includes `VM.Allocate`, `VM.Clone`, `VM.Config.*`, `VM.PowerMgmt`, `VM.Audit`,
   `Datastore.AllocateSpace`, `Datastore.Audit` and `SDN.Use` (Proxmox 8). `VM.Audit` is also what
@@ -454,6 +458,30 @@ protect `terraform/state/` like the Ansible vault. The bootstrap password only m
 first login; Rancher asks for a new one then.
 
 All inputs: `modules/rancher-server/variables.tf`. Full procedure: `ansible/docs/rancher.md`.
+
+## Rancher configuration (`k8s/<ENV>/rancher-config`)
+
+Configures the running Rancher with the `rancher2` provider, by hand, after `rancher-server`:
+the local `admin` password, the server URL, Active Directory login and the roles of the AD groups.
+Each secret comes from the vault and is typed at a prompt (the unit's header lists the keys):
+
+```sh
+for v in rancher_bootstrap_password rancher_admin_password ad_service_account_password ad_test_password; do
+  read -rsp "$v: " "TF_VAR_$v"; echo; export "TF_VAR_$v"
+done
+cd terraform/k8s/lab/rancher-config
+terragrunt init      # first time
+terragrunt apply
+```
+
+- **Two provider configurations:** one without a token logs in with the bootstrap password and sets
+  the admin password (`rancher2_bootstrap`); the other uses the admin token that returns.
+- **AD test account:** Rancher makes it an administrator, so it is a dedicated account, never the
+  bind account.
+- **State:** holds the admin password and token, and the bind and test passwords. Protect it like
+  the vault.
+
+All inputs: `modules/rancher-config/variables.tf`; what it creates: its README.
 
 ## State
 

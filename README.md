@@ -62,6 +62,7 @@ terraform/live/<ENV>/<unit>   --apply-->  VMs on Proxmox + ansible/inventories/<
 ansible/playbooks/site.yml    --run---->  every host, layer by layer (below)
                                                          |
 terraform/k8s/<ENV>/rancher-server  --apply-->  Rancher Server on the Rancher cluster
+terraform/k8s/<ENV>/rancher-config  --apply-->  Rancher admin password, AD login, roles
 ```
 
 1. **Terraform** ([terraform/README.md](terraform/README.md)) clones each VM from the template
@@ -82,7 +83,9 @@ terraform/k8s/<ENV>/rancher-server  --apply-->  Rancher Server on the Rancher cl
    | SIEM | `siem` (the SIEM VM), `siem_agents` (agents and exporters on every monitored host) |
 
 3. **Rancher Server** is deployed by hand with Terraform's Helm provider, once the Rancher cluster is
-   up ([terraform/modules/rancher-server](terraform/modules/rancher-server/README.md)).
+   up ([terraform/modules/rancher-server](terraform/modules/rancher-server/README.md)). Then the
+   `rancher2` provider configures it: admin password, AD login and roles
+   ([terraform/modules/rancher-config](terraform/modules/rancher-config/README.md)).
 
 A phase counts as done when running it a second time reports `changed=0`.
 
@@ -116,7 +119,7 @@ The full map of variables, their precedence and every vault key is in
 | Assumptions, open work and known issues | [docs/status.md](docs/status.md) |
 | Rules for working in this repository | [CLAUDE.md](CLAUDE.md) |
 | Terraform: units, disks, generated inventory, Rancher Server | [terraform/README.md](terraform/README.md) |
-| Terraform modules and role profiles | [proxmox-vm](terraform/modules/proxmox-vm/README.md), [rancher-server](terraform/modules/rancher-server/README.md), [role profiles](terraform/_envcommon/roles/README.md) |
+| Terraform modules and role profiles | [proxmox-vm](terraform/modules/proxmox-vm/README.md), [rancher-server](terraform/modules/rancher-server/README.md), [rancher-config](terraform/modules/rancher-config/README.md), [role profiles](terraform/_envcommon/roles/README.md) |
 | Ansible: layers, running, conventions, every role | [ansible/README.md](ansible/README.md) (each role has `roles/<role>/README.md`) |
 | Variables and secrets | [ansible/docs/variables.md](ansible/docs/variables.md) |
 | Harbor registry | [ansible/docs/harbor.md](ansible/docs/harbor.md) |

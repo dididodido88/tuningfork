@@ -31,7 +31,7 @@ remote_state {
 
 terraform {
   # Air-gapped: install providers only from the local plugin directory. Keep this the same as
-  # in ../root.hcl. The helm and kubernetes providers must be in it (terraform/README.md).
+  # in ../root.hcl. The helm, kubernetes and rancher2 providers must be in it (terraform/README.md).
   extra_arguments "plugin_dir" {
     commands  = ["init"]
     arguments = ["-plugin-dir=/root/.terraform.d/plugins"]

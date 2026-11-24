@@ -102,7 +102,7 @@ stay off until their keys are set.
 | `vault_windows_ansible_user`, `vault_windows_ansible_password` | `group_vars/windows.yml` | WinRM login |
 | `vault_postgresql_postgres_password` | `database_server` | PostgreSQL `postgres` user (at least 12 ASCII characters) |
 | `vault_harbor_admin_password`, `vault_harbor_db_password` | `harbor` | Harbor `admin` (break-glass) and its database |
-| `vault_harbor_ldap_bind_password` | `harbor` | Read-only AD account Harbor binds with |
+| `vault_harbor_ldap_bind_password` | `harbor`; Terraform `k8s/<ENV>/rancher-config` (`TF_VAR_ad_service_account_password`) | Read-only AD account Harbor and Rancher bind with |
 | `vault_harbor_robot_secrets` | `harbor`, `rke2_server` | Dictionary of robot name to secret; `k8s-pull` is the robot the RKE2 nodes pull images with |
 | `vault_haproxy_stats_password` | `load_balancer` | HAProxy statistics page |
 | `vault_rke2_rancher_token`, `vault_rke2_app_token` | `group_vars/rke2_rancher.yml`, `rke2_app.yml` | Cluster join secrets (`openssl rand -hex 32`) |
@@ -113,7 +113,8 @@ stay off until their keys are set.
 | `vault_snmp_idrac_auth_password`, `vault_snmp_idrac_priv_password` | `snmp_exporter`, `prometheus` | SNMPv3 polling user on the iDRACs |
 | `vault_pve_exporter_token_value` | `pve_exporter`, `prometheus` | Proxmox API token secret, printed once by `proxmox_monitoring` |
 | `vault_rancher_bootstrap_password` | Terraform `k8s/<ENV>/rancher-server`, typed in as `TF_VAR_rancher_bootstrap_password` | Rancher's first `admin` login (at least 12 characters) |
-| `vault_rancher_admin_password` | Terraform `k8s/<ENV>/rancher-config` (not built yet) | The lasting password of Rancher's `admin` |
+| `vault_rancher_admin_password` | Terraform `k8s/<ENV>/rancher-config`, typed in as `TF_VAR_rancher_admin_password` | The lasting password of Rancher's local `admin` (at least 12 characters) |
+| `vault_rancher_ad_test_password` | Terraform `k8s/<ENV>/rancher-config`, typed in as `TF_VAR_ad_test_password` | The dedicated AD account Rancher tests its login with; Rancher makes it an administrator |
 
 The trap senders in `siem_snmp_trap_users` (`group_vars/all/siem.yml`) reference vault keys that you
 name yourself.
@@ -138,3 +139,4 @@ inventory:
 | Proxmox API token | `PROXMOX_VE_API_TOKEN` in the shell, never in a file |
 | Rancher's first admin password | `TF_VAR_rancher_bootstrap_password` in the shell, typed from `vault_rancher_bootstrap_password` |
 | Rancher chart and certificate folder | `terraform/k8s/<ENV>/rancher-server/terragrunt.hcl` |
+| Rancher AD settings and group DNs | `terraform/k8s/<ENV>/rancher-config/terragrunt.hcl` |

@@ -23,6 +23,7 @@ image comes from Harbor.
 | Load balancer: keepalived and HAProxy | Ansible | `playbooks/load_balancer.yml`, `roles/load_balancer` |
 | RKE2 cluster | Ansible | `playbooks/rke2_rancher.yml`, `roles/rke2_server` |
 | Rancher Server | Terraform (Helm), by hand | `terraform/k8s/<ENV>/rancher-server` |
+| Rancher configuration: admin password, AD login, roles | Terraform (`rancher2`), by hand | `terraform/k8s/<ENV>/rancher-config` |
 
 ## 1. Prerequisites
 
@@ -34,7 +35,9 @@ image comes from Harbor.
 | Vault: `vault_rke2_rancher_token` | A long random string, the cluster's join secret: `openssl rand -hex 32` |
 | Vault: `vault_haproxy_stats_password` | Password for the HAProxy statistics page (at least 12 characters) |
 | Vault: `vault_harbor_robot_secrets['k8s-pull']` | Already there: the nodes pull images as `robot$k8s-pull` |
-| Terraform providers `hashicorp/helm` and `hashicorp/kubernetes` | In the control node's plugin directory (`terraform/README.md`) |
+| Terraform providers `hashicorp/helm`, `hashicorp/kubernetes` and `rancher/rancher2` 15.x | In the control node's plugin directory (`terraform/README.md`) |
+| Vault: `vault_rancher_bootstrap_password`, `vault_rancher_admin_password` | Rancher's first and lasting `admin` passwords (at least 12 characters) |
+| AD account for Rancher's login test, e.g. `svc_rancher_admin`, in the admin group. Vault: `vault_rancher_ad_test_password` | Rancher makes this account an administrator, so use a dedicated one, not the bind account |
 
 ## 2. Files to download
 
@@ -125,7 +128,28 @@ ansible-playbook -i inventories/lab playbooks/site.yml --limit 'lb_rancher:rke2_
 read -rsp 'Bootstrap password: ' TF_VAR_rancher_bootstrap_password; echo
 export TF_VAR_rancher_bootstrap_password
 cd terraform/k8s/lab/rancher-server && terragrunt init && terragrunt apply
+
+# 4. Rancher configuration: admin password, AD login, roles (from terraform/). Each prompt
+#    takes the vault key listed in the unit's header.
+for v in rancher_bootstrap_password rancher_admin_password ad_service_account_password ad_test_password; do
+  read -rsp "$v: " "TF_VAR_$v"; echo; export "TF_VAR_$v"
+done
+cd terraform/k8s/lab/rancher-config && terragrunt init && terragrunt apply
 ```
+
+What the configuration unit does (`terraform/modules/rancher-config`):
+
+- Sets the local `admin` password from `vault_rancher_admin_password`, the server URL, and turns
+  telemetry off.
+- Turns on Active Directory login over LDAPS, through the same domain controllers and bind account
+  as Harbor. Only members of `sg-lab-admins` and `sg-all-users` may log in. The local `admin` stays
+  as the break-glass login.
+- `sg-lab-admins` are Rancher administrators.
+- `sg-all-users` may log in and view every cluster, the Rancher cluster included. Through the
+  global role "Cluster Viewer", that covers every downstream cluster, including ones added later.
+  They get View All Projects, View Nodes, View Cluster Members and View Cluster Catalogs.
+- The AD test account (`svc_rancher_admin` in lab) becomes a Rancher administrator: Rancher links
+  the account it tests with to the local `admin`.
 
 What the RKE2 play does, one node at a time (first node by name first):
 
@@ -159,7 +183,9 @@ kubectl --kubeconfig ~/.kube/lab-rancher-cluster.yaml get nodes          # all R
 kubectl --kubeconfig ~/.kube/lab-rancher-cluster.yaml -n cattle-system get pods
 ```
 
-Then open `https://rancher.<domain>/` and log in as `admin` with the bootstrap password.
+Then open `https://rancher.<domain>/`. Before step 4, log in as `admin` with the bootstrap
+password; after it, log in with an AD account (`sg-lab-admins` or `sg-all-users`), or as `admin`
+with `vault_rancher_admin_password`.
 
 Before Rancher is deployed, the 80/443 backends show every server DOWN: their health check asks
 Rancher itself (`/healthz`), which isn't there yet. 6443 and 9345 are UP as soon as RKE2 runs.

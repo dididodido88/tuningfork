@@ -52,8 +52,10 @@ change to this repository.
 
 | Item | Owner | State |
 |---|---|---|
-| Rancher Server v2.15.3, phase 1: push the images from `rancher-images.txt` to Harbor, then apply `terraform/k8s/lab/rancher-server` twice. The chart (`kubeVersion: < 1.37.0-0`) and its values were checked; the unit reads `/repo/helm/charts/rancher/rancher-2.15.3.tgz` and sets Traefik's default certificate. | user | Code ready |
-| Rancher configuration, new unit `terraform/k8s/<ENV>/rancher-config` (`rancher2` provider): phase 2 admin password and AD login (`sg-lab-admins` admins, `sg-all-users` read-only on every cluster, the Rancher cluster included); phase 3 Rancher Monitoring; phase 4 the custom cluster `command-pro` | code | Waits for phase 1 and the `rancher2` provider in the plugin directory |
+| Rancher Server v2.15.3, phase 1: `terraform/k8s/lab/rancher-server` | user | Applied 2026-11-23: Rancher answers on `rancher.lab.local`, Traefik serves the `lb-rancher` certificate by default. The second plan after the annotation and `set_sensitive` fixes is still to confirm. |
+| Rancher configuration, phase 2: `terraform/k8s/lab/rancher-config` (admin password, AD login, `sg-lab-admins` admins, `sg-all-users` read-only on every cluster) | user | Code ready. Confirm the NetBIOS domain, the group DNs and the test account in the unit (`# REPLACE`), then apply twice |
+| Rancher configuration, phase 3: Rancher Monitoring; phase 4: the custom cluster `command-pro` | code | After phase 2 |
+| Rancher configuration for CRGS00/01/02: `rancher-config` units | code | After the lab phases, once each environment's AD values are known |
 | Application cluster, managed mode: join through Rancher's registration command with the `rancher2` Terraform provider | code | Not built; `app_cluster_rancher_managed: false` everywhere |
 
 ### Environments

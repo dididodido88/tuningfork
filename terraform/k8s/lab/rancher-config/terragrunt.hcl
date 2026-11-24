@@ -1,0 +1,53 @@
+# lab: Rancher's own configuration: the admin password, Active Directory login and who may do
+# what. Applied by hand, after rancher-server. Type each secret from the vault at the prompts, so
+# none is left in the shell history:
+#   for v in rancher_bootstrap_password rancher_admin_password ad_service_account_password ad_test_password; do
+#     read -rsp "$v: " "TF_VAR_$v"; echo; export "TF_VAR_$v"
+#   done
+#   cd terraform/k8s/lab/rancher-config && terragrunt init && terragrunt apply
+#
+#   rancher_bootstrap_password    vault_rancher_bootstrap_password
+#   rancher_admin_password        vault_rancher_admin_password
+#   ad_service_account_password   vault_harbor_ldap_bind_password (svc_ldap_bind)
+#   ad_test_password              vault_rancher_ad_test_password
+#
+# Every field: terraform/modules/rancher-config/variables.tf. Guide: ansible/docs/rancher.md.
+
+include "root" {
+  path = find_in_parent_folders("root.hcl")
+  # deep: combine the terraform {} block below with the one in k8s/root.hcl.
+  merge_strategy = "deep"
+}
+
+terraform {
+  source = "${dirname(find_in_parent_folders("root.hcl"))}/../modules/rancher-config"
+}
+
+# Rancher must be installed first.
+dependencies {
+  paths = ["../rancher-server"]
+}
+
+inputs = {
+  # certificates_env_dir of this environment in the Ansible inventory (reads ca/ca.cert.pem).
+  certificate_dir = "/srv/security/certificates/files/lab.local"
+
+  # --- Active Directory: the same directory and bind account as Harbor (registry_servers.yml) ---
+  ad_default_login_domain     = "LAB" # REPLACE: check with `adcli info lab.local` (domain-short)
+  ad_service_account_username = "svc_ldap_bind"
+  ad_search_base              = "DC=lab,DC=local"
+
+  # A dedicated AD account in sg-lab-admins. Rancher links it to the local admin.
+  ad_test_username = "svc_rancher_admin" # REPLACE: the account you created
+
+  # --- Access ---
+  admin_group_dn  = "CN=sg-lab-admins,OU=Groups,OU=Lab,DC=lab,DC=local" # REPLACE: check the DN
+  viewer_group_dn = "CN=sg-all-users,OU=Groups,OU=Lab,DC=lab,DC=local"  # REPLACE: check the DN
+
+  # Defaults, shown for reference:
+  #   rancher_hostname     = "rancher.lab.local"
+  #   ad_servers           = ["lab.local"]
+  #   ad_port              = 636
+  #   ad_nested_groups     = false
+  #   viewer_cluster_roles = ["projects-view", "nodes-view", "clusterroletemplatebindings-view", "clustercatalogs-view"]
+}
