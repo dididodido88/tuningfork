@@ -152,6 +152,9 @@ What the configuration unit does (`terraform/modules/rancher-config`):
   the account it tests with to the local `admin`. It is in no AD group; the unit allows it to log
   in by its DN (`ad_test_user_dn`).
 
+Which password is used for what, and when, and what to do when one changes: "Passwords" in
+[terraform/modules/rancher-config/README.md](../../terraform/modules/rancher-config/README.md).
+
 What the RKE2 play does, one node at a time (first node by name first):
 
 1. Checks the settings, that `/var/lib/rancher` and `/var/lib/kubelet` are their own

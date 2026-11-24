@@ -481,7 +481,8 @@ terragrunt apply
 - **State:** holds the admin password and token, and the bind and test passwords. Protect it like
   the vault.
 
-All inputs: `modules/rancher-config/variables.tf`; what it creates: its README.
+All inputs: `modules/rancher-config/variables.tf`. What it creates, and which password is used for
+what and when ("Passwords"): [modules/rancher-config/README.md](modules/rancher-config/README.md).
 
 ## State
 
