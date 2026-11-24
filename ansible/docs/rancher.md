@@ -139,8 +139,7 @@ cd terraform/k8s/lab/rancher-config && terragrunt init && terragrunt apply
 
 What the configuration unit does (`terraform/modules/rancher-config`):
 
-- Sets the local `admin` password from `vault_rancher_admin_password`, the server URL, and turns
-  telemetry off.
+- Sets the local `admin` password from `vault_rancher_admin_password`, and the server URL.
 - Turns on Active Directory login over LDAPS, through the same domain controllers and bind account
   as Harbor. Only members of `sg-lab-admins` and `sg-all-users` may log in. The local `admin` stays
   as the break-glass login.

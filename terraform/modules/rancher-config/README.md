@@ -15,7 +15,7 @@ Guide: [ansible/docs/rancher.md](../../../ansible/docs/rancher.md). Every input 
 
 | Resource | What it is |
 |---|---|
-| `rancher2_bootstrap.admin` | Logs in with the bootstrap password, sets the local `admin` password to `rancher_admin_password`, sets the server URL, turns telemetry off, and returns an admin API token the other resources use |
+| `rancher2_bootstrap.admin` | Logs in with the bootstrap password, sets the local `admin` password to `rancher_admin_password`, sets the server URL, and returns an admin API token the other resources use |
 | `rancher2_auth_config_activedirectory.ad` | AD login: LDAPS to `ad_servers` on 636, trusting the internal CA, bound as `ad_service_account_username`. Access mode `restricted`: only the two groups below, and the test account by name, may log in. |
 | `rancher2_global_role_binding.admins` | Admin group → global role `admin` |
 | `rancher2_global_role_binding.viewers_login` | Viewer group → global role `user-base` (may log in) |

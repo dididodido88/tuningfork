@@ -25,7 +25,6 @@ resource "rancher2_bootstrap" "admin" {
 
   initial_password = var.rancher_bootstrap_password
   password         = var.rancher_admin_password
-  telemetry        = false
 }
 
 # --- 2. Active Directory login --------------------------------------------------------------
