@@ -37,6 +37,10 @@ inputs = {
   ad_service_account_username = "svc_ldap_bind"
   ad_search_base              = "DC=lab,DC=local"
 
+  # Users are in sg-lab-admins and sg-all-users through other groups, so Rancher must follow
+  # nested membership; with direct membership only it refused them ("Permission denied").
+  ad_nested_groups = true
+
   # A dedicated AD account in no AD group, so it opens nothing but Rancher. Rancher links it to the
   # local admin (which makes it an administrator); the module allows it to log in by its DN.
   ad_test_username = "svc_rancher_admin"
@@ -50,6 +54,5 @@ inputs = {
   #   rancher_hostname     = "rancher.lab.local"
   #   ad_servers           = ["lab.local"]
   #   ad_port              = 636
-  #   ad_nested_groups     = false
   #   viewer_cluster_roles = ["projects-view", "nodes-view", "clusterroletemplatebindings-view", "clustercatalogs-view"]
 }

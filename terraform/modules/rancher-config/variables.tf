@@ -97,7 +97,7 @@ variable "ad_search_base" {
 }
 
 variable "ad_nested_groups" {
-  description = "Follow nested group membership. Slower; leave off unless the groups below contain other groups."
+  description = "Follow nested group membership. Turn it on when users are in the admin or viewer group through other groups: with it off, Rancher reads only direct membership and refuses them (Permission denied). Logins are a little slower."
   type        = bool
   default     = false
 }

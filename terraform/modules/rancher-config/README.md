@@ -58,7 +58,8 @@ The local `admin` keeps working with `rancher_admin_password` as the break-glass
 Secrets are typed in the shell as `TF_VAR_<name>`; see "Passwords" below.
 
 Defaults you can override: `rancher_hostname`, `ad_servers` (`[<dns_domain>]`), `ad_port`,
-`ad_nested_groups`, `viewer_cluster_roles`.
+`ad_nested_groups` (off; lab turns it on, because its users are in the groups through other
+groups), `viewer_cluster_roles`.
 
 ## Passwords
 
