@@ -41,6 +41,11 @@ resource "kubernetes_secret_v1" "traefik_default_certificate" {
 
   type = "kubernetes.io/tls"
   data = local.tls_data
+
+  # Rancher adds the namespace's project to the secret as this annotation.
+  lifecycle {
+    ignore_changes = [metadata[0].annotations["field.cattle.io/projectId"]]
+  }
 }
 
 resource "kubernetes_manifest" "traefik_config" {
@@ -89,6 +94,11 @@ resource "kubernetes_secret_v1" "tls_rancher_ingress" {
 
   type = "kubernetes.io/tls"
   data = local.tls_data
+
+  # Rancher adds the namespace's project to the secret as this annotation.
+  lifecycle {
+    ignore_changes = [metadata[0].annotations["field.cattle.io/projectId"]]
+  }
 }
 
 # The internal root CA. Rancher passes it to the agents of managed clusters, so they trust
@@ -101,6 +111,11 @@ resource "kubernetes_secret_v1" "tls_ca" {
 
   data = {
     "cacerts.pem" = file("${var.certificate_dir}/ca/ca.cert.pem")
+  }
+
+  # Rancher adds the namespace's project to the secret as this annotation.
+  lifecycle {
+    ignore_changes = [metadata[0].annotations["field.cattle.io/projectId"]]
   }
 }
 
