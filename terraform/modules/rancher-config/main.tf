@@ -16,6 +16,7 @@ locals {
   # Rancher names AD groups by their distinguished name.
   admin_group_principal  = "activedirectory_group://${var.admin_group_dn}"
   viewer_group_principal = "activedirectory_group://${var.viewer_group_dn}"
+  test_user_principal    = "activedirectory_user://${var.ad_test_user_dn}"
 }
 
 # --- 1. Admin password and server URL -----------------------------------------------------
@@ -29,8 +30,10 @@ resource "rancher2_bootstrap" "admin" {
 
 # --- 2. Active Directory login --------------------------------------------------------------
 # Rancher checks the settings by logging in as the test account before it turns AD on, and links
-# that account to the local admin. Only members of the two groups may log in (restricted); the
-# local admin keeps working as the break-glass login.
+# that account to the local admin, which makes it an administrator. Only members of the two groups
+# may log in (restricted), plus the test account by name: it is in no AD group, so that it opens
+# no other system, and Rancher adds it to the allowed list itself, which would drift if it weren't
+# listed here. The local admin keeps working as the break-glass login.
 resource "rancher2_auth_config_activedirectory" "ad" {
   servers     = local.ad_servers
   port        = var.ad_port
@@ -49,7 +52,7 @@ resource "rancher2_auth_config_activedirectory" "ad" {
   nested_group_membership_enabled = var.ad_nested_groups
 
   access_mode           = "restricted"
-  allowed_principal_ids = [local.admin_group_principal, local.viewer_group_principal]
+  allowed_principal_ids = [local.admin_group_principal, local.viewer_group_principal, local.test_user_principal]
 }
 
 # --- 3. What the groups may do --------------------------------------------------------------

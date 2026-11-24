@@ -16,7 +16,7 @@ Guide: [ansible/docs/rancher.md](../../../ansible/docs/rancher.md). Every input 
 | Resource | What it is |
 |---|---|
 | `rancher2_bootstrap.admin` | Logs in with the bootstrap password, sets the local `admin` password to `rancher_admin_password`, sets the server URL, turns telemetry off, and returns an admin API token the other resources use |
-| `rancher2_auth_config_activedirectory.ad` | AD login: LDAPS to `ad_servers` on 636, trusting the internal CA, bound as `ad_service_account_username`. Access mode `restricted`: only the two groups below may log in. |
+| `rancher2_auth_config_activedirectory.ad` | AD login: LDAPS to `ad_servers` on 636, trusting the internal CA, bound as `ad_service_account_username`. Access mode `restricted`: only the two groups below, and the test account by name, may log in. |
 | `rancher2_global_role_binding.admins` | Admin group → global role `admin` |
 | `rancher2_global_role_binding.viewers_login` | Viewer group → global role `user-base` (may log in) |
 | `rancher2_global_role.cluster_viewer` | Global role "Cluster Viewer". Its inherited cluster roles (`viewer_cluster_roles`) apply in every downstream cluster, present and future. |
@@ -36,8 +36,11 @@ Guide: [ansible/docs/rancher.md](../../../ansible/docs/rancher.md). Every input 
 
 When AD login is turned on, Rancher logs in as `ad_test_username` to check the settings and links
 that account to the local `admin`. It is a Rancher administrator from then on. So:
-- use a dedicated account in the admin group, such as `svc_rancher_admin`;
-- never the bind account (the module refuses it).
+- use a dedicated account, such as `svc_rancher_admin`;
+- never the bind account (the module refuses it);
+- keep it out of every AD group, so it opens nothing but Rancher. It needs no group: the link
+  makes it an admin, and the module allows it to log in by name (`ad_test_user_dn`). Rancher also
+  adds it to the allowed list itself, so listing it keeps the next plan clean.
 
 The local `admin` keeps working with `rancher_admin_password` as the break-glass login.
 
@@ -48,7 +51,7 @@ The local `admin` keeps working with `rancher_admin_password` as the break-glass
 | `certificate_dir` | `/srv/security/certificates/files/lab.local` | Reads the internal root CA, `ca/ca.cert.pem` |
 | `ad_default_login_domain` | `LAB` | NetBIOS domain name; users log in with their account name alone |
 | `ad_service_account_username` | `svc_ldap_bind` | The read-only bind account, shared with Harbor |
-| `ad_test_username` | `svc_rancher_admin` | See above |
+| `ad_test_username`, `ad_test_user_dn` | `svc_rancher_admin`, `CN=svc_rancher_admin,…` | See above |
 | `ad_search_base` | `DC=lab,DC=local` | Users and groups |
 | `admin_group_dn`, `viewer_group_dn` | `CN=sg-lab-admins,…`, `CN=sg-all-users,…` | The two groups |
 

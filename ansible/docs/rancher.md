@@ -37,7 +37,7 @@ image comes from Harbor.
 | Vault: `vault_harbor_robot_secrets['k8s-pull']` | Already there: the nodes pull images as `robot$k8s-pull` |
 | Terraform providers `hashicorp/helm`, `hashicorp/kubernetes` and `rancher/rancher2` 15.x | In the control node's plugin directory (`terraform/README.md`) |
 | Vault: `vault_rancher_bootstrap_password`, `vault_rancher_admin_password` | Rancher's first and lasting `admin` passwords (at least 12 characters) |
-| AD account for Rancher's login test, e.g. `svc_rancher_admin`, in the admin group. Vault: `vault_rancher_ad_test_password` | Rancher makes this account an administrator, so use a dedicated one, not the bind account |
+| AD account for Rancher's login test, e.g. `svc_rancher_admin`, in no AD group. Vault: `vault_rancher_ad_test_password` | Rancher makes this account an administrator, so use a dedicated one, not the bind account. It needs no group, so it opens nothing but Rancher. |
 
 ## 2. Files to download
 
@@ -149,7 +149,8 @@ What the configuration unit does (`terraform/modules/rancher-config`):
   global role "Cluster Viewer", that covers every downstream cluster, including ones added later.
   They get View All Projects, View Nodes, View Cluster Members and View Cluster Catalogs.
 - The AD test account (`svc_rancher_admin` in lab) becomes a Rancher administrator: Rancher links
-  the account it tests with to the local `admin`.
+  the account it tests with to the local `admin`. It is in no AD group; the unit allows it to log
+  in by its DN (`ad_test_user_dn`).
 
 What the RKE2 play does, one node at a time (first node by name first):
 

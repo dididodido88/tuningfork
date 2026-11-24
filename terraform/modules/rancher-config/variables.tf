@@ -71,13 +71,18 @@ variable "ad_service_account_password" {
 }
 
 variable "ad_test_username" {
-  description = "sAMAccountName of the account Rancher tests the login with. Rancher links this account to the local admin, so it becomes a Rancher administrator: use a dedicated account in the admin group, never the bind account."
+  description = "sAMAccountName of the account Rancher tests the login with. Rancher links this account to the local admin, so it becomes a Rancher administrator: use a dedicated account, never the bind account. It needs no AD group: the module allows it by name (ad_test_user_dn)."
   type        = string
 
   validation {
     condition     = lower(var.ad_test_username) != lower(var.ad_service_account_username)
     error_message = "ad_test_username must not be the bind account: Rancher makes the test account an administrator."
   }
+}
+
+variable "ad_test_user_dn" {
+  description = "Distinguished name of the test account (Get-ADUser <name> | Select DistinguishedName). Its CN is often the display name, not the account name. Listed by name among the principals allowed to log in."
+  type        = string
 }
 
 variable "ad_test_password" {

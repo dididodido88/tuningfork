@@ -18,3 +18,8 @@ output "cluster_viewer_role_id" {
   description = "ID of the global role Cluster Viewer."
   value       = rancher2_global_role.cluster_viewer.id
 }
+
+output "test_user" {
+  description = "Principal of the AD test account, linked to the local admin and allowed by name."
+  value       = local.test_user_principal
+}

@@ -37,8 +37,10 @@ inputs = {
   ad_service_account_username = "svc_ldap_bind"
   ad_search_base              = "DC=lab,DC=local"
 
-  # A dedicated AD account in sg-lab-admins. Rancher links it to the local admin.
-  ad_test_username = "svc_rancher_admin" # REPLACE: the account you created
+  # A dedicated AD account in no AD group, so it opens nothing but Rancher. Rancher links it to the
+  # local admin (which makes it an administrator); the module allows it to log in by its DN.
+  ad_test_username = "svc_rancher_admin"                                            # REPLACE: the account you created
+  ad_test_user_dn  = "CN=svc_rancher_admin,OU=Service Accounts,OU=Lab,DC=lab,DC=local" # REPLACE: Get-ADUser svc_rancher_admin
 
   # --- Access ---
   admin_group_dn  = "CN=sg-lab-admins,OU=Groups,OU=Lab,DC=lab,DC=local" # REPLACE: check the DN
