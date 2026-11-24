@@ -27,18 +27,6 @@ nas_server_exports:
       - host: 203.0.113.0/24  # REPLACE
         options: rw,sync,root_squash
 
-  # Persistent volumes of the Rancher cluster, created by csi-driver-nfs. Only the Rancher nodes
-  # mount it. no_root_squash: the driver creates and owns each volume folder as root (decided by
-  # the user; root on those nodes already holds cluster-admin).
-  - path: /export/rancher_cluster
-    clients:
-      - host: 203.0.113.41  # REPLACE
-        options: rw,sync,no_root_squash
-      - host: 203.0.113.42  # REPLACE
-        options: rw,sync,no_root_squash
-      - host: 203.0.113.43  # REPLACE
-        options: rw,sync,no_root_squash
-
 # Networks or single addresses allowed through the firewall to NFS. Keep them in line with the
 # export clients above.
 nas_server_firewall_sources:

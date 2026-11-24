@@ -23,8 +23,6 @@ locals {
       { size_gb = 100, mount = "/export/testdata", fstype = "xfs" },
       { size_gb = 40, mount = "/export/deliveries", fstype = "xfs" },
       { size_gb = 30, mount = "/export/backups", fstype = "xfs" },
-      # Persistent volumes of the Rancher cluster (csi-driver-nfs), exported only to its nodes.
-      { size_gb = 10, mount = "/export/rancher_cluster", fstype = "xfs" },
     ]
   }
 }
