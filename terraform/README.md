@@ -13,7 +13,7 @@ Environments: **lab**, **CRGS00**, **CRGS01**, **CRGS02**. Each has the same ten
 | Unit | VMs | Purpose | Cores / RAM | Data disks (GB) |
 |---|---|---|---|---|
 | `registry` | 1 | Harbor: container images and Helm charts | 4 / 8 GB | `/var/lib/containerd` 100, `/opt` 20, `/srv` 200 |
-| `nas` | 1 | NAS: NFS exports for persistent cluster data | 4 / 8 GB | `/export/pvcdata` 50, `/export/cfr` 10, `/export/testdata` 100, `/export/deliveries` 40, `/export/backups` 30 |
+| `nas` | 1 | NAS: NFS exports for persistent cluster data | 4 / 8 GB | `/export/pvcdata` 50, `/export/cfr` 10, `/export/testdata` 100, `/export/deliveries` 40, `/export/backups` 30, `/export/rancher_cluster` 10 |
 | `siem` | 1 | Logging and observability (Wazuh, Prometheus, Grafana) | 8 / 16 GB | `/var/lib/wazuh-indexer` 100, `/var/ossec` 40, `/var/lib/prometheus` 40, `/var/log/remote` 20, `/var/cache/tuningfork` 20 |
 | `database` | 1 | PostgreSQL | 4 / 4 GB | `/dbdata` 100 |
 | `rancher-cluster` | 1 or 3 | RKE2 cluster that runs Rancher Server | 4 / 8 GB per node | `/var/lib/rancher` 50, `/var/lib/kubelet` 20 |

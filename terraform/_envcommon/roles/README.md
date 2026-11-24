@@ -13,7 +13,7 @@ environment, override the value in that environment's unit.
 | [bastion.hcl](bastion.hcl) | `bastion` (lab: `mgmt`) | 2 | 4 GB | `k8s_bastions` | `/var/log` 10G ext4, `/var/log/audit` 10G ext4 |
 | [database.hcl](database.hcl) | `database` | 4 | 4 GB | `db_servers` | logs, `/dbdata` 100G xfs |
 | [loadbalancer.hcl](loadbalancer.hcl) | `lb-rancher`, `lb-app` | 4 | 4 GB | `load_balancers`, plus `lb_rancher` or `lb_app` from the unit | logs |
-| [nas.hcl](nas.hcl) | `nas` | 4 | 8 GB | `nas_servers` | logs, `/export/pvcdata` 50G, `/export/cfr` 10G, `/export/testdata` 100G, `/export/deliveries` 40G, `/export/backups` 30G (xfs) |
+| [nas.hcl](nas.hcl) | `nas` | 4 | 8 GB | `nas_servers` | logs, `/export/pvcdata` 50G, `/export/cfr` 10G, `/export/testdata` 100G, `/export/deliveries` 40G, `/export/backups` 30G, `/export/rancher_cluster` 10G (xfs) |
 | [registry.hcl](registry.hcl) | `registry` | 4 | 8 GB | `registry_servers` | logs, `/var/lib/containerd` 100G, `/opt` 20G, `/srv` 200G (xfs) |
 | [rke2-rancher.hcl](rke2-rancher.hcl) | `rancher-cluster` (1 or 3 VMs) | 4 | 8 GB | `rke2_servers`, `rke2_rancher` | logs, `/var/lib/rancher` 50G, `/var/lib/kubelet` 20G (xfs) |
 | [rke2-app.hcl](rke2-app.hcl) | `app-cluster` (1 or 3 VMs) | 8 | 32 GB | `rke2_servers`, `rke2_app` | logs, `/var/lib/rancher` 100G, `/var/lib/kubelet` 50G (xfs), then `/scratch` (size and file system set by the unit, appended last) |
