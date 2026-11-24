@@ -33,7 +33,7 @@ inputs = {
   certificate_dir = "/srv/security/certificates/files/lab.local"
 
   # --- Active Directory: the same directory and bind account as Harbor (registry_servers.yml) ---
-  ad_default_login_domain     = "LAB" # REPLACE: check with `adcli info lab.local` (domain-short)
+  ad_default_login_domain     = "LAB"
   ad_service_account_username = "svc_ldap_bind"
   ad_search_base              = "DC=lab,DC=local"
 
@@ -43,8 +43,8 @@ inputs = {
   ad_test_user_dn  = "CN=svc_rancher_admin,OU=Service Accounts,OU=Lab,DC=lab,DC=local"
 
   # --- Access ---
-  admin_group_dn  = "CN=sg-lab-admins,OU=Groups,OU=Lab,DC=lab,DC=local" # REPLACE: check the DN
-  viewer_group_dn = "CN=sg-all-users,OU=Groups,OU=Lab,DC=lab,DC=local"  # REPLACE: check the DN
+  admin_group_dn  = "CN=sg-lab-admins,OU=Groups,OU=Lab,DC=lab,DC=local"
+  viewer_group_dn = "CN=sg-all-users,OU=Groups,OU=Lab,DC=lab,DC=local"
 
   # Defaults, shown for reference:
   #   rancher_hostname     = "rancher.lab.local"
