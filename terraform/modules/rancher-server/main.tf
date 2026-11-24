@@ -126,10 +126,16 @@ resource "helm_release" "rancher" {
   wait      = true
   timeout   = var.helm_timeout
 
+  # Through set_sensitive, not values: the provider writes values to its debug log (TF_LOG) and
+  # to the release metadata in the state, but masks set_sensitive in both.
+  set_sensitive = [{
+    name  = "bootstrapPassword"
+    value = var.rancher_bootstrap_password
+  }]
+
   values = [yamlencode(merge({
-    hostname          = local.hostname
-    replicas          = local.replicas
-    bootstrapPassword = var.rancher_bootstrap_password
+    hostname = local.hostname
+    replicas = local.replicas
 
     # An Ingress (not the Gateway API), served by the Traefik RKE2 ships (IngressClass "traefik",
     # host ports 80/443, which lb-rancher forwards to). TLS from the secrets above; the CA is

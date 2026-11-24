@@ -31,7 +31,7 @@ Rancher's ingress either way.
 |---|---|---|
 | `hostname` | `rancher_hostname`, default `rancher.<dns_domain>` | DNS name on the lb-rancher virtual IP |
 | `replicas` | one per node | One pod on each node |
-| `bootstrapPassword` | `TF_VAR_rancher_bootstrap_password` | First admin login (vault: `vault_rancher_bootstrap_password`) |
+| `bootstrapPassword` | `TF_VAR_rancher_bootstrap_password` | First admin login (vault: `vault_rancher_bootstrap_password`). Passed with `set_sensitive`, so the provider masks it in its debug log and the release metadata. |
 | `networkExposure.type` | `ingress` | An Ingress, not the Gateway API |
 | `ingress.ingressClassName` | `traefik` | The ingress controller that RKE2 ships, on host ports 80/443, which lb-rancher forwards to |
 | `ingress.tls.source`, `ingress.tls.secretName` | `secret`, `tls-rancher-ingress` | Serve the internal CA certificate; no cert-manager |
