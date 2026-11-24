@@ -53,7 +53,7 @@ change to this repository.
 | Item | Owner | State |
 |---|---|---|
 | Rancher Server v2.15.3, phase 1: `terraform/k8s/lab/rancher-server` | user | Applied 2026-11-23: Rancher answers on `rancher.lab.local`, Traefik serves the `lb-rancher` certificate by default. The second plan after the annotation and `set_sensitive` fixes is still to confirm. |
-| Rancher configuration, phase 2: `terraform/k8s/lab/rancher-config` (admin password, AD login, `sg-lab-admins` admins, `sg-all-users` read-only on every cluster) | user | Applied 2026-11-24; the second plan showed no changes. The login checks are still to do: `svc_rancher_admin` and `sg-lab-admins` admin, `sg-all-users` read-only on `local`, anyone else refused. |
+| Rancher configuration, phase 2: `terraform/k8s/lab/rancher-config` (admin password, AD login, `sg-lab-admins` admins, `sg-all-users` read-only on every cluster) | user | Applied 2026-11-24 with nested AD groups on. Logins checked: `sg-lab-admins` and `svc_rancher_admin` are administrators, `sg-all-users` read-only. To close: a second plan with no changes, and an account in neither group refused. |
 | Rancher configuration, phase 3: Rancher Monitoring; phase 4: the custom cluster `command-pro` | code | After phase 2 |
 | Rancher configuration for CRGS00/01/02: `rancher-config` units | code | After the lab phases, once each environment's AD values are known |
 | Application cluster, managed mode: join through Rancher's registration command with the `rancher2` Terraform provider | code | Not built; `app_cluster_rancher_managed: false` everywhere |
