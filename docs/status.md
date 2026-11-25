@@ -57,7 +57,7 @@ change to this repository.
 | Rancher configuration, phase 3: monitoring in `rancher-config` (kube-prometheus-stack 93.9.0 from the mirror, `rancher-monitoring-dashboards` 110.0.1+up0.1.4, no persistence) | user | Done 2026-11-24: admins open Grafana, Prometheus and Alertmanager from Rancher, and `sg-all-users` see the dashboards read-only (View Monitoring in the System project). Open: Alertmanager sends alerts nowhere (the chart's `null` receiver) until a receiver is chosen. |
 | Rancher configuration, phase 4: the custom cluster `command-pro` defined in `rancher-config` (RKE2 v1.36.5+rke2r1, Canal, ACE through lb-app, Harbor robot) | user | Code ready: apply twice, then check that `command-pro` waits for nodes in Rancher |
 | Rancher configuration for CRGS00/01/02: `rancher-config` units | code | After the lab phases, once each environment's AD values are known |
-| Application cluster, managed mode: reinstall the app nodes without the standalone RKE2 and run `command-pro`'s registration command with Ansible | code | The cluster is defined in Rancher (phase 4); the node side isn't built |
+| Application cluster, managed mode: lab's `app_cluster_rancher_managed` is now `true` and the app nodes were rebuilt; Ansible prepares them without RKE2. Next: run `command-pro`'s registration command on each node | code | The node join isn't built; CRGS00/01/02 stay standalone (`false`) |
 
 ### Environments
 
