@@ -25,6 +25,8 @@ Guide: [ansible/docs/rancher.md](../../../ansible/docs/rancher.md). Every input 
 | `rancher2_cluster_role_template_binding.viewers_local` | Viewer group → each of `viewer_cluster_roles` in the `local` (Rancher) cluster, which inherited cluster roles don't reach |
 | `helm_release.kube_prometheus_stack` | kube-prometheus-stack from the chart on the mirror, as release `kube-prometheus-stack` in `cattle-monitoring-system` (only while `monitoring_enabled`) |
 | `rancher2_app_v2.monitoring_dashboards` | `rancher-monitoring-dashboards` from Rancher's built-in catalog, after the release above |
+| `kubernetes_annotations.monitoring_namespace_project` | Puts `cattle-monitoring-system` in Rancher's System project (annotation `field.cattle.io/projectId`); Helm created it outside any project |
+| `rancher2_project_role_template_binding.viewers_monitoring` | Viewer group → "View Monitoring" (`monitoring-ui-view`) in the System project: open Grafana, Prometheus and Alertmanager through Rancher, read-only |
 
 **Read-only cluster roles given to the viewer group** (Rancher's built-in role templates):
 
@@ -81,6 +83,10 @@ module follows that chart's README:
 - **Off:** the etcd, controller-manager, scheduler and kube-proxy scrapers (they need PushProx),
   and Grafana's helm-test pod.
 - **Dashboards chart:** `k3sServer.enabled: false` (this is RKE2).
+- **Viewer access:** the viewer group gets "View Monitoring" in the System project, which now holds
+  `cattle-monitoring-system`. Its ClusterRole allows only `get`/`create` on `services/proxy` for the
+  three `rancher-monitoring-*` services: enough to open the dashboards through Rancher. Grafana
+  then shows them as an anonymous Viewer.
 - **No persistence:** metrics last as long as the pods. Prometheus doesn't support NFS for its
   data, and Rancher treats it as short-term storage (decided by the user).
 
@@ -153,7 +159,8 @@ directory. It is configured twice ([providers.tf](providers.tf)):
 
 Both connect to `https://<rancher hostname>` and trust the internal CA.
 
-`hashicorp/helm` v3, for kube-prometheus-stack, connects through the kubeconfig Ansible wrote on the
+`hashicorp/helm` v3 (kube-prometheus-stack) and `hashicorp/kubernetes` (the monitoring namespace's
+project) connect through the kubeconfig Ansible wrote on the
 control node (`kubeconfig_path`, default `~/.kube/<env_name>-rancher-cluster.yaml`).
 
 ## Outputs

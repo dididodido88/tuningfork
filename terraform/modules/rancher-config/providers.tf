@@ -16,10 +16,14 @@ provider "rancher2" {
   ca_certs  = local.ca_cert
 }
 
-# Helm, for kube-prometheus-stack: through the kubeconfig Ansible wrote on the control node, like
-# the rancher-server unit.
+# Helm (kube-prometheus-stack) and Kubernetes (the monitoring namespace's project): through the
+# kubeconfig Ansible wrote on the control node, like the rancher-server unit.
 provider "helm" {
   kubernetes = {
     config_path = local.kubeconfig
   }
+}
+
+provider "kubernetes" {
+  config_path = local.kubeconfig
 }

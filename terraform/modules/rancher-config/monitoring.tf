@@ -125,3 +125,49 @@ resource "rancher2_app_v2" "monitoring_dashboards" {
 
   depends_on = [helm_release.kube_prometheus_stack]
 }
+
+# --- Read-only dashboards for the viewer group -----------------------------------------------
+# The dashboards chart's ClusterRole monitoring-ui-view allows get/create on services/proxy for the
+# three rancher-monitoring-* services only; Rancher's role template of the same name ("View
+# Monitoring", external) is a project role. Helm created cattle-monitoring-system outside any
+# project, so it goes into the System project first (Rancher reads a namespace's project from this
+# annotation), then the viewer group gets View Monitoring in that project.
+
+data "rancher2_project" "system" {
+  count = var.monitoring_enabled ? 1 : 0
+
+  cluster_id = "local"
+  name       = "System"
+}
+
+resource "kubernetes_annotations" "monitoring_namespace_project" {
+  count = var.monitoring_enabled ? 1 : 0
+
+  api_version = "v1"
+  kind        = "Namespace"
+  metadata {
+    name = "cattle-monitoring-system"
+  }
+  annotations = {
+    "field.cattle.io/projectId" = data.rancher2_project.system[0].id
+  }
+  # Rancher's controllers also write this namespace; keep this one annotation ours.
+  force = true
+
+  depends_on = [helm_release.kube_prometheus_stack]
+}
+
+resource "rancher2_project_role_template_binding" "viewers_monitoring" {
+  count = var.monitoring_enabled ? 1 : 0
+
+  name               = "ad-viewers-monitoring-ui-view"
+  project_id         = data.rancher2_project.system[0].id
+  role_template_id   = "monitoring-ui-view"
+  group_principal_id = local.viewer_group_principal
+
+  depends_on = [
+    kubernetes_annotations.monitoring_namespace_project,
+    rancher2_app_v2.monitoring_dashboards,
+    rancher2_auth_config_activedirectory.ad,
+  ]
+}

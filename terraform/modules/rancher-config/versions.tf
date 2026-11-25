@@ -9,6 +9,10 @@ terraform {
       source  = "rancher/rancher2"
       version = ">= 15.3.0, < 16.0.0"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = ">= 2.38.0, < 4.0.0"
+    }
     helm = {
       source = "hashicorp/helm"
       # v3: the provider's kubernetes settings are an attribute (kubernetes = {...}), not a block.
