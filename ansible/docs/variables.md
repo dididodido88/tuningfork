@@ -103,7 +103,7 @@ stay off until their keys are set.
 | `vault_postgresql_postgres_password` | `database_server` | PostgreSQL `postgres` user (at least 12 ASCII characters) |
 | `vault_harbor_admin_password`, `vault_harbor_db_password` | `harbor` | Harbor `admin` (break-glass) and its database |
 | `vault_harbor_ldap_bind_password` | `harbor`; Terraform `k8s/<ENV>/rancher-config` (`TF_VAR_ad_service_account_password`) | Read-only AD account Harbor and Rancher bind with |
-| `vault_harbor_robot_secrets` | `harbor`, `rke2_server` | Dictionary of robot name to secret; `k8s-pull` is the robot the RKE2 nodes pull images with |
+| `vault_harbor_robot_secrets` | `harbor`, `rke2_server`; Terraform `k8s/<ENV>/rancher-config` (`TF_VAR_harbor_k8s_pull_secret`, the `k8s-pull` entry) | Dictionary of robot name to secret; `k8s-pull` is the robot the RKE2 nodes pull images with |
 | `vault_haproxy_stats_password` | `load_balancer` | HAProxy statistics page |
 | `vault_rke2_rancher_token`, `vault_rke2_app_token` | `group_vars/rke2_rancher.yml`, `rke2_app.yml` | Cluster join secrets (`openssl rand -hex 32`) |
 | `vault_wazuh_indexer_admin_password`, `vault_wazuh_api_password` | `wazuh_server` | Wazuh indexer `admin` and API user (Wazuh's password rules are in the role defaults) |

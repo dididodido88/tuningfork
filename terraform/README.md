@@ -467,7 +467,7 @@ Each secret comes from the vault and is typed at a prompt (the unit's header lis
 
 ```sh
 for v in rancher_bootstrap_password rancher_admin_password ad_service_account_password ad_test_password \
-         grafana_admin_password; do
+         grafana_admin_password harbor_k8s_pull_secret; do
   read -rsp "$v: " "TF_VAR_$v"; echo; export "TF_VAR_$v"
 done
 cd terraform/k8s/lab/rancher-config

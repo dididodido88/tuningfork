@@ -28,3 +28,14 @@ output "kube_prometheus_stack_version" {
   description = "Version of the deployed kube-prometheus-stack chart, or null when monitoring is off."
   value       = var.monitoring_enabled ? helm_release.kube_prometheus_stack[0].metadata.version : null
 }
+
+output "app_cluster_id" {
+  description = "Rancher's ID of the application cluster (management cluster ID, c-m-...), or null when it isn't defined."
+  value       = var.app_cluster_enabled ? rancher2_cluster_v2.app[0].cluster_v1_id : null
+}
+
+output "app_cluster_registration_command" {
+  description = "Command a node runs to join the application cluster as etcd, control plane and worker. Holds the registration token: `terragrunt output -raw app_cluster_registration_command`."
+  value       = var.app_cluster_enabled ? "${rancher2_cluster_v2.app[0].cluster_registration_token[0].node_command} --etcd --controlplane --worker" : null
+  sensitive   = true
+}

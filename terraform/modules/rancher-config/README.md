@@ -5,6 +5,7 @@ Configures Rancher Server once the `rancher-server` unit has installed it:
 - Active Directory login over LDAPS, limited to two AD groups;
 - what those groups may do.
 - monitoring: kube-prometheus-stack with Rancher's dashboards (see "Monitoring").
+- the application cluster `command-pro`, defined as a custom cluster Rancher provisions (see "Application cluster").
 
 It is called by `terraform/k8s/<ENV>/rancher-config`, which is applied by hand after
 `terraform/k8s/<ENV>/rancher-server`.
@@ -27,6 +28,8 @@ Guide: [ansible/docs/rancher.md](../../../ansible/docs/rancher.md). Every input 
 | `rancher2_app_v2.monitoring_dashboards` | `rancher-monitoring-dashboards` from Rancher's built-in catalog, after the release above |
 | `kubernetes_annotations.monitoring_namespace_project` | Puts `cattle-monitoring-system` in Rancher's System project (annotation `field.cattle.io/projectId`); Helm created it outside any project |
 | `rancher2_project_role_template_binding.viewers_monitoring` | Viewer group → "View Monitoring" (`monitoring-ui-view`) in the System project: open Grafana, Prometheus and Alertmanager through Rancher, read-only |
+| `rancher2_secret_v2.app_registry_auth` | `fleet-default/<app_cluster_name>-registry-auth`: the Harbor robot login the application cluster's nodes pull images with |
+| `rancher2_cluster_v2.app` | The application cluster (`app_cluster_name`, default `command-pro`), a custom RKE2 cluster with no nodes yet (only while `app_cluster_enabled`) |
 
 **Read-only cluster roles given to the viewer group** (Rancher's built-in role templates):
 
@@ -113,9 +116,32 @@ from Harbor's `rancher` project through Rancher's `systemDefaultRegistry`.
 To upgrade kube-prometheus-stack: put the new chart on the mirror, push its images under the same
 paths, change `kube_prometheus_stack_chart_path`, and apply.
 
+## Application cluster
+
+`command-pro` is defined in Rancher as a custom cluster: Rancher installs and manages RKE2 on each
+node once the node runs the cluster's registration command. Defining it joins no node, so Rancher
+shows it as waiting for nodes. Registering the app nodes, after reinstalling them without the
+standalone RKE2, is a later phase (`ansible/docs/app-cluster.md`, section 6).
+
+Its settings follow the standalone cluster built by `roles/rke2_server`:
+
+| Setting | Value |
+|---|---|
+| RKE2 version | `app_cluster_kubernetes_version`, default `v1.36.5+rke2r1` (in Rancher 2.15.3's release list, and its default) |
+| Network plugin, SELinux | Canal; `selinux: true` |
+| Pod and service networks | `10.42.0.0/16`, `10.43.0.0/16` |
+| TLS names | `app_cluster_hostname` (default `command-pro.<dns_domain>`) and `app_cluster_tls_sans` (lab: lb-app's virtual IP) |
+| Authorized Cluster Endpoint | `<app_cluster_hostname>:6443`, through lb-app: a direct kubeconfig context that works while Rancher is down |
+| etcd snapshots | Every 6 hours, 28 kept |
+| Registry | `docker.io` mirrored to Harbor; nodes log in as `robot$k8s-pull`; images through Rancher's `systemDefaultRegistry` |
+
+The viewer group sees it read-only through the global role Cluster Viewer, with no extra binding.
+`terragrunt output -raw app_cluster_registration_command` prints the command a node runs to join as
+etcd, control plane and worker; it holds the registration token.
+
 ## Passwords
 
-Five passwords, each typed from the vault at a prompt (the unit's header has the loop). Only the
+Six passwords, each typed from the vault at a prompt (the unit's header has the loop). Only the
 first is also used by the `rancher-server` unit.
 
 | Prompt (`TF_VAR_…`) | Vault key | Account | Used by | What happens with it |
@@ -125,6 +151,7 @@ first is also used by the `rancher-server` unit.
 | `ad_service_account_password` | `vault_harbor_ldap_bind_password` | AD `svc_ldap_bind`, the bind account shared with Harbor | `rancher-config` | Saved in Rancher's AD settings. Rancher uses it at every login to look up the user and their groups. |
 | `ad_test_password` | `vault_rancher_ad_test_password` | AD `svc_rancher_admin`, the test account | `rancher-config` | Used when AD login is turned on: Rancher logs in as this account to check the settings, then links it to `admin`. After that it is an ordinary AD login, with admin rights. |
 | `grafana_admin_password` | `vault_rancher_grafana_admin_password` | Grafana's `admin` | `rancher-config` (monitoring) | Set as Grafana's admin password on every apply. Rancher's users see the dashboards anonymously, as Viewers; the admin login is for changing Grafana itself. |
+| `harbor_k8s_pull_secret` | `vault_harbor_robot_secrets['k8s-pull']` | Harbor robot `robot$k8s-pull` | `rancher-config` (application cluster) | Saved as the registry secret Rancher writes into each application node's `registries.yaml`. The RKE2 nodes of both clusters already use the same robot. |
 
 **In order, on the first apply:**
 
@@ -147,7 +174,7 @@ again. The unit still asks for all four, so type the same values from the vault.
 | `svc_rancher_admin` | AD | Rancher keeps working; the next `rancher-config` apply fails until the vault is updated. |
 | `admin`'s lasting password | The vault, then apply `rancher-config` | Not in the Rancher UI: the next apply logs in with the vault's value and would fail. |
 
-The `rancher-config` state holds all five; the `rancher-server` state also holds the bootstrap
+The `rancher-config` state holds all six; the `rancher-server` state also holds the bootstrap
 password.
 
 ## Providers
@@ -166,9 +193,10 @@ control node (`kubeconfig_path`, default `~/.kube/<env_name>-rancher-cluster.yam
 ## Outputs
 
 `url`, `admin_group` and `viewer_group` (the AD principals), `test_user`, `cluster_viewer_role_id`,
-`kube_prometheus_stack_version`.
+`kube_prometheus_stack_version`, `app_cluster_id`, and `app_cluster_registration_command` (sensitive).
 
 ## Security
 
-The local state holds the admin password and API token, the bind and test passwords, and Grafana's
-admin password. Keep `terraform/state/` as protected as the Ansible vault.
+The local state holds the admin password and API token, the bind and test passwords, Grafana's admin
+password, the Harbor robot secret and the application cluster's registration token. Keep
+`terraform/state/` as protected as the Ansible vault.

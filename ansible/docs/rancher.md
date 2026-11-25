@@ -134,7 +134,7 @@ cd terraform/k8s/lab/rancher-server && terragrunt init && terragrunt apply
 # 4. Rancher configuration: admin password, AD login, roles (from terraform/). Each prompt
 #    takes the vault key listed in the unit's header.
 for v in rancher_bootstrap_password rancher_admin_password ad_service_account_password ad_test_password \
-         grafana_admin_password; do
+         grafana_admin_password harbor_k8s_pull_secret; do
   read -rsp "$v: " "TF_VAR_$v"; echo; export "TF_VAR_$v"
 done
 cd terraform/k8s/lab/rancher-config && terragrunt init && terragrunt apply
@@ -156,6 +156,8 @@ What the configuration unit does (`terraform/modules/rancher-config`):
 - Installs monitoring: the upstream kube-prometheus-stack from the mirror, then Rancher's
   `rancher-monitoring-dashboards` chart, which puts the dashboards in Rancher's UI. No metrics
   are kept across pod restarts.
+- Defines the application cluster `command-pro` in Rancher, as a custom cluster Rancher
+  provisions. No nodes join yet; registering the app nodes is a later phase.
 
 Which password is used for what, and when, and what to do when one changes: "Passwords" in
 [terraform/modules/rancher-config/README.md](../../terraform/modules/rancher-config/README.md).

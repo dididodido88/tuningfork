@@ -180,3 +180,72 @@ variable "kube_prometheus_stack_extra_values" {
   type        = any
   default     = {}
 }
+
+# --- Downstream cluster command-pro (custom, provisioned by Rancher) -----------------------
+
+variable "app_cluster_enabled" {
+  description = "Define the application cluster in Rancher. No nodes join until each runs the registration command (a later phase)."
+  type        = bool
+  default     = true
+}
+
+variable "app_cluster_name" {
+  description = "Name of the application cluster in Rancher."
+  type        = string
+  default     = "command-pro"
+}
+
+variable "app_cluster_kubernetes_version" {
+  description = "RKE2 version Rancher installs on the nodes. Must be in Rancher's release list (https://<rancher>/v1-rke2-release/releases)."
+  type        = string
+  default     = "v1.36.5+rke2r1"
+}
+
+variable "app_cluster_hostname" {
+  description = "Name of the cluster's API on lb-app's virtual IP (DNS A record). Used for the TLS names and the Authorized Cluster Endpoint. Default: command-pro.<dns_domain>."
+  type        = string
+  default     = null
+}
+
+variable "app_cluster_tls_sans" {
+  description = "Extra names and addresses in the API server certificate, besides app_cluster_hostname: lb-app's virtual IP."
+  type        = list(string)
+  default     = []
+}
+
+variable "app_cluster_cidr" {
+  description = "Pod network, as in the Ansible role (rke2_cluster_cidr)."
+  type        = string
+  default     = "10.42.0.0/16"
+}
+
+variable "app_service_cidr" {
+  description = "Service network, as in the Ansible role (rke2_service_cidr)."
+  type        = string
+  default     = "10.43.0.0/16"
+}
+
+variable "app_etcd_snapshot_schedule" {
+  description = "etcd snapshot schedule (cron), as in the Ansible role."
+  type        = string
+  default     = "0 */6 * * *"
+}
+
+variable "app_etcd_snapshot_retention" {
+  description = "etcd snapshots kept, as in the Ansible role."
+  type        = number
+  default     = 28
+}
+
+variable "registry_username" {
+  description = "Harbor robot the cluster's nodes pull images as."
+  type        = string
+  default     = "robot$k8s-pull"
+}
+
+variable "harbor_k8s_pull_secret" {
+  description = "Secret of that robot (vault_harbor_robot_secrets['k8s-pull']). Export it as TF_VAR_harbor_k8s_pull_secret."
+  type        = string
+  sensitive   = true
+  default     = null
+}
