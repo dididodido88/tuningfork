@@ -4,6 +4,7 @@ Configures Rancher Server once the `rancher-server` unit has installed it:
 - the local admin's password and the server URL;
 - Active Directory login over LDAPS, limited to two AD groups;
 - what those groups may do.
+- monitoring: kube-prometheus-stack with Rancher's dashboards (see "Monitoring").
 
 It is called by `terraform/k8s/<ENV>/rancher-config`, which is applied by hand after
 `terraform/k8s/<ENV>/rancher-server`.
@@ -22,6 +23,8 @@ Guide: [ansible/docs/rancher.md](../../../ansible/docs/rancher.md). Every input 
 | `rancher2_global_role.cluster_viewer` | Global role "Cluster Viewer". Its inherited cluster roles (`viewer_cluster_roles`) apply in every downstream cluster, present and future. |
 | `rancher2_global_role_binding.viewers_clusters` | Viewer group → Cluster Viewer |
 | `rancher2_cluster_role_template_binding.viewers_local` | Viewer group → each of `viewer_cluster_roles` in the `local` (Rancher) cluster, which inherited cluster roles don't reach |
+| `helm_release.kube_prometheus_stack` | kube-prometheus-stack from the chart on the mirror, as release `kube-prometheus-stack` in `cattle-monitoring-system` (only while `monitoring_enabled`) |
+| `rancher2_app_v2.monitoring_dashboards` | `rancher-monitoring-dashboards` from Rancher's built-in catalog, after the release above |
 
 **Read-only cluster roles given to the viewer group** (Rancher's built-in role templates):
 
@@ -61,9 +64,52 @@ Defaults you can override: `rancher_hostname`, `ad_servers` (`[<dns_domain>]`), 
 `ad_nested_groups` (off; lab turns it on, because its users are in the groups through other
 groups), `viewer_cluster_roles`.
 
+## Monitoring
+
+Rancher 2.15 deprecates its bundled `rancher-monitoring` chart. New installations run the upstream
+`kube-prometheus-stack` and add Rancher's `rancher-monitoring-dashboards` chart, which supplies the
+dashboards and the services Rancher's UI uses to reach Grafana, Prometheus and Alertmanager. The
+module follows that chart's README:
+
+- **Names:** release `kube-prometheus-stack` in `cattle-monitoring-system`. The dashboards chart
+  points at `kube-prometheus-stack-grafana`, `-prometheus`, `-alertmanager` and the
+  `kube-prometheus-stack-prometheus` service account, so these names must not change.
+- **Grafana:** embedding allowed and anonymous Viewer access, so Rancher's UI can show the
+  dashboards. Grafana is a ClusterIP service, reached only through Rancher's proxy. Its admin
+  password comes from the vault; the chart's default is public.
+- **Prometheus:** picks up every ServiceMonitor and PodMonitor in the cluster.
+- **Off:** the etcd, controller-manager, scheduler and kube-proxy scrapers (they need PushProx),
+  and Grafana's helm-test pod.
+- **Dashboards chart:** `k3sServer.enabled: false` (this is RKE2).
+- **No persistence:** metrics last as long as the pods. Prometheus doesn't support NFS for its
+  data, and Rancher treats it as short-term storage (decided by the user).
+
+**Images** come from Harbor, kept under their source registry and path:
+`<registry>/<monitoring_image_project>/<source registry>/<path>`, for example
+`registry.lab.local/library/quay.io/prometheus/prometheus`. The tags stay the chart's own. For chart
+93.9.0 these are:
+
+| Image | Tag |
+|---|---|
+| `quay.io/prometheus/prometheus` | `v3.16.0-distroless` |
+| `quay.io/prometheus/alertmanager` | `v0.35.0` |
+| `quay.io/prometheus-operator/prometheus-operator` | `v0.95.2` |
+| `quay.io/prometheus-operator/prometheus-config-reloader` | `v0.95.2` |
+| `ghcr.io/jkroepke/kube-webhook-certgen` | `1.11.1` |
+| `docker.io/grafana/grafana` | `13.3.1-distroless` |
+| `quay.io/kiwigrid/k8s-sidecar` | `2.14.3` |
+| `registry.k8s.io/kube-state-metrics/kube-state-metrics` | `v2.20.0` |
+| `quay.io/prometheus/node-exporter` | `v1.13.1-distroless` |
+
+The dashboards chart's own images (`rancher/mirrored-library-nginx`, `rancher/kuberlr-kubectl`) come
+from Harbor's `rancher` project through Rancher's `systemDefaultRegistry`.
+
+To upgrade kube-prometheus-stack: put the new chart on the mirror, push its images under the same
+paths, change `kube_prometheus_stack_chart_path`, and apply.
+
 ## Passwords
 
-Four passwords, each typed from the vault at a prompt (the unit's header has the loop). Only the
+Five passwords, each typed from the vault at a prompt (the unit's header has the loop). Only the
 first is also used by the `rancher-server` unit.
 
 | Prompt (`TF_VAR_…`) | Vault key | Account | Used by | What happens with it |
@@ -72,6 +118,7 @@ first is also used by the `rancher-server` unit.
 | `rancher_admin_password` | `vault_rancher_admin_password` | Rancher's local `admin` | `rancher-config` | Set as `admin`'s lasting password. Every later apply logs in with it. It is the break-glass login when AD is unavailable. |
 | `ad_service_account_password` | `vault_harbor_ldap_bind_password` | AD `svc_ldap_bind`, the bind account shared with Harbor | `rancher-config` | Saved in Rancher's AD settings. Rancher uses it at every login to look up the user and their groups. |
 | `ad_test_password` | `vault_rancher_ad_test_password` | AD `svc_rancher_admin`, the test account | `rancher-config` | Used when AD login is turned on: Rancher logs in as this account to check the settings, then links it to `admin`. After that it is an ordinary AD login, with admin rights. |
+| `grafana_admin_password` | `vault_rancher_grafana_admin_password` | Grafana's `admin` | `rancher-config` (monitoring) | Set as Grafana's admin password on every apply. Rancher's users see the dashboards anonymously, as Viewers; the admin login is for changing Grafana itself. |
 
 **In order, on the first apply:**
 
@@ -94,7 +141,7 @@ again. The unit still asks for all four, so type the same values from the vault.
 | `svc_rancher_admin` | AD | Rancher keeps working; the next `rancher-config` apply fails until the vault is updated. |
 | `admin`'s lasting password | The vault, then apply `rancher-config` | Not in the Rancher UI: the next apply logs in with the vault's value and would fail. |
 
-The `rancher-config` state holds all four; the `rancher-server` state also holds the bootstrap
+The `rancher-config` state holds all five; the `rancher-server` state also holds the bootstrap
 password.
 
 ## Providers
@@ -106,11 +153,15 @@ directory. It is configured twice ([providers.tf](providers.tf)):
 
 Both connect to `https://<rancher hostname>` and trust the internal CA.
 
+`hashicorp/helm` v3, for kube-prometheus-stack, connects through the kubeconfig Ansible wrote on the
+control node (`kubeconfig_path`, default `~/.kube/<env_name>-rancher-cluster.yaml`).
+
 ## Outputs
 
-`url`, `admin_group` and `viewer_group` (the AD principals), `cluster_viewer_role_id`.
+`url`, `admin_group` and `viewer_group` (the AD principals), `test_user`, `cluster_viewer_role_id`,
+`kube_prometheus_stack_version`.
 
 ## Security
 
-The local state holds the admin password and API token, and the bind and test passwords. Keep
-`terraform/state/` as protected as the Ansible vault.
+The local state holds the admin password and API token, the bind and test passwords, and Grafana's
+admin password. Keep `terraform/state/` as protected as the Ansible vault.

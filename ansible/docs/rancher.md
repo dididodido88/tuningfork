@@ -38,6 +38,8 @@ image comes from Harbor.
 | Terraform providers `hashicorp/helm`, `hashicorp/kubernetes` and `rancher/rancher2` 15.x | In the control node's plugin directory (`terraform/README.md`) |
 | Vault: `vault_rancher_bootstrap_password`, `vault_rancher_admin_password` | Rancher's first and lasting `admin` passwords (at least 12 characters) |
 | AD account for Rancher's login test, e.g. `svc_rancher_admin`, in no AD group. Vault: `vault_rancher_ad_test_password` | Rancher makes this account an administrator, so use a dedicated one, not the bind account. It needs no group, so it opens nothing but Rancher. |
+| Vault: `vault_rancher_grafana_admin_password` | Grafana's admin password for the monitoring stack (at least 12 characters) |
+| kube-prometheus-stack chart and images | Chart on the mirror under `helm/charts/kube-prometheus-stack/`; images in Harbor as `library/<source registry>/<path>` (the list is in `terraform/modules/rancher-config/README.md`, "Monitoring") |
 
 ## 2. Files to download
 
@@ -131,7 +133,8 @@ cd terraform/k8s/lab/rancher-server && terragrunt init && terragrunt apply
 
 # 4. Rancher configuration: admin password, AD login, roles (from terraform/). Each prompt
 #    takes the vault key listed in the unit's header.
-for v in rancher_bootstrap_password rancher_admin_password ad_service_account_password ad_test_password; do
+for v in rancher_bootstrap_password rancher_admin_password ad_service_account_password ad_test_password \
+         grafana_admin_password; do
   read -rsp "$v: " "TF_VAR_$v"; echo; export "TF_VAR_$v"
 done
 cd terraform/k8s/lab/rancher-config && terragrunt init && terragrunt apply
@@ -150,6 +153,9 @@ What the configuration unit does (`terraform/modules/rancher-config`):
 - The AD test account (`svc_rancher_admin` in lab) becomes a Rancher administrator: Rancher links
   the account it tests with to the local `admin`. It is in no AD group; the unit allows it to log
   in by its DN (`ad_test_user_dn`).
+- Installs monitoring: the upstream kube-prometheus-stack from the mirror, then Rancher's
+  `rancher-monitoring-dashboards` chart, which puts the dashboards in Rancher's UI. No metrics
+  are kept across pod restarts.
 
 Which password is used for what, and when, and what to do when one changes: "Passwords" in
 [terraform/modules/rancher-config/README.md](../../terraform/modules/rancher-config/README.md).

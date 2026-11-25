@@ -119,3 +119,64 @@ variable "viewer_cluster_roles" {
   type        = list(string)
   default     = ["projects-view", "nodes-view", "clusterroletemplatebindings-view", "clustercatalogs-view"]
 }
+
+# --- Monitoring (kube-prometheus-stack and Rancher's dashboards) ---------------------------
+
+variable "kubeconfig_path" {
+  description = "Kubeconfig of the Rancher RKE2 cluster, written on the control node by the Ansible play rke2_rancher.yml. Used by the helm provider. Default: ~/.kube/<env_name>-rancher-cluster.yaml."
+  type        = string
+  default     = null
+}
+
+variable "monitoring_enabled" {
+  description = "Install kube-prometheus-stack and rancher-monitoring-dashboards on the Rancher cluster."
+  type        = bool
+  default     = true
+}
+
+variable "kube_prometheus_stack_chart_path" {
+  description = "Path of the kube-prometheus-stack chart on the control node, e.g. /repo/helm/charts/kube-prometheus-stack/kube-prometheus-stack-93.9.0.tgz (the mirror serves /repo)."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.kube_prometheus_stack_chart_path == null || fileexists(pathexpand(coalesce(var.kube_prometheus_stack_chart_path, "/nonexistent")))
+    error_message = "kube_prometheus_stack_chart_path doesn't point at a file. Put the chart (.tgz) on the mirror first."
+  }
+}
+
+variable "monitoring_dashboards_chart_version" {
+  description = "Version of rancher-monitoring-dashboards in Rancher's built-in catalog (rancher-charts). 110.x is the line for Rancher 2.15."
+  type        = string
+  default     = "110.0.1+up0.1.4"
+}
+
+variable "registry" {
+  description = "Private registry (Harbor). Default: registry.<dns_domain>."
+  type        = string
+  default     = null
+}
+
+variable "monitoring_image_project" {
+  description = "Harbor project holding the kube-prometheus-stack images, each under its source registry and path: <registry>/<project>/<source registry>/<path>, e.g. registry.lab.local/library/quay.io/prometheus/prometheus."
+  type        = string
+  default     = "library"
+}
+
+variable "grafana_admin_password" {
+  description = "Password of Grafana's admin user (vault_rancher_grafana_admin_password). The chart's own default is public, so it is always replaced. Export it as TF_VAR_grafana_admin_password."
+  type        = string
+  sensitive   = true
+  default     = null
+
+  validation {
+    condition     = var.grafana_admin_password == null || try(length(var.grafana_admin_password) >= 12, false)
+    error_message = "Set TF_VAR_grafana_admin_password to at least 12 characters."
+  }
+}
+
+variable "kube_prometheus_stack_extra_values" {
+  description = "More kube-prometheus-stack values, merged over the module's by Helm (deep merge)."
+  type        = any
+  default     = {}
+}

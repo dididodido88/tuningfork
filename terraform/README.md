@@ -466,7 +466,8 @@ the local `admin` password, the server URL, Active Directory login and the roles
 Each secret comes from the vault and is typed at a prompt (the unit's header lists the keys):
 
 ```sh
-for v in rancher_bootstrap_password rancher_admin_password ad_service_account_password ad_test_password; do
+for v in rancher_bootstrap_password rancher_admin_password ad_service_account_password ad_test_password \
+         grafana_admin_password; do
   read -rsp "$v: " "TF_VAR_$v"; echo; export "TF_VAR_$v"
 done
 cd terraform/k8s/lab/rancher-config

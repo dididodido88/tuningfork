@@ -15,3 +15,11 @@ provider "rancher2" {
   token_key = rancher2_bootstrap.admin.token
   ca_certs  = local.ca_cert
 }
+
+# Helm, for kube-prometheus-stack: through the kubeconfig Ansible wrote on the control node, like
+# the rancher-server unit.
+provider "helm" {
+  kubernetes = {
+    config_path = local.kubeconfig
+  }
+}

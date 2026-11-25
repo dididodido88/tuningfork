@@ -23,3 +23,8 @@ output "test_user" {
   description = "Principal of the AD test account, linked to the local admin and allowed by name."
   value       = local.test_user_principal
 }
+
+output "kube_prometheus_stack_version" {
+  description = "Version of the deployed kube-prometheus-stack chart, or null when monitoring is off."
+  value       = var.monitoring_enabled ? helm_release.kube_prometheus_stack[0].metadata.version : null
+}

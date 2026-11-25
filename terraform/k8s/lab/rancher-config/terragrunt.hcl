@@ -1,7 +1,8 @@
-# lab: Rancher's own configuration: the admin password, Active Directory login and who may do
-# what. Applied by hand, after rancher-server. Type each secret from the vault at the prompts, so
-# none is left in the shell history:
-#   for v in rancher_bootstrap_password rancher_admin_password ad_service_account_password ad_test_password; do
+# lab: Rancher's own configuration: the admin password, Active Directory login, who may do
+# what, and monitoring. Applied by hand, after rancher-server. Type each secret from the vault at
+# the prompts, so none is left in the shell history:
+#   for v in rancher_bootstrap_password rancher_admin_password ad_service_account_password ad_test_password \
+#            grafana_admin_password; do
 #     read -rsp "$v: " "TF_VAR_$v"; echo; export "TF_VAR_$v"
 #   done
 #   cd terraform/k8s/lab/rancher-config && terragrunt init && terragrunt apply
@@ -10,6 +11,7 @@
 #   rancher_admin_password        vault_rancher_admin_password
 #   ad_service_account_password   vault_harbor_ldap_bind_password (svc_ldap_bind)
 #   ad_test_password              vault_rancher_ad_test_password
+#   grafana_admin_password        vault_rancher_grafana_admin_password
 #
 # Every field: terraform/modules/rancher-config/variables.tf. Guide: ansible/docs/rancher.md.
 
@@ -50,9 +52,15 @@ inputs = {
   admin_group_dn  = "CN=sg-lab-admins,OU=Groups,OU=Lab,DC=lab,DC=local"
   viewer_group_dn = "CN=sg-all-users,OU=Groups,OU=Lab,DC=lab,DC=local"
 
+  # --- Monitoring: kube-prometheus-stack from the mirror, images from Harbor (library/<registry>/...) ---
+  kube_prometheus_stack_chart_path = "/repo/helm/charts/kube-prometheus-stack/kube-prometheus-stack-93.9.0.tgz"
+
   # Defaults, shown for reference:
   #   rancher_hostname     = "rancher.lab.local"
   #   ad_servers           = ["lab.local"]
   #   ad_port              = 636
   #   viewer_cluster_roles = ["projects-view", "nodes-view", "clusterroletemplatebindings-view", "clustercatalogs-view"]
+  #   monitoring_enabled                  = true
+  #   monitoring_dashboards_chart_version = "110.0.1+up0.1.4"
+  #   monitoring_image_project            = "library"
 }

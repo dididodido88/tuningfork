@@ -115,6 +115,7 @@ stay off until their keys are set.
 | `vault_rancher_bootstrap_password` | Terraform `k8s/<ENV>/rancher-server`, typed in as `TF_VAR_rancher_bootstrap_password` | Rancher's first `admin` login (at least 12 characters) |
 | `vault_rancher_admin_password` | Terraform `k8s/<ENV>/rancher-config`, typed in as `TF_VAR_rancher_admin_password` | The lasting password of Rancher's local `admin` (at least 12 characters) |
 | `vault_rancher_ad_test_password` | Terraform `k8s/<ENV>/rancher-config`, typed in as `TF_VAR_ad_test_password` | The dedicated AD account Rancher tests its login with; Rancher makes it an administrator |
+| `vault_rancher_grafana_admin_password` | Terraform `k8s/<ENV>/rancher-config`, typed in as `TF_VAR_grafana_admin_password` | Grafana's `admin` in the Rancher cluster's monitoring stack (at least 12 characters) |
 
 The trap senders in `siem_snmp_trap_users` (`group_vars/all/siem.yml`) reference vault keys that you
 name yourself.
