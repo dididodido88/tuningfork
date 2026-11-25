@@ -203,8 +203,30 @@ doesn't trust the CA yet. Don't work around it with `insecure-registries` or `--
 |---|---|---|---|
 | `library` (images) | public | `sg-all-users` (developer), `robot$ci-push` | anyone, no login |
 | `charts` (Helm charts) | private | `sg-all-users` (developer), `robot$ci-push` | members, `robot$k8s-pull`, `robot$ci-push` |
+| `rancher` (RKE2 and Rancher images) | private | Harbor administrators only | `robot$k8s-pull` |
+| `mirror` (every other upstream image the clusters run) | private | Harbor administrators only | `robot$k8s-pull` |
 
 Members of the admin group (`harbor_ldap_group_admin_dn`) are Harbor system administrators and can push anywhere.
+
+### Where an image goes
+
+| The image is | Project and path | Why |
+|---|---|---|
+| An RKE2 system image or a Rancher image (`rke2-images-all.linux-amd64.txt`, `rancher-images.txt`) | `rancher/<image>:<tag>`, e.g. `rancher/hardened-kubernetes:<tag>` | Fixed by RKE2 and Rancher: `system-default-registry` and `systemDefaultRegistry` put `rancher/` in front of every system image, and the nodes mirror `docker.io/rancher/...` there |
+| Any other upstream image a cluster runs: monitoring, storage drivers, operators | `mirror/<source registry>/<path>:<tag>`, e.g. `mirror/quay.io/prometheus/prometheus:<tag>` | Keeps names unique and shows where each image came from. Only administrators push, so no user can replace a cluster image |
+| An image the organisation builds | `library/<image>:<tag>` | Teams push it themselves (`sg-all-users`, `robot$ci-push`) |
+
+Charts that pull from `mirror` point each image at `registry.<domain>/mirror/<source registry>/<path>`
+in their values. The nodes mirror only `docker.io` (to `rancher`), so upstream names aren't
+rewritten.
+
+To copy an image that is already in Harbor to another project, without downloading it again, use
+Harbor's copy API. A repository name with `/` is written with `%252F` in the URL:
+
+```sh
+curl -u admin -X POST \
+  "https://registry.lab.local/api/v2.0/projects/mirror/repositories/quay.io%252Fprometheus%252Fprometheus/artifacts?from=library/quay.io/prometheus/prometheus:v3.16.0-distroless"
+```
 
 **Logging in:**
 - AD users log in with their sAMAccountName and AD password.

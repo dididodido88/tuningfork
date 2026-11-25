@@ -39,7 +39,7 @@ image comes from Harbor.
 | Vault: `vault_rancher_bootstrap_password`, `vault_rancher_admin_password` | Rancher's first and lasting `admin` passwords (at least 12 characters) |
 | AD account for Rancher's login test, e.g. `svc_rancher_admin`, in no AD group. Vault: `vault_rancher_ad_test_password` | Rancher makes this account an administrator, so use a dedicated one, not the bind account. It needs no group, so it opens nothing but Rancher. |
 | Vault: `vault_rancher_grafana_admin_password` | Grafana's admin password for the monitoring stack (at least 12 characters) |
-| kube-prometheus-stack chart and images | Chart on the mirror under `helm/charts/kube-prometheus-stack/`; images in Harbor as `library/<source registry>/<path>` (the list is in `terraform/modules/rancher-config/README.md`, "Monitoring") |
+| kube-prometheus-stack chart and images | Chart on the mirror under `helm/charts/kube-prometheus-stack/`; images in Harbor's private `mirror` project as `mirror/<source registry>/<path>` (the list is in `terraform/modules/rancher-config/README.md`, "Monitoring") |
 
 ## 2. Files to download
 

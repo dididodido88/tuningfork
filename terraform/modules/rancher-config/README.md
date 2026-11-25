@@ -95,7 +95,7 @@ module follows that chart's README:
 
 **Images** come from Harbor, kept under their source registry and path:
 `<registry>/<monitoring_image_project>/<source registry>/<path>`, for example
-`registry.lab.local/library/quay.io/prometheus/prometheus`. The tags stay the chart's own. For chart
+`registry.lab.local/mirror/quay.io/prometheus/prometheus` (the private `mirror` project, `ansible/docs/harbor.md`). The tags stay the chart's own. For chart
 93.9.0 these are:
 
 | Image | Tag |

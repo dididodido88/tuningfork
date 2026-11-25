@@ -158,9 +158,9 @@ variable "registry" {
 }
 
 variable "monitoring_image_project" {
-  description = "Harbor project holding the kube-prometheus-stack images, each under its source registry and path: <registry>/<project>/<source registry>/<path>, e.g. registry.lab.local/library/quay.io/prometheus/prometheus."
+  description = "Harbor project holding the kube-prometheus-stack images, each under its source registry and path: <registry>/<project>/<source registry>/<path>, e.g. registry.lab.local/mirror/quay.io/prometheus/prometheus. mirror is the private project for every upstream image other than RKE2 and Rancher (docs/harbor.md)."
   type        = string
-  default     = "library"
+  default     = "mirror"
 }
 
 variable "grafana_admin_password" {

@@ -53,7 +53,7 @@ inputs = {
   admin_group_dn  = "CN=sg-lab-admins,OU=Groups,OU=Lab,DC=lab,DC=local"
   viewer_group_dn = "CN=sg-all-users,OU=Groups,OU=Lab,DC=lab,DC=local"
 
-  # --- Monitoring: kube-prometheus-stack from the mirror, images from Harbor (library/<registry>/...) ---
+  # --- Monitoring: kube-prometheus-stack from the mirror, images from Harbor (mirror/<registry>/...) ---
   kube_prometheus_stack_chart_path = "/repo/helm/charts/kube-prometheus-stack/kube-prometheus-stack-93.9.0.tgz"
 
   # --- Application cluster command-pro (custom, provisioned by Rancher; no nodes join yet) ---
@@ -67,7 +67,7 @@ inputs = {
   #   viewer_cluster_roles = ["projects-view", "nodes-view", "clusterroletemplatebindings-view", "clustercatalogs-view"]
   #   monitoring_enabled                  = true
   #   monitoring_dashboards_chart_version = "110.0.1+up0.1.4"
-  #   monitoring_image_project            = "library"
+  #   monitoring_image_project            = "mirror"
   #   app_cluster_name                    = "command-pro"
   #   app_cluster_kubernetes_version      = "v1.36.5+rke2r1"
   #   app_cluster_hostname                = "command-pro.lab.local"

@@ -44,6 +44,13 @@ harbor_projects:
   - name: rancher
     public: false
     members: []
+  # Every other upstream image the clusters run (monitoring, storage drivers, ...), kept under
+  # its source registry and path: mirror/<source registry>/<path>, e.g.
+  # mirror/quay.io/prometheus/prometheus. Private, with no members: only Harbor administrators
+  # push, so no user can replace a cluster image; the nodes pull as robot$k8s-pull.
+  - name: mirror
+    public: false
+    members: []
 
 # --- Robot accounts: log in as robot$<name>; secrets in vault_harbor_robot_secrets ---
 harbor_robots:
