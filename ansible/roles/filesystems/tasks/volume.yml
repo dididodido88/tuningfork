@@ -11,6 +11,7 @@
     part_start: 1MiB
     part_end: "100%"
     state: present
+  register: filesystems_parted
 
 - name: "Volume {{ filesystems_volume.mount }} | Wait for udev to create the partition link"
   ansible.builtin.command: udevadm settle
@@ -20,6 +21,19 @@
   ansible.builtin.stat:
     path: "{{ filesystems_volume.part }}"
   register: filesystems_part_stat
+
+# A partition created in this run sits on a disk validate.yml found blank, so nothing on it is
+# ours to keep. Storage that doesn't zero freed space (shared LVM on a SAN) can still leave an old
+# VM's filesystem at the same offset, and mkfs refuses to overwrite it without force. Clear the
+# new partition's signatures, only in the run that created it.
+- name: "Volume {{ filesystems_volume.mount }} | Clear old signatures from the new partition"
+  ansible.builtin.command:
+    argv: [wipefs, -a, "{{ filesystems_volume.part }}"]
+  register: filesystems_partition_wipe
+  changed_when: filesystems_partition_wipe.stdout | length > 0
+  when:
+    - filesystems_parted is changed
+    - filesystems_part_stat.stat.exists
 
 - name: "Volume {{ filesystems_volume.mount }} | Partition not created yet (check mode)"
   ansible.builtin.debug:
