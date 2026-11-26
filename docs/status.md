@@ -13,6 +13,13 @@ The code relies on these and doesn't check all of them.
 - Proxmox VE 9 (Debian 13) hosts the VMs. Terraform uses `bpg/proxmox` 0.122.0 from a local plugin
   directory (`/root/.terraform.d/plugins` on maestro). The Proxmox API token is in
   `PROXMOX_VE_API_TOKEN`.
+- The VM storage is shared LVM on a SAN (lab: `uxt-san-vol1`), set by hand on Proxmox, not by this
+  repository:
+  - `snapshot-as-volume-chain 1`, so disks can be `qcow2` and have snapshots. Terraform creates
+    every disk as `qcow2`.
+  - `saferemove 1` (set 2026-11-26), so a deleted disk is zeroed and its data can't appear in a
+    later VM's disk. Space freed before that date can still hold old data. The `filesystems` role
+    refuses a disk that isn't blank; wipe it with `wipefs -a` once you're sure it's the right one.
 - Every Linux VM is cloned from the template `rocky9-chrgs-template-v2`. It must have root with an
   authorised SSH key, cloud-init, and no SCSI disk other than `scsi0`
   ([terraform/README.md](../terraform/README.md), "Template requirements").
