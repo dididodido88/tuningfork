@@ -30,7 +30,7 @@ image comes from Harbor.
 | What | Where |
 |---|---|
 | DNS A record `rancher.<domain>` → the virtual IP (`keepalived_vip` in `terraform/live/<ENV>/lb-rancher`) | AD DNS. The plays stop if it is missing. |
-| Certificate for `rancher.<domain>` from the internal CA: lb-rancher's host certificate, with `rancher.<domain>` among its names | On the control node: `/srv/security/certificates/files/<certificates_env_dir>/lb-rancher/lb-rancher.fullchain.crt` and `lb-rancher.key` |
+| Certificate for `rancher.<domain>` from the internal CA, separate from lb-rancher's host certificate | On the control node: `/srv/security/certificates/files/<certificates_env_dir>/rancher/rancher.fullchain.crt` and `rancher.key` |
 | Harbor running, with the project `rancher` | `harbor_projects` in `group_vars/registry_servers.yml` (already listed); run `playbooks/harbor.yml` |
 | Vault: `vault_rke2_rancher_token` | A long random string, the cluster's join secret: `openssl rand -hex 32` |
 | Vault: `vault_haproxy_stats_password` | Password for the HAProxy statistics page (at least 12 characters) |
@@ -175,9 +175,9 @@ What the RKE2 play does, one node at a time (first node by name first):
 5. Copies the admin kubeconfig to the control node: `~/.kube/<ENV>-rancher-cluster.yaml`, which
    points at `https://rancher.<domain>:6443` and is what Terraform uses in step 3.
 
-Terraform then creates the namespace `cattle-system`, the TLS secrets (the `lb-rancher` certificate
+Terraform then creates the namespace `cattle-system`, the TLS secrets (the `rancher` certificate
 and the internal CA) and installs the chart: one Rancher pod per node, images from Harbor, no
-cert-manager. It also makes the `lb-rancher` certificate Traefik's default certificate, the one served
+cert-manager. It also makes the `rancher` certificate Traefik's default certificate, the one served
 to a request that names no known host (a HelmChartConfig for `rke2-traefik` and the secret
 `kube-system/tls-default-certificate`).
 
@@ -264,4 +264,4 @@ matrix, and upgrade Rancher itself with the new chart through Terraform.
 | `RKE2 ... is installed ..., but rke2_version is ...` | Another version is installed: see section 6. |
 | Terraform: `chart_path doesn't point at a file` | Copy the chart `.tgz` to the control node and set `chart_path`. |
 | Rancher pods `ImagePullBackOff` | Rancher's own images missing from Harbor (`rancher-images.txt`). |
-| Browser warns about the certificate | The `lb-rancher` certificate doesn't cover `rancher.<domain>`, or the browser doesn't trust the internal CA. |
+| Browser warns about the certificate | The `rancher` certificate doesn't cover `rancher.<domain>`, or the browser doesn't trust the internal CA. |

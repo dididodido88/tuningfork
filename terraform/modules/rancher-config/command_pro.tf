@@ -57,6 +57,15 @@ resource "rancher2_cluster_v2" "app" {
       "tls-san"      = distinct(concat([local.app_cluster_hostname], var.app_cluster_tls_sans))
     })
 
+    # Traefik's default certificate: the application cluster's own (app_cluster_certificate_name),
+    # from the secret below. Rancher passes these values to the rke2-traefik chart, as the
+    # rancher-server unit's HelmChartConfig does on the Rancher cluster.
+    chart_values = var.app_cluster_certificate_name == null ? null : yamlencode({
+      "rke2-traefik" = {
+        tlsStore = { default = { defaultCertificate = { secretName = "tls-default-certificate" } } }
+      }
+    })
+
     etcd {
       snapshot_schedule_cron = var.app_etcd_snapshot_schedule
       snapshot_retention     = var.app_etcd_snapshot_retention
@@ -82,4 +91,20 @@ resource "rancher2_cluster_v2" "app" {
   }
 
   depends_on = [rancher2_auth_config_activedirectory.ad]
+}
+
+# The application cluster's certificate (full chain) and key, in kube-system where the Traefik
+# chart creates its TLSStore. Only once the cluster runs: Rancher writes it through the cluster's
+# agent.
+resource "rancher2_secret_v2" "app_traefik_default_certificate" {
+  count = var.app_cluster_enabled && var.app_cluster_certificate_name != null ? 1 : 0
+
+  cluster_id = rancher2_cluster_v2.app[0].cluster_v1_id
+  namespace  = "kube-system"
+  name       = "tls-default-certificate"
+  type       = "kubernetes.io/tls"
+  data = {
+    "tls.crt" = file("${var.certificate_dir}/${var.app_cluster_certificate_name}/${var.app_cluster_certificate_name}.fullchain.crt")
+    "tls.key" = file("${var.certificate_dir}/${var.app_cluster_certificate_name}/${var.app_cluster_certificate_name}.key")
+  }
 }

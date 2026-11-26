@@ -64,6 +64,9 @@ inputs = {
   # context through lb-app (ansible/docs/app-cluster.md).
   app_cluster_ace_ca_file = "/srv/security/certificates/files/lab.local/command-pro/rke2-server-ca.crt"
 
+  # Traefik's default certificate on command-pro (443 behind lb-app): certificate_dir/command-pro/.
+  app_cluster_certificate_name = "command-pro"
+
   # Defaults, shown for reference:
   #   rancher_hostname     = "rancher.lab.local"
   #   ad_servers           = ["lab.local"]

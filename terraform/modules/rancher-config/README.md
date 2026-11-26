@@ -30,6 +30,7 @@ Guide: [ansible/docs/rancher.md](../../../ansible/docs/rancher.md). Every input 
 | `rancher2_project_role_template_binding.viewers_monitoring` | Viewer group → "View Monitoring" (`monitoring-ui-view`) in the System project: open Grafana, Prometheus and Alertmanager through Rancher, read-only |
 | `rancher2_secret_v2.app_registry_auth` | `fleet-default/<app_cluster_name>-registry-auth`: the Harbor robot login the application cluster's nodes pull images with |
 | `rancher2_cluster_v2.app` | The application cluster (`app_cluster_name`, default `command-pro`), a custom RKE2 cluster with no nodes yet (only while `app_cluster_enabled`) |
+| `rancher2_secret_v2.app_traefik_default_certificate` | `kube-system/tls-default-certificate` on the application cluster: its certificate and key, for Traefik (only while `app_cluster_certificate_name` is set) |
 
 **Read-only cluster roles given to the viewer group** (Rancher's built-in role templates):
 
@@ -134,6 +135,7 @@ Its settings follow the standalone cluster built by `roles/rke2_server`:
 | Authorized Cluster Endpoint | `<app_cluster_hostname>:6443`, through lb-app: a direct kubeconfig context (`<name>-fqdn`) that works while Rancher is down. lb-app passes TLS through, so the context needs the cluster's own RKE2 server CA: copy `/var/lib/rancher/rke2/server/tls/server-ca.crt` from a node after the first join and set `app_cluster_ace_ca_file` |
 | etcd snapshots | Every 6 hours, 28 kept |
 | Registry | `docker.io` mirrored to Harbor; nodes log in as `robot$k8s-pull`; images through Rancher's `systemDefaultRegistry` |
+| Ingress certificate | `app_cluster_certificate_name` (lab: `command-pro`), from the certificate tree: Traefik's default certificate on 443 behind lb-app, through the `rke2-traefik` chart values and the secret `kube-system/tls-default-certificate`. Set once the first node has joined |
 
 The viewer group sees it read-only through the global role Cluster Viewer, with no extra binding.
 `terragrunt output -raw app_cluster_registration_command` prints the command a node runs to join as

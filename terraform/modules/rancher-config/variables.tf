@@ -260,3 +260,9 @@ variable "app_cluster_ace_ca_file" {
     error_message = "app_cluster_ace_ca_file doesn't point at a file. Copy server-ca.crt from a command-pro node first."
   }
 }
+
+variable "app_cluster_certificate_name" {
+  description = "Folder and file prefix in certificate_dir of the certificate for app_cluster_hostname (command-pro/command-pro.{fullchain.crt,key}). It becomes the default certificate of RKE2's Traefik on the application cluster, the one served on 443 behind lb-app. The secret goes onto the running cluster, so set it once the first node has joined; null leaves Traefik's own default."
+  type        = string
+  default     = null
+}
