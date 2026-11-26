@@ -130,8 +130,10 @@ resource "proxmox_virtual_environment_vm" "this" {
   }
 
   # Data disks on scsi1..N, in list order. They are created EMPTY: only a size, a storage volume
-  # and an image format are given (raw is the image format, not a filesystem), and nothing is
+  # and an image format are given (qcow2 is the image format, not a filesystem), and nothing is
   # imported onto them. The Ansible filesystems role partitions and formats them.
+  # qcow2 for every disk, OS disk included: Proxmox VE 9 takes snapshots of disks on (shared) LVM
+  # only as qcow2 volume chains.
   dynamic "disk" {
     for_each = { for i, d in each.value.data_disks : i => d }
     content {

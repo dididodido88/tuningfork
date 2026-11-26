@@ -290,8 +290,9 @@ data_disks list, position 0, 1, 2 ...
 ```
 
 - **Terraform creates the disks empty.** It gives each disk a size, a storage volume and an image
-  format. `raw` is the image format, not a filesystem, and nothing is imported onto the disk.
-  Terraform never looks inside a disk.
+  format. `qcow2` is the image format, not a filesystem, and nothing is imported onto the disk.
+  Terraform never looks inside a disk. Every disk, the OS disk included, is `qcow2`: Proxmox VE 9
+  takes snapshots of disks on LVM only as qcow2 volume chains.
 - **A disk's identity is its place in the `data_disks` list.** Position 0 is `scsi1`, position 1
   is `scsi2`, and so on. Proxmox gives each slot a fixed device name in the guest,
   `/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_drive-scsiN`, which doesn't change across reboots
