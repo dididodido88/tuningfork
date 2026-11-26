@@ -56,7 +56,7 @@ inputs = {
   # --- Monitoring: kube-prometheus-stack from the mirror, images from Harbor (mirror/<registry>/...) ---
   kube_prometheus_stack_chart_path = "/repo/helm/charts/kube-prometheus-stack/kube-prometheus-stack-93.9.0.tgz"
 
-  # --- Application cluster command-pro (custom, provisioned by Rancher; no nodes join yet) ---
+  # --- Application cluster command-pro (custom, provisioned by Rancher; nodes joined 2026-11-26) ---
   # lb-app's virtual IP (keepalived_vip in terraform/live/lab/lb-app), besides command-pro.lab.local.
   app_cluster_tls_sans = ["192.168.70.90"]
 
