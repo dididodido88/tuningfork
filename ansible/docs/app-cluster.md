@@ -104,17 +104,37 @@ Each app node has a local disk mounted at `/scratch`, for workloads that need lo
 - **What it is not**: it isn't managed by Kubernetes. Data stays on the node when a pod moves
   elsewhere, isn't shared between nodes, and isn't backed up.
 
-## 6. Next phase: managed by Rancher
+## 6. Managed by Rancher
 
-Not built yet. Today, with `app_cluster_rancher_managed: true`, the play only prepares the hosts
-(firewall, IP forwarding, SELinux policy, disks), and `lb-app` already drops 9345. Planned:
+Lab runs this way since 2026-11-26 (`app_cluster_rancher_managed: true`). The play only prepares
+the hosts (firewall, IP forwarding, SELinux policy, disks), and `lb-app` drops 9345. Rancher
+installs RKE2 when a node runs the cluster's registration command.
 
-1. A Terraform unit `terraform/k8s/<ENV>/app-cluster` with the `rancher2` provider defines the
-   cluster in Rancher. It sets:
-   - the RKE2 version and Harbor as the registry;
-   - `command-pro.<domain>` and the `lb-app` virtual IP as TLS names;
-   - the Authorized Cluster Endpoint with FQDN `command-pro.<domain>` and the cluster's CA certificate.
-2. Ansible runs Rancher's registration command on each node, with the token from the vault.
+1. **The cluster in Rancher:** `terraform/k8s/<ENV>/rancher-config` defines `command-pro` as a
+   custom cluster: RKE2 version, Canal, Harbor and its robot login, `command-pro.<domain>` and the
+   `lb-app` virtual IP as TLS names, and the Authorized Cluster Endpoint on
+   `command-pro.<domain>:6443` (`terraform/modules/rancher-config/README.md`, "Application
+   cluster").
+2. **Prepare the nodes:** `site.yml --limit 'lb_app:rke2_app'`, until it reports `changed=0`.
+3. **Join, by hand for now:** print the command with
+   `terragrunt output -raw app_cluster_registration_command` in the `rancher-config` unit (it holds
+   the join token) and run it as root on each node, one at a time, waiting until the node is
+   Active in Rancher. Codifying this in the `rke2_server` role, with the token in the vault, is
+   planned.
+4. **After the first join:** copy the cluster's RKE2 server CA to the control node, set
+   `app_cluster_ace_ca_file` and `app_cluster_certificate_name` in the unit, and apply:
 
-It is built once the Rancher cluster runs, from the provider version and the registration command
-of your Rancher, rather than from guesses.
+   ```sh
+   ansible -i inventories/<ENV> node01.<domain> -b -m ansible.builtin.fetch \
+     -a "src=/var/lib/rancher/rke2/server/tls/server-ca.crt dest=<certificates_env_dir>/command-pro/rke2-server-ca.crt flat=true"
+   ```
+
+   lb-app passes 6443 through, so the direct kubeconfig context meets the API server's own
+   certificate, signed by that CA. The `command-pro` certificate becomes Traefik's default
+   certificate on 443.
+5. **Run the play once more:** the CIS audit rules pick up the privileged programs RKE2 added, then
+   it reports `changed=0`.
+6. **kubectl:** download the cluster's kubeconfig from Rancher (again after step 4). Its
+   `command-pro` context goes through Rancher; `command-pro-fqdn` goes straight to
+   `command-pro.<domain>:6443` through `lb-app` and keeps working while Rancher is down.
+
