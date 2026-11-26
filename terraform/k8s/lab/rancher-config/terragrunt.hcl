@@ -60,6 +60,10 @@ inputs = {
   # lb-app's virtual IP (keepalived_vip in terraform/live/lab/lb-app), besides command-pro.lab.local.
   app_cluster_tls_sans = ["192.168.70.90"]
 
+  # command-pro's RKE2 server CA, copied from a node once it joined, for the direct kubeconfig
+  # context through lb-app (ansible/docs/app-cluster.md).
+  app_cluster_ace_ca_file = "/srv/security/certificates/files/lab.local/command-pro/rke2-server-ca.crt"
+
   # Defaults, shown for reference:
   #   rancher_hostname     = "rancher.lab.local"
   #   ad_servers           = ["lab.local"]

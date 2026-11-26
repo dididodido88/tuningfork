@@ -131,7 +131,7 @@ Its settings follow the standalone cluster built by `roles/rke2_server`:
 | Network plugin, SELinux | Canal; `selinux: true` |
 | Pod and service networks | `10.42.0.0/16`, `10.43.0.0/16` |
 | TLS names | `app_cluster_hostname` (default `command-pro.<dns_domain>`) and `app_cluster_tls_sans` (lab: lb-app's virtual IP) |
-| Authorized Cluster Endpoint | `<app_cluster_hostname>:6443`, through lb-app: a direct kubeconfig context that works while Rancher is down |
+| Authorized Cluster Endpoint | `<app_cluster_hostname>:6443`, through lb-app: a direct kubeconfig context (`<name>-fqdn`) that works while Rancher is down. lb-app passes TLS through, so the context needs the cluster's own RKE2 server CA: copy `/var/lib/rancher/rke2/server/tls/server-ca.crt` from a node after the first join and set `app_cluster_ace_ca_file` |
 | etcd snapshots | Every 6 hours, 28 kept |
 | Registry | `docker.io` mirrored to Harbor; nodes log in as `robot$k8s-pull`; images through Rancher's `systemDefaultRegistry` |
 

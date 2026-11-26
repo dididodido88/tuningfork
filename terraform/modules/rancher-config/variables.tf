@@ -249,3 +249,14 @@ variable "harbor_k8s_pull_secret" {
   sensitive   = true
   default     = null
 }
+
+variable "app_cluster_ace_ca_file" {
+  description = "File on the control node holding the application cluster's RKE2 server CA (/var/lib/rancher/rke2/server/tls/server-ca.crt on a node). Rancher puts it in the kubeconfig's direct context (Authorized Cluster Endpoint), because lb-app passes 6443 through and kubectl meets the API server's own certificate. The CA exists only once the first node has joined; leave null until then."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.app_cluster_ace_ca_file == null || fileexists(pathexpand(coalesce(var.app_cluster_ace_ca_file, "/nonexistent")))
+    error_message = "app_cluster_ace_ca_file doesn't point at a file. Copy server-ca.crt from a command-pro node first."
+  }
+}

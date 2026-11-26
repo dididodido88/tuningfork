@@ -39,8 +39,11 @@ resource "rancher2_cluster_v2" "app" {
   # Authorized Cluster Endpoint: Rancher's kubeconfig also gets a direct context to the cluster's
   # API through lb-app, which keeps working while Rancher is down.
   local_auth_endpoint {
-    enabled = true
-    fqdn    = "${local.app_cluster_hostname}:6443"
+    enabled  = true
+    fqdn     = "${local.app_cluster_hostname}:6443"
+    # The cluster's own RKE2 server CA: lb-app passes TLS through, so this is what the API server's
+    # certificate chains to. Unknown until the first node joins (app_cluster_ace_ca_file).
+    ca_certs = var.app_cluster_ace_ca_file == null ? null : file(pathexpand(var.app_cluster_ace_ca_file))
   }
 
   rke_config {
