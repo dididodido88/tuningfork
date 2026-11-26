@@ -82,7 +82,8 @@
   ansible.builtin.shell: |
     set -o pipefail
     d=$(readlink -e "{{ item.disk }}") || { echo "missing"; exit 3; }
-    sigs=$(wipefs -n --noheadings -o TYPE "$d" | tr '\n' ' ')
+    # -O (--output); lower-case -o is --offset and makes wipefs fail, leaving sigs empty.
+    sigs=$(wipefs -n --noheadings -O TYPE "$d" | tr '\n' ' ')
     printf '{"real": "%s", "sigs": "%s", "lsblk": %s}\n' "$d" "$sigs" \
       "$(lsblk -J -b -p -o NAME,TYPE,SIZE,PTTYPE,FSTYPE,MOUNTPOINT,PARTLABEL "$d")"
   register: filesystems_disk_info
