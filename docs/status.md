@@ -99,8 +99,9 @@ Fixed since the review:
 
 - **NAS firewall.** NFS is now open only to `nas_server_firewall_sources`, with one rich rule per
   source and service. Lab allows `192.168.70.0/24`. The CRGS values are placeholders.
-- **NAS exports.** Each environment exports the five Terraform data disks under `/export/`, to the
-  same networks as the firewall. Every export uses `rw,sync,root_squash`.
+- **NAS exports.** Each environment exports the five Terraform data disks under `/export/`.
+  `/export/pvcdata` goes only to the app nodes, with `rw,sync,no_root_squash`, for csi-driver-nfs; the
+  other four go to the same networks as the firewall, with `rw,sync,root_squash`.
 - **Stray folder.** The `roles/` folder at the repository root, which held only a compiled Python
   file, is removed. `.gitignore` now ignores `__pycache__/` and `*.pyc`.
 - **Rancher cluster (lab) is idempotent.** On 2026-11-23 a repeat run of

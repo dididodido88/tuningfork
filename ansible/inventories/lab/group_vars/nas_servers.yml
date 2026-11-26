@@ -6,10 +6,18 @@
 # step with that file: a path here that has no disk ends up on the root file system.
 
 nas_server_exports:
+  # Persistent volumes of the application cluster, created by csi-driver-nfs (storage classes
+  # m-shared-pv and m-dedicated-pv). Only the app nodes mount it. no_root_squash: the driver
+  # creates and owns each volume folder as root (decided by the user; root on those nodes already
+  # holds cluster-admin).
   - path: /export/pvcdata
     clients:
-      - host: 192.168.70.0/24
-        options: rw,sync,root_squash
+      - host: 192.168.70.91  # node01
+        options: rw,sync,no_root_squash
+      - host: 192.168.70.92  # node02
+        options: rw,sync,no_root_squash
+      - host: 192.168.70.93  # node03
+        options: rw,sync,no_root_squash
   - path: /export/cfr
     clients:
       - host: 192.168.70.0/24
