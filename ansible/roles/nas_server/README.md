@@ -42,6 +42,7 @@ Fields of one export:
 | `owner` | no | `root` | Owner of the directory. |
 | `group` | no | `root` | Group of the directory. |
 | `mode` | no | `"0755"` | Mode of the directory. Quote it. |
+| `subdirs` | no | `[]` | Subfolders to create inside the export, with the same owner, group and mode, e.g. one per Kubernetes storage class. Not exported separately. |
 | `clients` | yes | | List of clients. Each has `host` (an address, network or host name) and optional `options` (default `rw,sync,root_squash`). |
 
 Optional:

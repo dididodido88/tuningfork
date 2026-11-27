@@ -19,6 +19,20 @@
     label: "{{ item.path }}"
   tags: [nas_server]
 
+# Optional subfolders of an export (subdirs), with the export's owner, group and mode: e.g. one per
+# Kubernetes storage class, each the root that class provisions into.
+- name: NAS | Create export subfolders
+  ansible.builtin.file:
+    path: "{{ item.0.path }}/{{ item.1 }}"
+    state: directory
+    owner: "{{ item.0.owner | default('root') }}"
+    group: "{{ item.0.group | default('root') }}"
+    mode: "{{ item.0.mode | default('0755') }}"
+  loop: "{{ nas_server_exports | subelements('subdirs', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.path }}/{{ item.1 }}"
+  tags: [nas_server]
+
 - name: NAS | Write /etc/exports
   ansible.builtin.template:
     src: exports.j2
