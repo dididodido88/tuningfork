@@ -100,8 +100,8 @@ Fixed since the review:
 - **NAS firewall.** NFS is now open only to `nas_server_firewall_sources`, with one rich rule per
   source and service. Lab allows `192.168.70.0/24`. The CRGS values are placeholders.
 - **NAS exports.** Each environment exports the five Terraform data disks under `/export/`.
-  `/export/pvcdata` goes to the app nodes with `rw,sync,no_root_squash`, for csi-driver-nfs, and to the
-  Kubernetes bastion with `rw,sync,root_squash`; the
+  `/export/pvcdata` goes to the app nodes with `rw,sync,no_root_squash`, for csi-driver-nfs. The
+  Kubernetes bastion gets `rw,sync,no_root_squash` on every export and mounts them all; the
   other four go to the same networks as the firewall, with `rw,sync,root_squash`.
 - **Stray folder.** The `roles/` folder at the repository root, which held only a compiled Python
   file, is removed. `.gitignore` now ignores `__pycache__/` and `*.pyc`.

@@ -26,6 +26,9 @@ without credentials, and sets up the login environment.
 6. Writes `/etc/profile.d/k8s-bastion.sh`, which sets `KUBECONFIG` to the user's own
    `~/.kube/config` plus every shared cluster file, and adds the alias `k` for `kubectl`.
 7. Writes usage notes shown at login (`/etc/motd.d/k8s-bastion`).
+8. Mounts every export of the NAS host (`nas_server_exports` of the first host in `nas_servers`) at
+   `<k8s_bastion_nas_mount_root>/<name>`, e.g. `/mnt/nas/pvcdata`, over NFS 4.2, for troubleshooting.
+   The NAS gives the bastion `no_root_squash`, so root can fix files on any export.
 
 Who may log in is decided by the `sssd_ad` role: add the bastion's AD groups to
 `sssd_ad_extra_ssh_groups` in the same group_vars file.
@@ -59,6 +62,10 @@ Optional:
 | `k8s_bastion_packages` | `[bash-completion, git, vim-enhanced, tmux]` | OS packages for interactive work. |
 | `k8s_bastion_clusters` | `[]` | Shared cluster definitions. Each has `name`, `server`, and optional `ca_file` (default: the system CA bundle) and `namespace` (default: `default`). |
 | `k8s_bastion_clusters_dir` | `/etc/kubernetes/clusters` | Where the shared cluster files are written. |
+| `k8s_bastion_nas_mounts_enabled` | `true` | Mount the NAS exports. |
+| `k8s_bastion_nas_host` | first host in `nas_servers` | The NAS. Its `nas_server_exports` lists what is mounted. |
+| `k8s_bastion_nas_mount_root` | `/mnt/nas` | Each export is mounted at `<this>/<last part of its path>`. |
+| `k8s_bastion_nas_mount_opts` | `rw,nfsvers=4.2,hard,_netdev,nofail,nosuid,nodev` | Mount options. `nofail`: a NAS that is down doesn't stop the bastion booting. |
 
 The login notes also show `kubectl_version` (from the `kubectl` role) and `env_domain`.
 

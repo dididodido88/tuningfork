@@ -5,6 +5,9 @@
 # (terraform/_envcommon/roles/nas.hcl) and the filesystems role mounts them, so keep this list in
 # step with that file: a path here that has no disk ends up on the root file system.
 
+# The Kubernetes bastion mounts every export (roles/k8s_bastion) with no_root_squash, for
+# troubleshooting. Its own single-address entry takes precedence over the network entry: NFS
+# picks a single-host match before a network match (exports(5)).
 nas_server_exports:
   # Persistent volumes of the application cluster, created by csi-driver-nfs (storage classes
   # m-shared-pv and m-dedicated-pv). The app nodes mount it with no_root_squash: the driver
@@ -18,26 +21,34 @@ nas_server_exports:
         options: rw,sync,no_root_squash
       - host: 198.51.100.53  # REPLACE
         options: rw,sync,no_root_squash
-      # The Kubernetes bastion, to inspect and copy volume data. root_squash: users log in there, and
-      # its root mustn't own the cluster's files.
+      # The Kubernetes bastion, the host for troubleshooting: it mounts every export and may change
+      # files as root (decided by the user).
       - host: 198.51.100.15  # REPLACE: bastion
-        options: rw,sync,root_squash
+        options: rw,sync,no_root_squash
   - path: /export/cfr
     clients:
       - host: 198.51.100.0/24  # REPLACE
         options: rw,sync,root_squash
+      - host: 198.51.100.15  # REPLACE: bastion
+        options: rw,sync,no_root_squash
   - path: /export/testdata
     clients:
       - host: 198.51.100.0/24  # REPLACE
         options: rw,sync,root_squash
+      - host: 198.51.100.15  # REPLACE: bastion
+        options: rw,sync,no_root_squash
   - path: /export/deliveries
     clients:
       - host: 198.51.100.0/24  # REPLACE
         options: rw,sync,root_squash
+      - host: 198.51.100.15  # REPLACE: bastion
+        options: rw,sync,no_root_squash
   - path: /export/backups
     clients:
       - host: 198.51.100.0/24  # REPLACE
         options: rw,sync,root_squash
+      - host: 198.51.100.15  # REPLACE: bastion
+        options: rw,sync,no_root_squash
 
 # Networks or single addresses allowed through the firewall to NFS. Keep them in line with the
 # export clients above.

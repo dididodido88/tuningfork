@@ -172,3 +172,47 @@
     group: root
     mode: "0644"
   tags: [k8s_bastion]
+
+# --- NAS exports (k8s_bastion_nas_*) --------------------------------------------------------
+# Every export of the NAS host, read from its own nas_server_exports so a new export appears here
+# without a second list.
+- name: Bastion | Note that no NAS host is in the inventory
+  ansible.builtin.debug:
+    msg: >-
+      No host in group nas_servers, so no NAS exports are mounted. Check the NAS's generated
+      inventory (terraform_nas.yml) puts it in nas_servers.
+  when:
+    - k8s_bastion_nas_mounts_enabled | bool
+    - k8s_bastion_nas_host | length == 0
+  tags: [k8s_bastion, nas]
+
+- name: Bastion | Mount the NAS exports
+  when:
+    - k8s_bastion_nas_mounts_enabled | bool
+    - k8s_bastion_nas_host | length > 0
+  vars:
+    k8s_bastion_nas_exports: "{{ hostvars[k8s_bastion_nas_host].nas_server_exports | default([]) | map(attribute='path') | list }}"
+  tags: [k8s_bastion, nas]
+  block:
+    - name: Bastion | Install the NFS client
+      ansible.builtin.dnf:
+        name: nfs-utils
+        state: present
+
+    - name: Bastion | Create the mount points
+      ansible.builtin.file:
+        path: "{{ k8s_bastion_nas_mount_root }}/{{ item | basename }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0755"
+      loop: "{{ k8s_bastion_nas_exports }}"
+
+    - name: Bastion | Mount each export
+      ansible.posix.mount:
+        src: "{{ k8s_bastion_nas_host }}:{{ item }}"
+        path: "{{ k8s_bastion_nas_mount_root }}/{{ item | basename }}"
+        fstype: nfs
+        opts: "{{ k8s_bastion_nas_mount_opts }}"
+        state: mounted
+      loop: "{{ k8s_bastion_nas_exports }}"

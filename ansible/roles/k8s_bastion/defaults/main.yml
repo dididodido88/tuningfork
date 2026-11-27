@@ -48,3 +48,14 @@ k8s_bastion_packages: [bash-completion, git, vim-enhanced, tmux]
 #     namespace: default                          # optional
 k8s_bastion_clusters: []
 k8s_bastion_clusters_dir: /etc/kubernetes/clusters
+
+# --- NAS exports, mounted for troubleshooting ----------------------------------------------
+# The bastion mounts every export of the NAS host (nas_server_exports of the first host in group
+# nas_servers) at <k8s_bastion_nas_mount_root>/<last part of the export path>, e.g.
+# /mnt/nas/pvcdata. The NAS must export to the bastion (no_root_squash, so root can fix files;
+# inventories/<ENV>/group_vars/nas_servers.yml). NFS 4.2 needs no rpcbind, which CIS masks.
+# nofail and _netdev: a NAS that is down doesn't stop the bastion from booting.
+k8s_bastion_nas_mounts_enabled: true
+k8s_bastion_nas_host: "{{ (groups['nas_servers'] | default([]) | first) | default('') }}"
+k8s_bastion_nas_mount_root: /mnt/nas
+k8s_bastion_nas_mount_opts: rw,nfsvers=4.2,hard,_netdev,nofail,nosuid,nodev
