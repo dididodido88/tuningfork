@@ -47,6 +47,6 @@ app_cluster_hostname: "command-pro.{{ env_domain }}"
 # false: standalone RKE2, installed by Ansible (playbooks/rke2_app.yml), reached with its admin
 #        kubeconfig; lb-app carries 80, 443, 6443 and 9345.
 # true:  managed by Rancher Server, which installs RKE2 on the nodes and handles node joins;
-#        lb-app carries 80, 443 and 6443 (Authorized Cluster Endpoint). The join through Rancher
-#        is the next phase: today the play only prepares the hosts in this mode.
+#        lb-app carries 80, 443 and 6443 (Authorized Cluster Endpoint). playbooks/rke2_app.yml
+#        prepares the hosts and joins them with the registration token it reads from Rancher.
 app_cluster_rancher_managed: false

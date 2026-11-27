@@ -1,8 +1,9 @@
 ---
 # Two modes (rke2_rancher_managed):
 #   false  standalone: this role installs RKE2, creates or joins the cluster, writes the kubeconfig
-#   true   managed by Rancher Server: Rancher installs RKE2 when the node runs Rancher's
-#          registration command. This role prepares the host only; the join is the next phase.
+#   true   managed by Rancher Server: this role prepares the host, then joins it by running
+#          Rancher's system agent installer with the cluster's registration token (join.yml), and
+#          copies the admin kubeconfig once RKE2 runs. Rancher installs and manages RKE2.
 
 - name: RKE2 | Pre-checks
   ansible.builtin.import_tasks: preflight.yml
@@ -17,13 +18,28 @@
   ansible.builtin.import_tasks: host.yml
   tags: [rke2_server]
 
-- name: RKE2 | Report that the join through Rancher isn't built yet
-  ansible.builtin.debug:
-    msg: >-
-      {{ inventory_hostname }} is prepared for RKE2 and managed by Rancher Server
-      (rke2_rancher_managed). Joining it to the Rancher cluster comes in the next phase
-      (docs/app-cluster.md); RKE2 isn't installed by this play.
+- name: RKE2 | Join the cluster through Rancher
+  ansible.builtin.import_tasks: join.yml
   when: rke2_rancher_managed | bool
+  tags: [rke2_server]
+
+# The first node's admin kubeconfig, once Rancher has installed RKE2 there (managed mode), for
+# the post-install Terraform unit and administrators: as in standalone mode, through the
+# registration name on 6443.
+- name: RKE2 | Check RKE2 runs on this node (managed mode)
+  ansible.builtin.stat:
+    path: /etc/rancher/rke2/rke2.yaml
+  register: rke2_managed_kubeconfig
+  when: rke2_rancher_managed | bool
+  tags: [rke2_server]
+
+- name: RKE2 | Copy the kubeconfig to the control node (managed mode)
+  ansible.builtin.import_tasks: kubeconfig.yml
+  vars:
+    rke2_init_node: "{{ groups[rke2_cluster_group] | sort | first }}"
+  when:
+    - rke2_rancher_managed | bool
+    - rke2_managed_kubeconfig.stat.exists | default(false)
   tags: [rke2_server]
 
 - name: RKE2 | Install

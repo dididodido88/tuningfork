@@ -1,0 +1,170 @@
+---
+# Managed mode only (rke2_rancher_managed): join this node to its Rancher-provisioned cluster
+# (rke2_rancher_cluster) by running Rancher's system agent installer, as Rancher's registration
+# command does. The play runs one node at a time, so each node is Ready before the next joins.
+#
+# The registration token is read on the control node from the Rancher cluster, through its admin
+# kubeconfig (rke2_rancher_kubeconfig): Rancher keeps it in the secret named by the cluster's
+# ClusterRegistrationToken default-token, and the server URL and CA checksum in that token's
+# nodeCommand. Nothing is copied into a file or the vault. If Rancher, the cluster or the token
+# isn't there yet (first build, before terraform/k8s/<ENV>/rancher-config), the join is skipped
+# with a message and happens on a later run.
+
+- name: RKE2 | Check whether this node has joined Rancher already
+  ansible.builtin.stat:
+    path: /etc/systemd/system/rancher-system-agent.service
+  register: rke2_agent_unit
+
+- name: RKE2 | Join the node through Rancher
+  when: not rke2_agent_unit.stat.exists
+  block:
+    - name: RKE2 | Check the Rancher cluster's kubeconfig is on the control node
+      ansible.builtin.stat:
+        path: "{{ rke2_rancher_kubeconfig }}"
+      register: rke2_rancher_kubeconfig_stat
+      delegate_to: localhost
+      become: false
+
+    - name: RKE2 | Find the cluster's ID in Rancher
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ rke2_rancher_kubeconfig }}"
+          - -n
+          - fleet-default
+          - get
+          - clusters.provisioning.cattle.io
+          - "{{ rke2_rancher_cluster }}"
+          - -o
+          - jsonpath={.status.clusterName}
+      register: rke2_rancher_cluster_id
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      delegate_to: localhost
+      become: false
+      when:
+        - rke2_rancher_cluster | length > 0
+        - rke2_rancher_kubeconfig_stat.stat.exists
+
+    - name: RKE2 | Read the cluster's registration command
+      ansible.builtin.command:
+        argv:
+          - kubectl
+          - --kubeconfig
+          - "{{ rke2_rancher_kubeconfig }}"
+          - -n
+          - "{{ rke2_rancher_cluster_id.stdout }}"
+          - get
+          - clusterregistrationtokens.management.cattle.io
+          - default-token
+          - -o
+          - jsonpath={.status.nodeCommand}{"|"}{.status.expiresAt}{"|"}{.status.tokenSecretName}
+      register: rke2_registration
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      delegate_to: localhost
+      become: false
+      when: (rke2_rancher_cluster_id.stdout | default('')) | length > 0
+
+    - name: RKE2 | Note that the join waits for Rancher
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} is prepared but not joined: no registration token for cluster
+          '{{ rke2_rancher_cluster }}' in Rancher yet ({{ rke2_rancher_kubeconfig }} missing, the
+          cluster not defined, or no default-token). Apply terraform/k8s/<ENV>/rancher-config, then
+          run this play again.
+      when: (rke2_registration.stdout | default('')) | length == 0
+
+    - name: RKE2 | Join, once the registration token is there
+      when: (rke2_registration.stdout | default('')) | length > 0
+      vars:
+        rke2_registration_parts: "{{ rke2_registration.stdout.split('|') }}"
+        rke2_registration_command: "{{ rke2_registration_parts[0] }}"
+        rke2_registration_expires: "{{ rke2_registration_parts[1] }}"
+        rke2_registration_secret: "{{ rke2_registration_parts[2] }}"
+      block:
+        - name: RKE2 | Read the registration token
+          ansible.builtin.command:
+            argv:
+              - kubectl
+              - --kubeconfig
+              - "{{ rke2_rancher_kubeconfig }}"
+              - -n
+              - "{{ rke2_rancher_cluster_id.stdout }}"
+              - get
+              - secret
+              - "{{ rke2_registration_secret }}"
+              - -o
+              - jsonpath={.data.token}
+          register: rke2_registration_token
+          changed_when: false
+          check_mode: false
+          delegate_to: localhost
+          become: false
+          no_log: true
+
+        # The server and CA checksum come from Rancher's own command, so they always match Rancher.
+        - name: RKE2 | Check the registration details
+          ansible.builtin.assert:
+            that:
+              - rke2_registration_token.stdout | length > 0
+              - rke2_registration_command | regex_findall('--server (https://[^ ]+)') | length == 1
+              - rke2_registration_command | regex_findall('--ca-checksum ([0-9a-f]{64})') | length == 1
+              - (rke2_registration_expires | to_datetime('%Y-%m-%dT%H:%M:%SZ')) > now(utc=true)
+            fail_msg: >-
+              The registration token of cluster '{{ rke2_rancher_cluster }}' is missing, unreadable or
+              expired (expires {{ rke2_registration_expires }}). Rancher renews it; check
+              ClusterRegistrationToken default-token in namespace {{ rke2_rancher_cluster_id.stdout }}
+              on the Rancher cluster.
+            quiet: true
+
+        - name: RKE2 | Download Rancher's system agent installer
+          ansible.builtin.get_url:
+            url: "{{ (rke2_registration_command | regex_findall('--server (https://[^ ]+)'))[0] }}/system-agent-install.sh"
+            dest: /root/rancher-system-agent-install.sh
+            owner: root
+            group: root
+            mode: "0700"
+
+        # Rancher installs RKE2 and joins the node; the agent's unit file marks the node as joined.
+        - name: RKE2 | Run the installer with this cluster's registration token
+          ansible.builtin.command:
+            argv: "{{ ['sh', '/root/rancher-system-agent-install.sh',
+                       '--server', (rke2_registration_command | regex_findall('--server (https://[^ ]+)'))[0],
+                       '--label', 'cattle.io/os=linux',
+                       '--token', rke2_registration_token.stdout | b64decode,
+                       '--ca-checksum', (rke2_registration_command | regex_findall('--ca-checksum ([0-9a-f]{64})'))[0]]
+                      + (rke2_rancher_node_roles | map('regex_replace', '^', '--') | list) }}"
+            creates: /etc/systemd/system/rancher-system-agent.service
+          no_log: true
+
+        - name: RKE2 | Wait until this node is Ready in the cluster
+          ansible.builtin.command:
+            argv:
+              - /var/lib/rancher/rke2/bin/kubectl
+              - --kubeconfig
+              - /etc/rancher/rke2/rke2.yaml
+              - get
+              - node
+              - "{{ inventory_hostname }}"
+              - -o
+              - jsonpath={.status.conditions[?(@.type=="Ready")].status}
+          register: rke2_joined_node
+          until: rke2_joined_node.stdout == 'True'
+          retries: "{{ (rke2_rancher_join_timeout | int / 15) | int }}"
+          delay: 15
+          changed_when: false
+          failed_when: false
+          check_mode: false
+
+        - name: RKE2 | Check the node became Ready
+          ansible.builtin.assert:
+            that: rke2_joined_node.stdout == 'True'
+            fail_msg: >-
+              {{ inventory_hostname }} ran Rancher's installer but isn't Ready after
+              {{ rke2_rancher_join_timeout }} s. Check the node in Rancher (Cluster Management,
+              {{ rke2_rancher_cluster }}, Machines) and journalctl -u rancher-system-agent on it.
+            quiet: true

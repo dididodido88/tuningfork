@@ -10,6 +10,9 @@ rke2_cluster_name: app-cluster
 
 # Standalone or managed by Rancher Server: set app_cluster_rancher_managed in group_vars/all/main.yml.
 rke2_rancher_managed: "{{ app_cluster_rancher_managed | default(false) }}"
+# Managed mode: the cluster's name in Rancher (app_cluster_name in terraform/k8s/<ENV>/rancher-config,
+# default command-pro). The nodes join it with its registration token, read from Rancher.
+rke2_rancher_cluster: command-pro
 
 # --- Version and artifacts on the mirror ---------------------------------------------------
 # <env_repo_base_url>/rancher/rke2/<rke2_version>/: install.sh, rke2.linux-amd64.tar.gz,

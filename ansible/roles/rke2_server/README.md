@@ -19,7 +19,7 @@ the Rancher cluster (`rke2_rancher`) and the application cluster (`rke2_app`).
 | `rke2_rancher_managed` | What the role does |
 |---|---|
 | `false` (default): standalone | Everything below: installs RKE2, creates or joins the cluster, writes the kubeconfig. |
-| `true`: managed by Rancher Server | Pre-checks (both modes), host preparation and the container paths only. Rancher installs RKE2 when the node runs its registration command; that join is the next phase. |
+| `true`: managed by Rancher Server | Pre-checks (both modes), host preparation and the container paths, then the join: a node not yet joined runs Rancher's system agent installer with the cluster's registration token, read from Rancher at run time (`tasks/join.yml`). Rancher installs RKE2. The first node's admin kubeconfig is then copied to the control node. |
 
 The Rancher cluster is always standalone. The application cluster follows
 `app_cluster_rancher_managed` in `group_vars/all/main.yml`.
@@ -91,7 +91,11 @@ Optional:
 | `rke2_required_mounts` | `[/var/lib/rancher, /var/lib/kubelet]` | Paths that must be their own filesystems before installing (the application cluster adds `/scratch`). |
 | `rke2_container_paths` | `[]` | Local paths workloads mount as `hostPath` volumes (the application cluster: `[/scratch]`). Labelled `container_file_t`, so pods can use them with SELinux enforcing. |
 | `rke2_container_paths_mode` | `"0755"` | Mode of those paths (owned by root). |
-| `rke2_rancher_managed` | `false` | Managed by Rancher Server: prepare the host only (see "Two modes"). |
+| `rke2_rancher_managed` | `false` | Managed by Rancher Server: prepare the host and join it through Rancher (see "Two modes"). |
+| `rke2_rancher_cluster` | `""` | Managed mode: the cluster's name in Rancher (`fleet-default/<name>`), e.g. `command-pro`. |
+| `rke2_rancher_kubeconfig` | `~/.kube/<env_name>-rancher-cluster.yaml` | Managed mode: the Rancher cluster's admin kubeconfig on the control node, used to read the registration token. |
+| `rke2_rancher_node_roles` | `[etcd, controlplane, worker]` | Managed mode: the roles each node joins with. |
+| `rke2_rancher_join_timeout` | `1200` | Managed mode: seconds to wait for a joined node to be Ready. |
 | `rke2_disable_firewalld` | `true` | Stop and mask firewalld. |
 | `rke2_packages` | `[container-selinux, tar]` | Packages installed first. |
 | `rke2_start_timeout` | `1800` | Seconds `rke2-server` may take to start. |

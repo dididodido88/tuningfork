@@ -26,7 +26,7 @@ app_cluster_rancher_managed: false
 | How nodes join | Through `lb-app` on 9345 (`https://command-pro.<domain>:9345`) | Rancher drives the joins |
 | kubectl | Admin kubeconfig `~/.kube/<ENV>-app-cluster.yaml`, through `lb-app` on 6443 | Kubeconfig from Rancher: through the Rancher proxy, plus a direct context to `command-pro.<domain>:6443` (Authorized Cluster Endpoint) that works while Rancher is down |
 | Ports on `lb-app` | 80, 443, 6443, 9345 | 80, 443, 6443 |
-| Status | Built (this phase) | Hosts prepared only. The join through Rancher is the next phase |
+| Status | Built | Built: Ansible prepares the hosts and joins them through Rancher |
 
 ### Why the load balancer carries these ports
 
@@ -116,11 +116,13 @@ installs RKE2 when a node runs the cluster's registration command.
    `command-pro.<domain>:6443` (`terraform/modules/rancher-config/README.md`, "Application
    cluster").
 2. **Prepare the nodes:** `site.yml --limit 'lb_app:rke2_app'`, until it reports `changed=0`.
-3. **Join, by hand for now:** print the command with
-   `terragrunt output -raw app_cluster_registration_command` in the `rancher-config` unit (it holds
-   the join token) and run it as root on each node, one at a time, waiting until the node is
-   Active in Rancher. Codifying this in the `rke2_server` role, with the token in the vault, is
-   planned.
+3. **Join:** the same play joins each node that hasn't joined yet, one at a time
+   (`roles/rke2_server/tasks/join.yml`). On maestro it reads the cluster's registration token from
+   Rancher, through `~/.kube/<ENV>-rancher-cluster.yaml` (nothing is copied into a file or the
+   vault), runs Rancher's system agent installer on the node with it, and waits until the node is
+   Ready. It also copies the admin kubeconfig to `~/.kube/<ENV>-app-cluster.yaml`. Run before
+   `rancher-config` exists, it only prepares the nodes and says so. Rancher's tokens expire after
+   30 days and Rancher renews them; an expired one stops the join with a message.
 4. **After the first join:** copy the cluster's RKE2 server CA to the control node, set
    `app_cluster_ace_ca_file` and `app_cluster_certificate_name` in the unit, and apply:
 

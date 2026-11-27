@@ -4,8 +4,8 @@
 # inventories/<ENV>/group_vars/all/main.yml:
 #   false  standalone: installs RKE2 from the mirror (images from Harbor) and writes the admin
 #          kubeconfig ~/.kube/<ENV>-app-cluster.yaml on the control node
-#   true   managed by Rancher Server: prepares the hosts only; the join through Rancher is the
-#          next phase
+#   true   managed by Rancher Server: prepares the hosts, joins each to the Rancher-defined cluster
+#          (rke2_rancher_cluster) with its registration token, and writes the admin kubeconfig
 # Needs first: the common layers, Harbor with the images, and playbooks/load_balancer.yml (nodes
 # after the first join through lb-app). site.yml runs them in that order.
 # Settings: inventories/<ENV>/group_vars/rke2_app.yml. Guide: docs/app-cluster.md.
