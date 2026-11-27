@@ -7,7 +7,7 @@
 
 nas_server_exports:
   # Persistent volumes of the application cluster, created by csi-driver-nfs (storage classes
-  # m-shared-pv and m-dedicated-pv). Only the app nodes mount it. no_root_squash: the driver
+  # m-shared-pv and m-dedicated-pv). The app nodes mount it with no_root_squash: the driver
   # creates and owns each volume folder as root (decided by the user; root on those nodes already
   # holds cluster-admin).
   - path: /export/pvcdata
@@ -18,6 +18,10 @@ nas_server_exports:
         options: rw,sync,no_root_squash
       - host: 192.168.70.93  # node03
         options: rw,sync,no_root_squash
+      # The Kubernetes bastion, to inspect and copy volume data. root_squash: users log in there, and
+      # its root mustn't own the cluster's files.
+      - host: 192.168.70.75  # mgmt
+        options: rw,sync,root_squash
   - path: /export/cfr
     clients:
       - host: 192.168.70.0/24
