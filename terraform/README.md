@@ -46,6 +46,7 @@ providers/                         bpg/proxmox and hashicorp/local, supplied by 
 modules/proxmox-vm/                generic "clone VMs from a template" module (not tied to an OS or a role); README.md
 modules/rancher-server/            Rancher Server from its Helm chart, onto the Rancher RKE2 cluster; README.md
 modules/rancher-config/            Rancher admin password, AD login and roles (rancher2 provider); README.md
+modules/app-cluster-config/        application cluster post-install: csi-driver-nfs, storage classes, cert-manager, trust-manager; README.md
 _envcommon/rocky9.hcl              Rocky 9 settings shared by every unit: template, CPU type, inventory file
 _envcommon/roles/<role>.hcl        sizing of one role: cores, memory, data disks, Ansible groups (README.md: all of them)
 live/
@@ -55,6 +56,7 @@ k8s/                               deployments onto clusters Ansible built, appl
   root.hcl                         shared: local state, plugin directory, environment from live/<ENV>/env.hcl
   <ENV>/rancher-server/            Rancher Server (Helm), see "Rancher Server"
   <ENV>/rancher-config/            Rancher configuration (rancher2), see "Rancher configuration"
+  <ENV>/app-cluster-config/        application cluster post-install (helm, kubernetes), step 6 of a build
 state/                             local state, one file per unit (git-ignored; back it up)
 ```
 

@@ -99,7 +99,7 @@ cluster, so a first build alternates between Terraform and Ansible:
 | 3 | Rancher Server | `k8s/<ENV>/rancher-server` | |
 | 4 | Rancher's configuration (admin, AD login, roles, monitoring) and the app cluster `command-pro`, defined in Rancher. Rancher generates its join token | `k8s/<ENV>/rancher-config` | |
 | 5 | Load balancer and app nodes; each node joins `command-pro` | `live/<ENV>/lb-app`, `app-cluster` | `site.yml --limit 'lb_app:rke2_app'`, which reads the join token from Rancher |
-| 6 | `command-pro` post-install: the default ingress certificate, monitoring, csi-driver-nfs and its storage classes, cert-manager, trust-manager, and later dependencies | a post-install unit for `command-pro` (in development) | |
+| 6 | `command-pro` post-install: the default ingress certificate, monitoring, csi-driver-nfs and its storage classes, cert-manager, trust-manager, and later dependencies | `k8s/<ENV>/app-cluster-config` (monitoring in development) | |
 | 7 | The user workloads on `command-pro` | to be developed | |
 
 Run before steps 3 and 4, the app-cluster play prepares the nodes and leaves the join for step 5.
