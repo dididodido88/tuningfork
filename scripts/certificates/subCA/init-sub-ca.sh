@@ -28,7 +28,7 @@
 #
 # Environment:
 #   DOMAIN_NAME     required, e.g. lab.local (the folder under /srv/security/certificates/files)
-#   SUBCA_NAME      folder and file name, default command-pro-ca
+#   SUBCA_NAME      folder and file name, default app-cluster-ca
 #   SUBCA_CN        subject common name, default "<SUBCA_NAME> cert-manager issuing CA"
 #   SUBCA_DAYS      validity in days, default 3650 (10 years); capped at the root's expiry
 #   PERMITTED_DNS   comma-separated DNS domains the sub-CA may issue for (each covers its
@@ -40,7 +40,7 @@
 # The subject's C, ST and O are copied from the root certificate, as the root's policy_strict
 # requires; CN is SUBCA_CN.
 #
-# Renewal: run again with a new SUBCA_NAME (e.g. command-pro-ca-2036; the root's database refuses
+# Renewal: run again with a new SUBCA_NAME (e.g. app-cluster-ca-2029; the root's database refuses
 # a second certificate with the same subject), then point the Terraform unit at the new folder.
 
 set -uo pipefail
@@ -54,7 +54,7 @@ if [[ -z "${DOMAIN_NAME:-}" ]]; then
     exit 2
 fi
 
-SUBCA_NAME="${SUBCA_NAME:-command-pro-ca}"
+SUBCA_NAME="${SUBCA_NAME:-app-cluster-ca}"
 SUBCA_CN="${SUBCA_CN:-${SUBCA_NAME} cert-manager issuing CA}"
 SUBCA_DAYS="${SUBCA_DAYS:-3650}"
 PERMITTED_DNS="${PERMITTED_DNS:-${DOMAIN_NAME},cluster.local,svc}"

@@ -18,7 +18,7 @@ there. Set `DOMAIN_NAME` (e.g. `lab.local`) before running any of them.
 /srv/security/certificates/files/<DOMAIN_NAME>/
 ├── ca/                      root CA (key in private/, never leaves maestro)
 ├── <host>/                  one folder per host certificate
-└── command-pro-ca/          cert-manager sub-CA of the application cluster
+└── app-cluster-ca/          cert-manager sub-CA of the application cluster
 /srv/security/certificates/files/csr/   CSRs waiting to be signed
 ```
 
@@ -39,7 +39,7 @@ What the sub-CA may sign:
 DOMAIN_NAME=lab.local scripts/certificates/subCA/init-sub-ca.sh      # prompts for the root key's passphrase
 ```
 
-Settings: `SUBCA_NAME` (default `command-pro-ca`), `SUBCA_CN`, `SUBCA_DAYS` (default 3650,
+Settings: `SUBCA_NAME` (default `app-cluster-ca`), `SUBCA_CN`, `SUBCA_DAYS` (default 3650,
 10 years, capped at the root's expiry) and `PERMITTED_DNS`. The header of the script lists them
 all. The subject's C, ST and O are copied from the root, as the root's `policy_strict` requires.
 
@@ -51,7 +51,7 @@ all. The subject's C, ST and O are copied from the root, as the root's `policy_s
 - **Lifetimes:** pods' certificates are 7 years, set by each Certificate's `duration`. A
   certificate must not outlive the CA that signed it, so renew the sub-CA before its last 7
   years begin, that is within 3 years of issue.
-- **Renewal:** run the script again with a new `SUBCA_NAME` (e.g. `command-pro-ca-2029`), then
+- **Renewal:** run the script again with a new `SUBCA_NAME` (e.g. `app-cluster-ca-2029`), then
   point the Terraform unit at it. The root's database refuses a second certificate with the same
   subject, and `SUBCA_CN` defaults to one built from the name.
 
