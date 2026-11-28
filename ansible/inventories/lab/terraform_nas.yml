@@ -41,6 +41,6 @@
                 "mount": "/export/backups"
               "proxmox_node": "pve4"
               "proxmox_vm_id": 110
-    "nfs_servers":
+    "nas_servers":
       "hosts":
         "nas.lab.local": {}

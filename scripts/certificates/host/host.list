@@ -1,0 +1,42 @@
+# Format:
+# CN|FQDN|SAN_LIST|EXTENSIONS_LIST
+#
+# Field Definitions:
+# 1. CN: Common Name (used for folder naming and file outputs)
+# 2. FQDN: Fully Qualified Domain Name (primary Subject DN CN)
+# 3. SAN_LIST: Comma-separated list of DNS names (DNS:) or IP addresses (IP:)
+# 4. EXTENSIONS_LIST: Comma-separated OpenSSL ExtendedKeyUsage (e.g., serverAuth, clientAuth)
+#web-server-01|web01.example.com|DNS:web01.example.com,DNS:www.example.com,IP:192.168.10.50|serverAuth
+#app-node-02|app02.example.com|DNS:app02.example.com,DNS:app-internal.example.com,IP:10.0.0.12|serverAuth,clientAuth
+#db-cluster-01|db01.example.com|DNS:db01.example.com,IP:10.0.0.20,IP:10.0.0.21|serverAuth
+dc1|dc1.lab.local|DNS:dc1.lab.local,DNS:dc1,DNS:lab.local,IP:192.168.70.101|serverAuth
+dc2|dc2.lab.local|DNS:dc2.lab.local,DNS:dc2,DNS:lab.local,IP:192.168.70.102|serverAuth
+maestro|maestro.lab.local|DNS:maestro,DNS:maestro.lab.local,IP:192.168.70.100|serverAuth
+pve1|pve1.lab.local|DNS:pve1.lab.local,DNS:pve1,IP:192.168.70.11|serverAuth
+pve2|pve2.lab.local|DNS:pve2.lab.local,DNS:pve2,IP:192.168.70.12|serverAuth
+pve3|pve3.lab.local|DNS:pve3.lab.local,DNS:pve3,IP:192.168.70.13|serverAuth
+pve4|pve4.lab.local|DNS:pve4.lab.local,DNS:pve4,IP:192.168.70.14|serverAuth
+pve1m|pve1m.lab.local|DNS:pve1m.lab.local,DNS:pve1m,IP:192.168.70.21|serverAuth
+pve2m|pve2m.lab.local|DNS:pve2m.lab.local,DNS:pve2m,IP:192.168.70.22|serverAuth
+pve3m|pve3m.lab.local|DNS:pve3m.lab.local,DNS:pve3m,IP:192.168.70.23|serverAuth
+pve4m|pve4m.lab.local|DNS:pve4m.lab.local,DNS:pve4m,IP:192.168.70.24|serverAuth
+ws1|ws1.lab.local|DNS:ws1.lab.local,DNS:ws1|serverAuth,clientAuth
+ws2|ws2.lab.local|DNS:ws2.lab.local,DNS:ws2|serverAuth,clientAuth
+ws3|ws3.lab.local|DNS:ws3.lab.local,DNS:ws3|serverAuth,clientAuth
+ws4|ws4.lab.local|DNS:ws4.lab.local,DNS:ws4|serverAuth,clientAuth
+nas|nas.lab.local|DNS:nas.lab.local,DNS:nas,IP:192.168.70.70|serverAuth
+registry|registry.lab.local|DNS:registry.lab.local,DNS:registry,IP:192.168.70.71|serverAuth
+db|db.lab.local|DNS:db.lab.local,DNS:db,IP:192.168.70.72|serverAuth
+pss|pss.lab.local|DNS:pss.lab.local,DNS:pss,IP:192.168.70.73|serverAuth
+sentinel|sentinel.lab.local|DNS:sentinel.lab.local,DNS:sentinel,IP:192.168.70.74|serverAuth
+mgmt|mgmt.lab.local|DNS:mgmt.lab.local,DNS:mgmt,IP:192.168.70.75|serverAuth
+lb-rancher|lb-rancher.lab.local|DNS:lb-rancher.lab.local,DNS:lb-rancher,DNS:rancher,DNS:rancher.lab.local,IP:192.168.70.77,IP:192.168.70.80|serverAuth
+rancher|rancher.lab.local|DNS:rancher,DNS:rancher.lab.local,IP:192.168.70.80|serverAuth
+rancher01|rancher01.lab.local|DNS:rancher01.lab.local,DNS:rancher01,IP:192.168.70.81|serverAuth
+rancher02|rancher02.lab.local|DNS:rancher02.lab.local,DNS:rancher02,IP:192.168.70.82|serverAuth
+rancher03|rancher03.lab.local|DNS:rancher03.lab.local,DNS:rancher03,IP:192.168.70.83|serverAuth
+lb-app|lb-app.lab.local|DNS:lb-app.lab.local,DNS:lb-app,DNS:command-pro,DNS:command-pro.lab.local,IP:192.168.70.78,IP:192.168.70.90|serverAuth
+command-pro|command-pro.lab.local|DNS:command-pro,DNS:command-pro.lab.local,IP:192.168.70.90|serverAuth
+node01|node01.lab.local|DNS:node01.lab.local,DNS:node01,IP:192.168.70.91|serverAuth
+node02|node02.lab.local|DNS:node02.lab.local,DNS:node02,IP:192.168.70.92|serverAuth
+node03|node03.lab.local|DNS:node03.lab.local,DNS:node03,IP:192.168.70.93|serverAuth

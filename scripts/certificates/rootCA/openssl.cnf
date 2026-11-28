@@ -1,0 +1,115 @@
+####################################################################
+# OpenSSL Root CA Configuration File
+####################################################################
+
+[ ca ]
+default_ca = CA_default
+
+[ CA_default ]
+# Directory and file locations
+dir               = /srv/security/certificates/files/lab.local/ca
+certs             = $dir/certs
+new_certs_dir     = $dir/newcerts
+database          = $dir/index.txt
+serial            = $dir/serial
+RANDFILE          = $dir/private/.rand
+
+# The Root CA key and certificate files
+private_key       = $dir/private/ca.key.pem
+certificate       = $dir/ca.cert.pem
+
+# SHA-256 digest algorithm
+default_md        = sha256
+
+default_days      = 7390       # 20 years (20 * 365 days)
+preserve          = no
+policy            = policy_strict
+
+[ policy_strict ]
+# The Root CA requires explicit matching for top-level organizational attributes
+countryName             = match
+stateOrProvinceName     = match
+organizationName        = match
+organizationalUnitName  = optional
+commonName              = supplied
+emailAddress            = optional
+
+####################################################################
+# Request Defaults (for `openssl req`)
+####################################################################
+
+[ req ]
+default_bits        = 4096
+default_md          = sha256
+default_keyfile     = /srv/security/certificates/files/lab/ca/private/ca.key.pem
+distinguished_name  = req_distinguished_name
+string_mask         = utf8only
+x509_extensions     = v3_ca    # Applied when generating a self-signed Root certificate
+
+[ req_distinguished_name ]
+countryName                     = Country Name (2 letter code)
+countryName_default             = CA
+stateOrProvinceName             = Province Name
+stateOrProvinceName_default     = British Columbia
+localityName                    = Locality Name (city)
+localityName_default            = Richmond
+0.organizationName              = Organization Name
+0.organizationName_default      = Lab Org
+organizationalUnitName          = Laboratory
+commonName                      = Common Name
+commonName_default              = Lab Root CA
+
+####################################################################
+# X509v3 Extensions
+####################################################################
+
+# Extensions applied when creating the self-signed Root CA certificate
+[ v3_ca ]
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints       = critical, CA:true
+keyUsage               = critical, digitalSignature, cRLSign, keyCertSign
+
+# Extension profile for signing Intermediate CA CSRs
+[ v3_intermediate_ca ]
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always,issuer
+basicConstraints       = critical, CA:true, pathlen:0
+keyUsage               = critical, digitalSignature, cRLSign, keyCertSign
+
+# Extension profile for signing Server/Web SSL certificates
+[ server_cert ]
+basicConstraints       = CA:FALSE
+nsCertType             = server
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always,issuer
+keyUsage               = critical, digitalSignature, keyEncipherment
+extendedKeyUsage       = serverAuth
+
+# Extension profile for signing Client/Host certificates
+[ client_cert ]
+basicConstraints       = CA:FALSE
+nsCertType             = client
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always,issuer
+keyUsage               = critical, nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage       = clientAuth
+
+# Extension profile for signing both as a Server/Web SSL certificate and Client/Host certificate
+[ server_client_cert ]
+basicConstraints       = CA:FALSE
+nsCertType             = server
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always,issuer
+keyUsage               = critical, digitalSignature, keyEncipherment
+extendedKeyUsage       = serverAuth,clientAuth
+
+# Extension profile for signing Server/Web SSL certificates
+[ idrac_cert ]
+basicConstraints       = CA:FALSE
+nsCertType             = server
+subjectKeyIdentifier   = hash
+authorityKeyIdentifier = keyid:always,issuer
+keyUsage               = critical, digitalSignature, keyEncipherment, nonRepudiation
+extendedKeyUsage       = serverAuth
+
