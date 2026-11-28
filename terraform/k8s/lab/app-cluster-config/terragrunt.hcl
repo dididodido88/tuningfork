@@ -24,7 +24,7 @@ dependencies {
 inputs = {
   # --- Storage: csi-driver-nfs, classes on nas.lab.local:/export/pvcdata/<class> ---
   # The folders are made by the NAS (subdirs in ansible/inventories/lab/group_vars/nas_servers.yml).
-  csi_driver_nfs_chart_path = "/repo/helm/charts/csi-driver-nfs/csi-driver-nfs-v4.13.6.tgz" # REPLACE: the file name on the mirror
+  csi_driver_nfs_chart_path = "/repo/helm/charts/csi-driver-nfs/csi-driver-nfs-4.13.6.tgz"
   storage_classes = [
     { name = "m-shared-pv", share = "/export/pvcdata/m-shared-pv" },
     { name = "m-dedicated-pv", share = "/export/pvcdata/m-dedicated-pv", default = true },
