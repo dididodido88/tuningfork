@@ -1,0 +1,15 @@
+Using an environment variable:
+export CA_PASSPHRASE="YourSuperSecurePassphrase123!"
+sudo -E ./init-root-ca.sh
+
+or using a passphrase file:
+echo "YourSuperSecurePassphrase123!" > /tmp/ca_pass.txt
+chmod 600 /tmp/ca_pass.txt
+
+sudo CA_PASS_FILE=/tmp/ca_pass.txt ./init-root-ca.sh
+
+# Clean up passphrase file afterwards
+rm -f /tmp/ca_pass.txt
+
+
+
