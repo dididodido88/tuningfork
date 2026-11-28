@@ -1,7 +1,8 @@
 # lab: post-install configuration of the application cluster command-pro (step 6 of an environment
-# build, README.md): csi-driver-nfs with its storage classes on the NAS, cert-manager,
-# trust-manager and monitoring. Applied by hand, after the app nodes joined: the Ansible play
-# rke2_app.yml writes the kubeconfig this unit uses (~/.kube/lab-app-cluster.yaml). Rancher's API
+# build, README.md): csi-driver-nfs with its storage classes on the NAS, cert-manager with its
+# issuer, trust-manager with its bundle, and monitoring. Applied by hand, after the app nodes
+# joined: the Ansible play rke2_app.yml writes the kubeconfig this unit uses
+# (~/.kube/lab-app-cluster.yaml). The sub-CA must exist first (scripts/certificates). Rancher's API
 # token, the cluster's ID and the viewer group come from rancher-config's state (dependency below).
 # Type Grafana's admin password from the vault at the prompt:
 #   read -rsp "grafana_admin_password: " TF_VAR_grafana_admin_password; echo; export TF_VAR_grafana_admin_password
@@ -53,9 +54,15 @@ inputs = {
     { name = "m-dedicated-pv", share = "/export/pvcdata/m-dedicated-pv", default = true },
   ]
 
-  # --- cert-manager and trust-manager, installed only (no issuer or bundle yet) ---
+  # --- cert-manager and trust-manager ---
   cert_manager_chart_path  = "/repo/helm/charts/cert-manager/cert-manager-v1.21.3.tgz"
   trust_manager_chart_path = "/repo/helm/charts/trust-manager/trust-manager-v0.26.0.tgz"
+
+  # ClusterIssuer internal-ca, backed by the sub-CA made on maestro by
+  #   DOMAIN_NAME=lab.local scripts/certificates/subCA/init-sub-ca.sh
+  # (certificate_dir/app-cluster-ca/). trust-manager puts the root CA into every namespace as the
+  # ConfigMap internal-ca-bundle (key ca.crt). Pods' certificates: 7 years (certificate_duration).
+  issuer_ca_name = "app-cluster-ca"
 
   # --- Monitoring: the Rancher cluster's chart and images (mirror/<registry>/...) ---
   kube_prometheus_stack_chart_path = "/repo/helm/charts/kube-prometheus-stack/kube-prometheus-stack-93.9.0.tgz"
@@ -67,6 +74,10 @@ inputs = {
   #   nfs_server                    = "nas.lab.local"
   #   nfs_mount_options             = ["nfsvers=4.2"]
   #   trust_manager_default_package = false
+  #   cluster_issuer_name           = "internal-ca"
+  #   trust_bundle_name             = "internal-ca-bundle"
+  #   trust_bundle_key              = "ca.crt"
+  #   certificate_duration          = "61320h"
   #   monitoring_dashboards_chart_version = "110.0.1+up0.1.4"
   #   (each storage class: reclaim_policy "Delete", on_delete "delete", allow_volume_expansion false)
 }

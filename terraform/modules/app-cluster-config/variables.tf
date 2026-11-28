@@ -173,3 +173,40 @@ variable "kube_prometheus_stack_extra_values" {
   type        = any
   default     = {}
 }
+
+# --- Issuer and trust bundle (certificates.tf) ------------------------------------------------
+
+variable "issuer_ca_name" {
+  description = "Name of the cluster's sub-CA made by scripts/certificates/subCA/init-sub-ca.sh (its SUBCA_NAME): certificate_dir/<name>/<name>.fullchain.crt and <name>.key. null: no ClusterIssuer."
+  type        = string
+  default     = null
+}
+
+variable "cluster_issuer_name" {
+  description = "Name of the ClusterIssuer (type CA) backed by the sub-CA. Its secret is <name>-ca in the cert-manager namespace."
+  type        = string
+  default     = "internal-ca"
+}
+
+variable "trust_bundle_name" {
+  description = "Name of trust-manager's Bundle, and of the ConfigMap it writes into every namespace with the internal root CA. Its source ConfigMap is <name>-source in the cert-manager namespace."
+  type        = string
+  default     = "internal-ca-bundle"
+}
+
+variable "trust_bundle_key" {
+  description = "Key of the root CA in each namespace's trust ConfigMap."
+  type        = string
+  default     = "ca.crt"
+}
+
+variable "certificate_duration" {
+  description = "Lifetime of the certificates cert-manager issues to pods (decided by the user: 7 years). cert-manager has no cluster-wide default, so every Certificate sets spec.duration to this, and every Ingress the annotation cert-manager.io/duration (module README). Hours, as cert-manager writes durations."
+  type        = string
+  default     = "61320h"
+
+  validation {
+    condition     = can(regex("^[0-9]+h$", var.certificate_duration))
+    error_message = "certificate_duration is a number of hours, e.g. 61320h (7 years)."
+  }
+}

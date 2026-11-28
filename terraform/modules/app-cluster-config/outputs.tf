@@ -22,3 +22,18 @@ output "kube_prometheus_stack_version" {
   description = "Version of the deployed kube-prometheus-stack chart, or null when monitoring is off."
   value       = one(helm_release.kube_prometheus_stack[*].metadata.version)
 }
+
+output "cluster_issuer" {
+  description = "Name of the ClusterIssuer backed by the cluster's sub-CA, or null."
+  value       = one(kubernetes_manifest.cluster_issuer[*].manifest.metadata.name)
+}
+
+output "trust_bundle" {
+  description = "ConfigMap (name and key) holding the internal root CA in every namespace, or null."
+  value       = local.bundle_enabled ? { name = var.trust_bundle_name, key = var.trust_bundle_key } : null
+}
+
+output "certificate_duration" {
+  description = "Lifetime every Certificate on this cluster sets in spec.duration (and every Ingress in cert-manager.io/duration)."
+  value       = var.certificate_duration
+}
