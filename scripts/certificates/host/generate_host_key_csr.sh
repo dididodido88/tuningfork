@@ -43,8 +43,8 @@ VERBOSE="${VERBOSE:-0}"
 CSR_COUNTRY="${CSR_COUNTRY-CA}"                    # C  - 2-letter ISO country code
 CSR_STATE="${CSR_STATE-British Columbia}"          # ST - State or province
 CSR_LOCALITY="${CSR_LOCALITY-Richmond}"            # L  - City / locality
-CSR_ORG="${CSR_ORG-MDA Space}"                     # O  - Organization
-CSR_OU="${CSR_OU-CHORUS Lab}"                      # OU - Organizational unit
+CSR_ORG="${CSR_ORG-Lab Org}"                       # O  - Organization
+CSR_OU="${CSR_OU-Laboratory}"                      # OU - Organizational unit
 CSR_EMAIL="${CSR_EMAIL-}"                          # emailAddress (optional)
 # CN is taken from the FQDN field of each host.list entry.
 
