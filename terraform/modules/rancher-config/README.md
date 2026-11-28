@@ -195,7 +195,9 @@ control node (`kubeconfig_path`, default `~/.kube/<env_name>-rancher-cluster.yam
 ## Outputs
 
 `url`, `admin_group` and `viewer_group` (the AD principals), `test_user`, `cluster_viewer_role_id`,
-`kube_prometheus_stack_version`, `app_cluster_id`, and `app_cluster_registration_command` (sensitive).
+`kube_prometheus_stack_version`, `app_cluster_id`, `app_cluster_registration_command` (sensitive) and
+`api_token` (sensitive: the admin token `rancher2_bootstrap` created, which
+[app-cluster-config](../app-cluster-config/README.md) reads from this state through Terragrunt).
 
 ## Security
 

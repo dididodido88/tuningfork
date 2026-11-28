@@ -6,7 +6,16 @@ build ([README.md](../../../README.md), "Building a new environment, in order").
 
 It reaches the cluster directly, through the RKE2 admin kubeconfig the Ansible play `rke2_app.yml`
 copies to the control node (`~/.kube/<ENV>-app-cluster.yaml`, server `https://<app cluster
-name>:6443` through lb-app), so it doesn't depend on Rancher. It holds no secrets.
+name>:6443` through lb-app). Only the monitoring dashboards and their access go through Rancher's
+API (the rancher2 provider), so Rancher must be up to plan or apply this unit.
+
+**Inputs from rancher-config.** The lab unit reads four outputs of `terraform/k8s/<ENV>/rancher-config`
+through a Terragrunt `dependency`: `url`, `api_token` (the admin token `rancher2_bootstrap` created,
+sensitive), `app_cluster_id` (`c-m-…`) and `viewer_group`. Nothing is typed or copied for them; they
+stay in the two units' local state, which must be as protected as the vault.
+
+**Secret typed at the prompt:** `TF_VAR_grafana_admin_password` (lab:
+`vault_rancher_grafana_admin_password`, the same Grafana admin as the Rancher cluster's).
 
 ## What it creates
 
@@ -16,6 +25,10 @@ name>:6443` through lb-app), so it doesn't depend on Rancher. It holds no secret
 | `kubernetes_storage_class_v1.nfs` | One storage class per entry of `storage_classes`, on `nfs_server` |
 | `helm_release.cert_manager` | cert-manager in `cert-manager`, with its CRDs. No issuer yet |
 | `helm_release.trust_manager` | trust-manager in `cert-manager`, with its CRDs. No bundle yet; its default package (public CAs) is off |
+| `helm_release.kube_prometheus_stack` | kube-prometheus-stack in `cattle-monitoring-system`, as on the Rancher cluster: same chart, values and images, no persistence |
+| `rancher2_app_v2.monitoring_dashboards` | `rancher-monitoring-dashboards` from Rancher's catalog, installed through Rancher on this cluster |
+| `kubernetes_annotations.monitoring_namespace_project` | Puts `cattle-monitoring-system` in this cluster's System project |
+| `rancher2_project_role_template_binding.viewers_monitoring` | View Monitoring for the viewer group in that project, so read-only users see the dashboards |
 
 Each part is left out while its chart path is null.
 
@@ -54,6 +67,21 @@ csi-driver-nfs takes them through `image.baseRepo` and `image.nfs.repository`; t
 through `imageRegistry` and `imageNamespace`. The tags stay the charts' own, so an upgrade only
 needs the new chart on the mirror, its images in Harbor and the new chart path.
 
+## Monitoring
+
+The same two charts as on the Rancher cluster
+([rancher-config](../rancher-config/README.md)): kube-prometheus-stack from the mirror, released as
+`kube-prometheus-stack` in `cattle-monitoring-system` (the names the dashboards chart expects), and
+`rancher-monitoring-dashboards` from Rancher's built-in catalog. Keep the values of the two modules in
+step. The images are the Rancher cluster's, already in Harbor's `mirror` project; the dashboards
+chart's own images come from Harbor's `rancher` project.
+
+On a downstream cluster the dashboards chart's Grafana proxy serves Grafana under
+`/k8s/clusters/<clusterId>/…` (its `monitoring-proxy-configmap.yaml`), so the module sets
+`global.cattle.clusterId` to the cluster's ID. Monitoring is left out while
+`kube_prometheus_stack_chart_path` is null.
+
 ## Outputs
 
-`storage_classes` (name → share), `default_storage_class`, `chart_versions`.
+`storage_classes` (name → share), `default_storage_class`, `chart_versions`,
+`kube_prometheus_stack_version`.

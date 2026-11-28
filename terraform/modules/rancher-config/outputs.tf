@@ -39,3 +39,9 @@ output "app_cluster_registration_command" {
   value       = var.app_cluster_enabled ? "${rancher2_cluster_v2.app[0].cluster_registration_token[0].node_command} --etcd --controlplane --worker" : null
   sensitive   = true
 }
+
+output "api_token" {
+  description = "The admin API token rancher2_bootstrap created. terraform/k8s/<ENV>/app-cluster-config reads it from this state through Terragrunt, for the monitoring dashboards on the application cluster."
+  value       = rancher2_bootstrap.admin.token
+  sensitive   = true
+}

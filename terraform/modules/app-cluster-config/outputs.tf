@@ -17,3 +17,8 @@ output "chart_versions" {
     trust_manager  = one(helm_release.trust_manager[*].metadata.version)
   }
 }
+
+output "kube_prometheus_stack_version" {
+  description = "Version of the deployed kube-prometheus-stack chart, or null when monitoring is off."
+  value       = one(helm_release.kube_prometheus_stack[*].metadata.version)
+}

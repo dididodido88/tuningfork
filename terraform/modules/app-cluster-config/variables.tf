@@ -108,3 +108,68 @@ variable "helm_timeout" {
   type        = number
   default     = 600
 }
+
+# --- Rancher (monitoring dashboards and access), from terraform/k8s/<ENV>/rancher-config ------
+
+variable "certificate_dir" {
+  description = "This environment's folder in the certificate tree on the control node, e.g. /srv/security/certificates/files/lab.local. Read: ca/ca.cert.pem, the internal root CA, which Rancher's certificate chains to."
+  type        = string
+}
+
+variable "rancher_url" {
+  description = "Rancher Server address (rancher-config output url)."
+  type        = string
+}
+
+variable "rancher_api_token" {
+  description = "Rancher admin API token (rancher-config output api_token), read by Terragrunt from that unit's state."
+  type        = string
+  sensitive   = true
+}
+
+variable "app_cluster_id" {
+  description = "Rancher's ID of this cluster, c-m-... (rancher-config output app_cluster_id)."
+  type        = string
+}
+
+variable "viewer_group_principal" {
+  description = "Principal of the AD group that may view every cluster (rancher-config output viewer_group). It gets View Monitoring in this cluster's System project."
+  type        = string
+}
+
+# --- Monitoring: kube-prometheus-stack and rancher-monitoring-dashboards --------------------
+
+variable "kube_prometheus_stack_chart_path" {
+  description = "Path of the kube-prometheus-stack chart on the control node, e.g. /repo/helm/charts/kube-prometheus-stack/kube-prometheus-stack-93.9.0.tgz (the same chart as the Rancher cluster). null leaves monitoring out."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.kube_prometheus_stack_chart_path == null || fileexists(pathexpand(coalesce(var.kube_prometheus_stack_chart_path, "/nonexistent")))
+    error_message = "kube_prometheus_stack_chart_path doesn't point at a file. Put the chart on the mirror first."
+  }
+}
+
+variable "monitoring_dashboards_chart_version" {
+  description = "Version of rancher-monitoring-dashboards in Rancher's built-in catalog (rancher-charts). 110.x is the line for Rancher 2.15."
+  type        = string
+  default     = "110.0.1+up0.1.4"
+}
+
+variable "grafana_admin_password" {
+  description = "Password of this cluster's Grafana admin user. The chart's own default is public, so it is always replaced. Export it as TF_VAR_grafana_admin_password."
+  type        = string
+  sensitive   = true
+  default     = null
+
+  validation {
+    condition     = var.grafana_admin_password == null || try(length(var.grafana_admin_password) >= 12, false)
+    error_message = "Set TF_VAR_grafana_admin_password to at least 12 characters."
+  }
+}
+
+variable "kube_prometheus_stack_extra_values" {
+  description = "More kube-prometheus-stack values, merged over the module's by Helm (deep merge)."
+  type        = any
+  default     = {}
+}
