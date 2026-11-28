@@ -28,3 +28,8 @@ terraform/providers/*
 # Python bytecode (Ansible filter plugins compile here when run)
 __pycache__/
 *.pyc
+
+# Certificate scripts: a passphrase file next to them holds a CA secret, never commit one.
+# (rootCA/passphrase.txt is notes only and stays tracked.)
+scripts/certificates/**/passphrase*
+!scripts/certificates/rootCA/passphrase.txt
