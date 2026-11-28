@@ -16,8 +16,9 @@ env_banner_text: >-
 # Base URL of the internal mirror (air-gapped). The single source for every download:
 #   <env_repo_base_url>/rocky/repo/9/...              RPM repositories + GPG keys (roles/repositories)
 #   <env_repo_base_url>/harbor/<version>/             Harbor offline installer (roles/harbor)
-#   <env_repo_base_url>/kubernetes/<version>/         kubectl (roles/kubectl)
-#   <env_repo_base_url>/kubernetes/tools/...          helm, k9s, kubectx/kubens (roles/k8s_bastion)
+#   <env_repo_base_url>/kubernetes/kubectl/<version>/ kubectl (roles/kubectl)
+#   <env_repo_base_url>/kubernetes/<tool>/<version>/  k9s, kubectx, kubens (roles/k8s_bastion)
+#   <env_repo_base_url>/helm/<version>/               helm client (roles/k8s_bastion; charts in helm/charts/)
 #   <env_repo_base_url>/rancher/rke2/<version>/       RKE2 install.sh, tarball, checksums, SELinux RPM (roles/rke2_server)
 #   <env_repo_base_url>/rancher/<version>/            Rancher chart (copied to the control node for terraform/k8s)
 #   <env_repo_base_url>/{wazuh,prometheus,grafana,mibs,clamav}/  SIEM stack artifacts (group_vars/all/siem_versions.yml)
@@ -30,9 +31,13 @@ env_repo_base_url: https://maestro
 certificates_env_dir: lab.local
 
 # kubectl version for every host in kubectl_hosts (roles/kubectl). Keep it within one minor
-# version of the clusters. Served from <env_repo_base_url>/kubernetes/<kubectl_version>/ (kubectl,
-# kubectl-convert and their .sha256 files).
+# version of the clusters. Served from <env_repo_base_url>/kubernetes/kubectl/<kubectl_version>/
+# (kubectl, kubectl-convert and their .sha256 files). kubectl_checksums pins their hashes, so
+# change both together.
 kubectl_version: v1.36.5
+kubectl_checksums:
+  kubectl: "sha256:33bc88a24c3b09cf55bfd59e6ca977881b61fc3f25ab65bc80c65b430248648e"
+  kubectl-convert: "sha256:b0a3635d5e3dee8f3dcc175fae6824434943dbbeb6ef1bb1384ef11a7223a01a"
 
 # Rancher Server: the one name for its web UI (80/443), the Kubernetes API of the Rancher
 # cluster (6443) and RKE2 registration (9345). DNS A record to the virtual IP of lb-rancher

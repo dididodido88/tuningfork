@@ -7,29 +7,31 @@
 sssd_ad_extra_ssh_groups:
   - sg-lab-k8s-users
 
-# Tools from {{ env_repo_base_url }}/kubernetes/tools/<name>/<version>/<archive>.
-# checksum: sha256 from the upstream checksum file (CHANGEME before the first run).
+# Tools from {{ env_repo_base_url }}/kubernetes/<name>/<version>/<archive>, or from
+# <mirror_dir>/<archive> when an entry sets mirror_dir (helm lives under /repo/helm/<version>/).
+# checksum: sha256 of the archive, from the upstream checksum file next to it on the mirror.
 k8s_bastion_tools:
   - name: helm
-    version: v3.16.4
-    archive: helm-v3.16.4-linux-amd64.tar.gz
+    version: v4.3.1
+    mirror_dir: "{{ env_repo_base_url }}/helm/v4.3.1"
+    archive: helm-v4.3.1-linux-amd64.tar.gz
     member: linux-amd64/helm
-    checksum: ""
+    checksum: "sha256:0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b"
   - name: k9s
-    version: v0.32.7
+    version: v0.51.0
     archive: k9s_Linux_amd64.tar.gz
     member: k9s
-    checksum: ""
+    checksum: "sha256:c3752ad51a5a4015a113819c4eeb6e55a4d0e4b8e652494797532f6fc8161dd7"
   - name: kubectx
-    version: v0.9.5
-    archive: kubectx_v0.9.5_linux_x86_64.tar.gz
+    version: v0.11.0
+    archive: kubectx_v0.11.0_linux_x86_64.tar.gz
     member: kubectx
-    checksum: ""
+    checksum: "sha256:08e031c54fbffb3f100e904e4eae94bba2730fedf4869921fda79e4d7a8f5d4c"
   - name: kubens
-    version: v0.9.5
-    archive: kubens_v0.9.5_linux_x86_64.tar.gz
+    version: v0.11.0
+    archive: kubens_v0.11.0_linux_x86_64.tar.gz
     member: kubens
-    checksum: ""
+    checksum: "sha256:326c021c7b35468ed9a187b361198d0f22ae32828139c65eb6670c0d8301cc09"
 
 # Shared cluster definitions (cluster + context, no credentials) for every bastion user.
 # k8s_bastion_clusters:

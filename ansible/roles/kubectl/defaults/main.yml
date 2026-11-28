@@ -9,13 +9,13 @@
 
 kubectl_version: ""
 
-# Mirror layout, built from the version (same file names as dl.k8s.io):
-#   <env_repo_base_url>/kubernetes/v1.36.5/kubectl
-#   <env_repo_base_url>/kubernetes/v1.36.5/kubectl.sha256
-#   <env_repo_base_url>/kubernetes/v1.36.5/kubectl-convert
-#   <env_repo_base_url>/kubernetes/v1.36.5/kubectl-convert.sha256
+# Mirror layout, built from the version (same file names as dl.k8s.io), one folder per version:
+#   <env_repo_base_url>/kubernetes/kubectl/v1.36.5/kubectl
+#   <env_repo_base_url>/kubernetes/kubectl/v1.36.5/kubectl.sha256
+#   <env_repo_base_url>/kubernetes/kubectl/v1.36.5/kubectl-convert
+#   <env_repo_base_url>/kubernetes/kubectl/v1.36.5/kubectl-convert.sha256
 #   <kubectl_mirror_url>/<kubectl_version>/<binary>
-kubectl_mirror_url: "{{ env_repo_base_url | default('') }}/kubernetes"
+kubectl_mirror_url: "{{ env_repo_base_url | default('') }}/kubernetes/kubectl"
 kubectl_version_url: "{{ kubectl_mirror_url }}/{{ kubectl_version }}"
 
 # Binaries installed from that directory. Each is checked against <binary>.sha256 next to it,

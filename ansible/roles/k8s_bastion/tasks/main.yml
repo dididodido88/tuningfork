@@ -35,7 +35,7 @@
 
 - name: Bastion | Download the tools from the mirror
   ansible.builtin.get_url:
-    url: "{{ k8s_bastion_tools_mirror_url }}/{{ item.name }}/{{ item.version }}/{{ item.archive }}"
+    url: "{{ item.mirror_dir | default(k8s_bastion_tools_mirror_url ~ '/' ~ item.name ~ '/' ~ item.version) }}/{{ item.archive }}"
     dest: "{{ k8s_bastion_tools_dir }}/{{ item.name }}/{{ item.version }}/{{ item.archive }}"
     checksum: "{{ item.checksum }}"
     owner: root

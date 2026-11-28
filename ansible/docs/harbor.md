@@ -31,7 +31,7 @@ https://maestro/harbor/
     ├── harbor-offline-installer-v2.15.5.tgz          required (~700 MB, contains every Harbor image)
     ├── harbor-offline-installer-v2.15.5.tgz.sha256   recorded checksum (you create it)
     └── *.sigstore.json / *.asc                       signature material, kept for audit
-https://maestro/kubernetes/tools/helm/<version>/      helm client (docs/kubernetes-clients.md)
+https://maestro/helm/<version>/                      helm client (docs/kubernetes-clients.md)
 https://maestro/rocky/repo/9/docker-ce-stable/       already mirrored (roles/repositories)
 ```
 
@@ -46,7 +46,7 @@ HTTPS: run `playbooks/certificates.yml` first so hosts trust the internal CA). T
 | `harbor-offline-installer-vX.Y.Z.tgz` | https://github.com/goharbor/harbor/releases (assets of the release) | Harbor itself (all images included) |
 | Signature for it: `….tgz.sigstore.json` (Cosign bundle, v2.15+) or `….tgz.asc` (GPG, older releases) | same release page | Proving the download is genuine |
 | Docker CE packages `docker-ce`, `docker-ce-cli`, `containerd.io`, `docker-compose-plugin` (+ `docker-buildx-plugin`, `docker-ce-rootless-extras` as pulled by dnf) | https://download.docker.com/linux/rhel/9/x86_64/stable/ (synced into the existing `docker-ce-stable` mirror) | Running Harbor. `container-selinux` comes from Rocky AppStream |
-| Helm client (optional here) | see [kubernetes-clients.md](kubernetes-clients.md): mirrored under `maestro/kubernetes/tools/helm/` and installed on the Kubernetes bastion | Pushing charts |
+| Helm client (optional here) | see [kubernetes-clients.md](kubernetes-clients.md): mirrored under `maestro/helm/<version>/` and installed on the Kubernetes bastion | Pushing charts |
 
 Pick the newest **patch** release of a Harbor minor version that you can support, e.g. the latest v2.15.x, and set
 `harbor_version` to it. Read the release notes for upgrade steps (section 6).

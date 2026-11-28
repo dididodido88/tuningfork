@@ -199,10 +199,10 @@ Trivy: [docs/harbor.md](docs/harbor.md).
 ## Kubernetes clients (`kubectl`, `k8s_bastion`)
 
 - `playbooks/kubectl.yml` installs a pinned `kubectl` and `kubectl-convert` (`kubectl_version` in `group_vars/all/main.yml`) from
-  `<env_repo_base_url>/kubernetes/<version>/` on every host in `kubectl_hosts`. Each version gets its own directory,
+  `<env_repo_base_url>/kubernetes/kubectl/<version>/` on every host in `kubectl_hosts`. Each version gets its own directory,
   and a symlink in `/usr/local/bin` points at the active one.
 - `playbooks/k8s_bastion.yml` builds the Kubernetes bastion (`k8s_bastions`, lab: `mgmt.lab.local`):
-  - kubectl, plus helm, k9s and kubectx/kubens from `<mirror>/kubernetes/tools/`
+  - kubectl, plus helm (from `<mirror>/helm/<version>/`), k9s and kubectx/kubens (from `<mirror>/kubernetes/<tool>/<version>/`)
   - shared cluster contexts without credentials (`k8s_bastion_clusters`)
   - a `KUBECONFIG` set up at login
   - AD logins for the bastion group (`sssd_ad_extra_ssh_groups`, lab: `sg-lab-k8s-users`)

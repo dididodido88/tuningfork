@@ -17,18 +17,20 @@ Both run in `site.yml` after the server roles.
 
 ```
 https://maestro/kubernetes/
-├── v1.34.12/                                  one directory per kubectl version; each environment
-│   ├── kubectl                                selects one with kubectl_version
-│   ├── kubectl.sha256                         checked by the playbook unless kubectl_checksums pins it
-│   ├── kubectl-convert
-│   └── kubectl-convert.sha256
-├── v1.35.9/   (same four files)
-├── v1.36.5/   (same four files)
-└── tools/
-    ├── helm/v3.16.4/helm-v3.16.4-linux-amd64.tar.gz
-    ├── k9s/v0.32.7/k9s_Linux_amd64.tar.gz
-    ├── kubectx/v0.9.5/kubectx_v0.9.5_linux_x86_64.tar.gz
-    └── kubens/v0.9.5/kubens_v0.9.5_linux_x86_64.tar.gz
+├── kubectl/
+│   ├── v1.34.12/                              one directory per kubectl version; each environment
+│   │   ├── kubectl                            selects one with kubectl_version
+│   │   ├── kubectl.sha256                     pinned in kubectl_checksums (the playbook falls back
+│   │   ├── kubectl-convert                    to these files when no hash is pinned)
+│   │   └── kubectl-convert.sha256
+│   ├── v1.35.9/   (same four files)
+│   └── v1.36.5/   (same four files)
+├── k9s/v0.51.0/k9s_Linux_amd64.tar.gz         + checksums.sha256
+├── kubectx/v0.11.0/kubectx_v0.11.0_linux_x86_64.tar.gz   + checksums.txt
+└── kubens/v0.11.0/kubens_v0.11.0_linux_x86_64.tar.gz     + checksums.txt
+https://maestro/helm/
+└── v4.3.1/helm-v4.3.1-linux-amd64.tar.gz      + .sha256sum (next to the charts in helm/charts/;
+                                               the bastion entry sets mirror_dir for it)
 ```
 
 `https://maestro` is `env_repo_base_url` in `inventories/<ENV>/group_vars/all/main.yml`. Keep the checksum and
@@ -51,51 +53,55 @@ kubectl version. Each environment chooses one with `kubectl_version`.
 
 ```sh
 set -euo pipefail
-K=v1.36.5; HELM=v3.16.4; K9S=v0.32.7; KCTX=v0.9.5
-mkdir -p kubernetes/$K kubernetes/tools/{helm/$HELM,k9s/$K9S,kubectx/$KCTX,kubens/$KCTX}
-cd kubernetes
+K=v1.36.5; HELM=v4.3.1; K9S=v0.51.0; KCTX=v0.11.0
+mkdir -p helm/$HELM kubernetes/{kubectl/$K,k9s/$K9S,kubectx/$KCTX,kubens/$KCTX}
 
-# kubectl and kubectl-convert (repeat with K=<other version> for each version you mirror)
-for b in kubectl kubectl-convert; do
-  curl -fLo $K/$b        https://dl.k8s.io/release/$K/bin/linux/amd64/$b
-  curl -fLo $K/$b.sha256 https://dl.k8s.io/release/$K/bin/linux/amd64/$b.sha256
-  echo "$(cat $K/$b.sha256)  $K/$b" | sha256sum -c
-done
-
-# helm
-( cd tools/helm/$HELM
+# helm (served from https://maestro/helm/<version>/)
+( cd helm/$HELM
   curl -fLO https://get.helm.sh/helm-$HELM-linux-amd64.tar.gz
   curl -fLO https://get.helm.sh/helm-$HELM-linux-amd64.tar.gz.sha256sum
   sha256sum -c helm-$HELM-linux-amd64.tar.gz.sha256sum )
 
+cd kubernetes
+
+# kubectl and kubectl-convert (repeat with K=<other version> for each version you mirror)
+for b in kubectl kubectl-convert; do
+  curl -fLo kubectl/$K/$b        https://dl.k8s.io/release/$K/bin/linux/amd64/$b
+  curl -fLo kubectl/$K/$b.sha256 https://dl.k8s.io/release/$K/bin/linux/amd64/$b.sha256
+  echo "$(cat kubectl/$K/$b.sha256)  kubectl/$K/$b" | sha256sum -c
+done
+
 # k9s (check the checksum file name on the release page)
-( cd tools/k9s/$K9S
+( cd k9s/$K9S
   curl -fLO https://github.com/derailed/k9s/releases/download/$K9S/k9s_Linux_amd64.tar.gz
   curl -fLO https://github.com/derailed/k9s/releases/download/$K9S/checksums.sha256
   grep ' k9s_Linux_amd64.tar.gz$' checksums.sha256 | sha256sum -c )
 
 # kubectx / kubens
 for t in kubectx kubens; do
-  ( cd tools/$t/$KCTX
+  ( cd $t/$KCTX
     curl -fLO https://github.com/ahmetb/kubectx/releases/download/$KCTX/${t}_${KCTX}_linux_x86_64.tar.gz
     curl -fLO https://github.com/ahmetb/kubectx/releases/download/$KCTX/checksums.txt
     grep " ${t}_${KCTX}_linux_x86_64.tar.gz\$" checksums.txt | sha256sum -c )
 done
 
 # Hashes to put into the inventory
-find . -name '*.tar.gz' -exec sha256sum {} \;
+cd .. && find helm kubernetes -name '*.tar.gz' -exec sha256sum {} \; && cat kubernetes/kubectl/*/*.sha256
 ```
 
-Copy the `kubernetes/` directory to the mirror so that it is served as `https://maestro/kubernetes/`.
+Copy the `kubernetes/` and `helm/` directories to the mirror so that they are served as `https://maestro/kubernetes/`
+and `https://maestro/helm/`.
 
 ### Set versions and checksums
 
-- `inventories/<ENV>/group_vars/all/main.yml`: `kubectl_version: v1.36.5`. The playbook downloads
-  `<env_repo_base_url>/kubernetes/<kubectl_version>/kubectl` and `kubectl-convert`, and verifies each against its
-  `.sha256` file on the mirror. To pin the hashes you recorded on the internet side instead, also set
-  `kubectl_checksums: {kubectl: "sha256:<hash>", kubectl-convert: "sha256:<hash>"}`.
+- `inventories/<ENV>/group_vars/all/main.yml`: `kubectl_version: v1.36.5` and `kubectl_checksums: {kubectl:
+  "sha256:<hash>", kubectl-convert: "sha256:<hash>"}` (the contents of the two `.sha256` files). The playbook
+  downloads `<env_repo_base_url>/kubernetes/kubectl/<kubectl_version>/kubectl` and `kubectl-convert` and checks each
+  against its pinned hash. Change the version and the hashes together. Without `kubectl_checksums`, it checks the
+  `.sha256` files on the mirror instead.
 - `inventories/<ENV>/group_vars/k8s_bastions.yml`: for each entry in `k8s_bastion_tools`, set `version`, `archive` and
-  `checksum: "sha256:<hash>"`. The playbook stops if a checksum is missing.
+  `checksum: "sha256:<hash>"`. The playbook stops if a checksum is missing. A tool stored outside
+  `kubernetes/<name>/<version>/` (helm, in `helm/<version>/`) also sets `mirror_dir`, the URL of its folder.
 
 **Changing versions:** mirror the new files, change the version (and checksum), and rerun. Each version is kept in
 its own directory (`/usr/local/lib/kubectl/<version>/`, `/usr/local/lib/k8s-tools/<tool>/<version>/`), and the link

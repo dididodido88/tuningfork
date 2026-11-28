@@ -47,7 +47,8 @@ Fields of one `k8s_bastion_tools` entry:
 | Field | Description |
 |---|---|
 | `name` | Command name. The binary is linked as `/usr/local/bin/<name>`. |
-| `version` | Version directory on the mirror and on the host, e.g. `v3.16.4`. |
+| `version` | Version directory on the mirror and on the host, e.g. `v0.51.0`. |
+| `mirror_dir` | Optional. Full URL of the mirror folder holding the archive, for a tool stored outside `<k8s_bastion_tools_mirror_url>/<name>/<version>/`. helm uses `<env_repo_base_url>/helm/<version>`. |
 | `archive` | Archive file name on the mirror. |
 | `member` | Path of the binary inside the archive, e.g. `linux-amd64/helm`. |
 | `checksum` | `sha256:<hash>` from the upstream checksum file. |
@@ -56,7 +57,7 @@ Optional:
 
 | Variable | Default | Description |
 |---|---|---|
-| `k8s_bastion_tools_mirror_url` | `<env_repo_base_url>/kubernetes/tools` | Archives are at `<this>/<name>/<version>/<archive>`. |
+| `k8s_bastion_tools_mirror_url` | `<env_repo_base_url>/kubernetes` | Archives are at `<this>/<name>/<version>/<archive>`, unless the entry sets `mirror_dir`. |
 | `k8s_bastion_tools_dir` | `/usr/local/lib/k8s-tools` | Where the tools are unpacked. |
 | `k8s_bastion_completion_tools` | `[helm, k9s]` | Tools that print a completion script with `<name> completion bash`. |
 | `k8s_bastion_packages` | `[bash-completion, git, vim-enhanced, tmux]` | OS packages for interactive work. |
@@ -77,9 +78,15 @@ sssd_ad_extra_ssh_groups: [sg-lab-k8s-users]
 
 k8s_bastion_tools:
   - name: helm
-    version: v3.16.4
-    archive: helm-v3.16.4-linux-amd64.tar.gz
+    version: v4.3.1
+    mirror_dir: "{{ env_repo_base_url }}/helm/v4.3.1"
+    archive: helm-v4.3.1-linux-amd64.tar.gz
     member: linux-amd64/helm
+    checksum: "sha256:<hash>"
+  - name: k9s
+    version: v0.51.0
+    archive: k9s_Linux_amd64.tar.gz
+    member: k9s
     checksum: "sha256:<hash>"
 
 k8s_bastion_clusters:

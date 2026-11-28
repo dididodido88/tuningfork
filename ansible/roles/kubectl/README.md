@@ -24,10 +24,10 @@ version is kept in its own directory, and a symlink in `/usr/local/bin` points a
 Mirror layout, with the same file names as `dl.k8s.io`:
 
 ```
-<env_repo_base_url>/kubernetes/<kubectl_version>/kubectl
-<env_repo_base_url>/kubernetes/<kubectl_version>/kubectl.sha256
-<env_repo_base_url>/kubernetes/<kubectl_version>/kubectl-convert
-<env_repo_base_url>/kubernetes/<kubectl_version>/kubectl-convert.sha256
+<env_repo_base_url>/kubernetes/kubectl/<kubectl_version>/kubectl
+<env_repo_base_url>/kubernetes/kubectl/<kubectl_version>/kubectl.sha256
+<env_repo_base_url>/kubernetes/kubectl/<kubectl_version>/kubectl-convert
+<env_repo_base_url>/kubernetes/kubectl/<kubectl_version>/kubectl-convert.sha256
 ```
 
 ## Variables
@@ -43,7 +43,7 @@ Optional:
 
 | Variable | Default | Description |
 |---|---|---|
-| `kubectl_mirror_url` | `<env_repo_base_url>/kubernetes` | Where the versions are on the mirror. |
+| `kubectl_mirror_url` | `<env_repo_base_url>/kubernetes/kubectl` | Where the versions are on the mirror. |
 | `kubectl_version_url` | `<kubectl_mirror_url>/<kubectl_version>` | Directory the binaries are downloaded from. |
 | `kubectl_binaries` | `[kubectl, kubectl-convert]` | Binaries to install. Must include `kubectl`. |
 | `kubectl_checksums` | `{}` | Pinned hashes per binary (`sha256:<hash>`), used instead of the `.sha256` file on the mirror. |
